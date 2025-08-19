@@ -36,30 +36,24 @@ class EmailCollectorService(EmailCollectorInterface):
         
         self.visited_domains = self.json_repo.load_visited_domains()
         self.seen_emails = self.json_repo.load_seen_emails()
-        self.processed_terms = self._load_processed_terms()
+        self.headless_mode = self._get_execution_mode()
         self.top_results_total = self._get_results_limit()
     
-    def _load_processed_terms(self) -> set:
-        """Carrega termos já processados"""
-        terms_file = os.path.join(BASE_DIR, "processed_terms.json")
-        if os.path.exists(terms_file):
-            try:
-                import json
-                with open(terms_file, "r", encoding="utf-8") as f:
-                    return set(json.load(f))
-            except:
-                return set()
-        return set()
+
     
-    def _save_processed_terms(self):
-        """Salva termos processados"""
-        terms_file = os.path.join(BASE_DIR, "processed_terms.json")
-        try:
-            import json
-            with open(terms_file, "w", encoding="utf-8") as f:
-                json.dump(list(self.processed_terms), f, ensure_ascii=False, indent=2)
-        except:
-            pass
+    def _get_execution_mode(self) -> bool:
+        """Obtém do usuário o modo de execução"""
+        while True:
+            try:
+                mode = input("\n🕰️ Executar em segundo plano? (s/n - padrão: n): ").lower().strip()
+                if not mode or mode == 'n':
+                    return False  # Visível
+                elif mode == 's':
+                    return True   # Headless
+                else:
+                    print("[ERRO] Digite 's' para segundo plano ou 'n' para visível")
+            except:
+                print("[ERRO] Entrada inválida")
     
     def _get_results_limit(self) -> int:
         """Obtém do usuário o limite de resultados por termo"""
@@ -142,7 +136,7 @@ class EmailCollectorService(EmailCollectorInterface):
                 print("[ERRO] ChromeDriver não disponível")
                 return False
             
-            if not self.driver_manager.start_driver():
+            if not self.driver_manager.start_driver(self.headless_mode):
                 print("[ERRO] Falha ao iniciar driver")
                 return False
             
@@ -165,11 +159,6 @@ class EmailCollectorService(EmailCollectorInterface):
             while not self.working_hours.is_working_time():
                 print(f"[PAUSA] Fora do horário ({START_HOUR}:00–{END_HOUR}:00). Recheco em {TIME_BETWEEN_OUT_OF_HOURS}s.")
                 time.sleep(TIME_BETWEEN_OUT_OF_HOURS)
-            
-            # Verificação inteligente: pula se já foi processado
-            if term.query in self.processed_terms:
-                print(f"\n[PULAR {i}/{len(terms)}] {term.query} | já processado anteriormente")
-                continue
             
             print(f"\n[TERMO {i}/{len(terms)}] {term.query} | limite: {self.top_results_total} resultados")
             
@@ -234,10 +223,6 @@ class EmailCollectorService(EmailCollectorInterface):
                     time.sleep(random.uniform(1.0, 1.6))
                 except:
                     pass
-            
-            # Marca termo como processado
-            self.processed_terms.add(term.query)
-            self._save_processed_terms()
             
             print(f"  => Termo concluído. Novas empresas: {term_saved}")
         
