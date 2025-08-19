@@ -1,0 +1,1 @@
+# Camada de infraestrutura - acesso a dados e serviços externos
