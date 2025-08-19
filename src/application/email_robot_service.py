@@ -140,10 +140,29 @@ class EmailCollectorService(EmailCollectorInterface):
                 print("[ERRO] Falha ao iniciar driver")
                 return False
             
-            # Constrói termos de busca para elevadores
-            terms = self.term_builder.build_elevator_terms(
-                BASE_ELEVADORES, ZONAS_SP, BAIRROS_SP, CIDADES_INTERIOR
-            )
+            # Lista única de termos de busca usando constantes
+            search_terms = []
+            
+            # Capital
+            # for base in BASE_ELEVADORES:
+            #     search_terms.append(f"{base} São Paulo capital")
+            
+            # Zonas
+            for base in BASE_SEMINOVOS:
+                    search_terms.append(f"{base} São Paulo")
+
+            # # Bairros
+            # for base in BASE_ELEVADORES:
+            #     for bairro in BAIRROS_SP:
+            #         search_terms.append(f"{base} {bairro} São Paulo")
+            #
+            # # Interior
+            # for base in BASE_ELEVADORES:
+            #     for cidade in CIDADES_INTERIOR:
+            #         search_terms.append(f"{base} {cidade} SP")
+            
+            # Converte para objetos SearchTerm
+            terms = [SearchTerm(query=term, location=SEARCH_LOCATION, category=SEARCH_CATEGORY, pages=10) for term in search_terms]
             
             return self.collect_emails(terms)
             

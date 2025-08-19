@@ -54,6 +54,15 @@ BASE_ELEVADORES = [
     "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
 ]
 
+# Termos consercionárias
+BASE_SEMINOVOS = [
+    "venda seu carro", "venda de seminovos"
+]
+
+# Configurações de busca
+SEARCH_LOCATION = "SP"
+SEARCH_CATEGORY = "elevadores"
+
 # Blacklist
 BLACKLIST_HOSTS = [
     "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "x.com", "twitter.com",
