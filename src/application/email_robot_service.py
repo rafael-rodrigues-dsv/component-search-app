@@ -227,4 +227,5 @@ class EmailCollectorService(EmailCollectorInterface):
             print(f"  => Termo concluído. Novas empresas: {term_saved}")
         
         print(f"\nFINALIZADO. Total de empresas novas: {total_saved}")
+        print("[INFO] Processamento concluído. Encerrando robô...")
         return True

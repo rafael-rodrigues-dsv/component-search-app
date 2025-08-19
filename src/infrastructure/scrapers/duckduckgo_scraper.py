@@ -22,27 +22,43 @@ class DuckDuckGoScraper:
         self.driver_manager = driver_manager
         self.validation_service = EmailValidationService()
     
-    def search(self, query: str) -> bool:
-        """Executa busca no DuckDuckGo"""
-        try:
-            self.driver_manager.driver.get("https://duckduckgo.com/")
-            WebDriverWait(self.driver_manager.driver, 20).until(
-                EC.presence_of_element_located((By.ID, "searchbox_input"))
-            )
-            
-            search_box = self.driver_manager.driver.find_element(By.ID, "searchbox_input")
-            search_box.clear()
-            search_box.send_keys(query)
-            search_box.send_keys(Keys.ENTER)
-            
-            WebDriverWait(self.driver_manager.driver, 20).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
-            )
-            time.sleep(random.uniform(0.8, 1.6))
-            return True
-            
-        except TimeoutException:
-            return False
+    def search(self, query: str, max_retries: int = 3) -> bool:
+        """Executa busca no DuckDuckGo com retry"""
+        for attempt in range(max_retries):
+            try:
+                print(f"    [INFO] Tentativa {attempt + 1}/{max_retries} de busca...")
+                
+                self.driver_manager.driver.get("https://duckduckgo.com/")
+                WebDriverWait(self.driver_manager.driver, 30).until(
+                    EC.presence_of_element_located((By.ID, "searchbox_input"))
+                )
+                
+                search_box = self.driver_manager.driver.find_element(By.ID, "searchbox_input")
+                search_box.clear()
+                search_box.send_keys(query)
+                search_box.send_keys(Keys.ENTER)
+                
+                # Aguarda resultados com timeout maior
+                WebDriverWait(self.driver_manager.driver, 30).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
+                )
+                time.sleep(random.uniform(1.5, 3.0))
+                print("    [OK] Busca realizada com sucesso")
+                return True
+                
+            except TimeoutException as e:
+                print(f"    [AVISO] Tentativa {attempt + 1} falhou: Timeout")
+                if attempt < max_retries - 1:
+                    time.sleep(random.uniform(2, 5))  # Pausa antes de tentar novamente
+                    continue
+            except Exception as e:
+                print(f"    [AVISO] Tentativa {attempt + 1} falhou: {str(e)[:50]}")
+                if attempt < max_retries - 1:
+                    time.sleep(random.uniform(2, 5))
+                    continue
+        
+        print("    [ERRO] Todas as tentativas de busca falharam")
+        return False
     
     def get_result_links(self, blacklist_hosts: List[str]) -> List[str]:
         """Extrai links dos resultados"""
@@ -81,8 +97,9 @@ class DuckDuckGoScraper:
             name = self._get_company_name(url)
             domain = self.validation_service.extract_domain_from_url(url)
             address = self._extract_address()
+            phone = self._extract_phone()
             
-            return Company(name=name, emails=emails, domain=domain, url=url, address=address)
+            return Company(name=name, emails=emails, domain=domain, url=url, address=address, phone=phone)
             
         except Exception:
             return Company(name="", emails=[], domain="", url=url)
@@ -184,6 +201,50 @@ class DuckDuckGoScraper:
                     if 10 <= len(text) <= 150 and any(word in text.lower() for word in ['rua', 'av', 'avenida', 'cep']):
                         return text[:100]
                         
+        except:
+            pass
+        
+        return ""
+    
+    def _extract_phone(self) -> str:
+        """Extrai telefone da empresa"""
+        try:
+            body_text = self.driver_manager.driver.find_element(By.TAG_NAME, "body").text
+            
+            # Padrões de telefone brasileiro
+            phone_patterns = [
+                r'\(?\d{2}\)?\s*9?\d{4}-?\d{4}',  # (11) 99999-9999 ou 11 99999-9999
+                r'\+55\s*\(?\d{2}\)?\s*9?\d{4}-?\d{4}',  # +55 (11) 99999-9999
+                r'\d{2}\s*9\d{4}-?\d{4}',  # 11 99999-9999
+                r'\(?0?\d{2}\)?\s*\d{4}-?\d{4}'  # (011) 3333-3333
+            ]
+            
+            for pattern in phone_patterns:
+                matches = re.findall(pattern, body_text)
+                if matches:
+                    # Pega o primeiro telefone encontrado e limpa
+                    phone = matches[0]
+                    # Remove caracteres desnecessários e formata
+                    phone = re.sub(r'[^\d]', '', phone)
+                    if len(phone) >= 10:
+                        return phone[:11]  # Limita a 11 dígitos
+            
+            # Busca por elementos com classes relacionadas a telefone
+            phone_selectors = [
+                '[class*="phone"]', '[class*="telefone"]', '[class*="fone"]',
+                '[class*="contact"]', '[id*="phone"]', '[id*="telefone"]'
+            ]
+            
+            for selector in phone_selectors:
+                elements = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, selector)
+                for element in elements:
+                    text = element.text.strip()
+                    # Verifica se contém padrão de telefone
+                    if re.search(r'\d{2,}.*\d{4}', text):
+                        phone = re.sub(r'[^\d]', '', text)
+                        if len(phone) >= 10:
+                            return phone[:11]
+                            
         except:
             pass
         

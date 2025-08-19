@@ -18,6 +18,7 @@ class Company:
     url: str
     search_term: str = ""
     address: str = ""
+    phone: str = ""
 
 
 @dataclass

@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Ajustes nos termos">
-      <change beforePath="$PROJECT_DIR$/src/infrastructure/web_driver.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/web_driver.py" afterDir="false" />
+    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Ajustes no processamento">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/infrastructure/repositories/data_persistence.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/repositories/data_persistence.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,7 +33,7 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Python.hello_world.executor": "Run",
-    "Python.main.executor": "Debug",
+    "Python.main.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "git-widget-placeholder": "master",
@@ -146,21 +147,46 @@
       <option name="project" value="LOCAL" />
       <updated>1755628161683</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Ajustes nos termos">
+      <option name="closed" value="true" />
+      <created>1755628482698</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1755628482698</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Ajustes nos termos">
+      <option name="closed" value="true" />
+      <created>1755628506115</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1755628506115</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Ajustes no processamento">
+      <option name="closed" value="true" />
+      <created>1755629078598</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1755629078598</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Commit inicial" />
     <MESSAGE value="Ajustes nos termos" />
-    <option name="LAST_COMMIT_MESSAGE" value="Ajustes nos termos" />
+    <MESSAGE value="Ajustes no processamento" />
+    <option name="LAST_COMMIT_MESSAGE" value="Ajustes no processamento" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/infrastructure/scrapers/duckduckgo_scraper.py</url>
-          <line>168</line>
-          <option name="timeStamp" value="8" />
+          <line>187</line>
+          <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

@@ -19,9 +19,13 @@ def main():
         
         if success:
             print("[OK] Robô executado com sucesso")
+            print("[INFO] Encerrando automaticamente em 3 segundos...")
+            import time
+            time.sleep(3)
             return 0
         else:
             print("[ERRO] Falha na execução do robô")
+            input("Pressione Enter para sair...")
             return 1
             
     except KeyboardInterrupt:

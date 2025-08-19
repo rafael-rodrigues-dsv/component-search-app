@@ -36,4 +36,3 @@ if not exist "main.py" (
 echo [INFO] Iniciando o ROBO 2...
 python "main.py"
 echo [INFO] Robo finalizado.
-pause

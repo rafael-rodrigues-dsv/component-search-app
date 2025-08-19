@@ -3,6 +3,7 @@ Camada de Infraestrutura - Persistência de dados
 """
 import json
 import os
+import csv
 from typing import Dict, List, Set
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment
@@ -55,19 +56,23 @@ class ExcelRepository:
     
     def __init__(self, file_path: str):
         self.file_path = file_path
+        self.csv_path = file_path.replace('.xlsx', '.csv')
         self._ensure_excel_exists()
+        self._ensure_csv_exists()
     
     def save_company(self, company: Company):
-        """Salva empresa no Excel"""
+        """Salva empresa no Excel e CSV"""
         if not company.emails:
             return
         
+        emails_str = ";".join(company.emails)
+        row_data = [company.name, company.phone, emails_str, company.search_term, company.address, company.url]
+        
+        # Salva no Excel
         try:
             wb = load_workbook(self.file_path)
             ws = wb["Dados"]
-            
-            emails_str = ";".join(company.emails)
-            ws.append([company.name, emails_str, company.search_term, company.address])
+            ws.append(row_data)
             
             # Formatação da linha
             for i, cell in enumerate(ws[ws.max_row]):
@@ -78,7 +83,14 @@ class ExcelRepository:
                 cell.alignment = Alignment(horizontal="left")
             
             wb.save(self.file_path)
-            
+        except Exception:
+            pass
+        
+        # Salva no CSV
+        try:
+            with open(self.csv_path, 'a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile, delimiter=';')
+                writer.writerow(row_data)
         except Exception:
             pass
     
@@ -89,15 +101,19 @@ class ExcelRepository:
             ws = wb.active
             ws.title = "Dados"
             ws["A1"] = "NOME"
-            ws["B1"] = "EMAIL"
-            ws["C1"] = "TERMO BUSCA"
-            ws["D1"] = "ENDEREÇO"
+            ws["B1"] = "TELEFONE"
+            ws["C1"] = "EMAIL"
+            ws["D1"] = "TERMO BUSCA"
+            ws["E1"] = "ENDEREÇO"
+            ws["F1"] = "SITE"
             
             # Ajusta largura das colunas
             ws.column_dimensions['A'].width = 30
-            ws.column_dimensions['B'].width = 35
-            ws.column_dimensions['C'].width = 40
-            ws.column_dimensions['D'].width = 50
+            ws.column_dimensions['B'].width = 20
+            ws.column_dimensions['C'].width = 35
+            ws.column_dimensions['D'].width = 40
+            ws.column_dimensions['E'].width = 50
+            ws.column_dimensions['F'].width = 40
             
             # Formatação do cabeçalho
             for cell in ws[1]:
@@ -105,3 +121,13 @@ class ExcelRepository:
                 cell.alignment = Alignment(horizontal="left")
             
             wb.save(self.file_path)
+    
+    def _ensure_csv_exists(self):
+        """Garante que arquivo CSV existe com cabeçalho"""
+        if not os.path.exists(self.csv_path):
+            try:
+                with open(self.csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile, delimiter=';')
+                    writer.writerow(["NOME", "TELEFONE", "EMAIL", "TERMO BUSCA", "ENDEREÇO", "SITE"])
+            except Exception:
+                pass
