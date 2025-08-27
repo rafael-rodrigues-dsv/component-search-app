@@ -56,8 +56,8 @@ BASE_ELEVADORES = [
 ]
 
 # Termos consercionárias
-BASE_SEMINOVOS = [
-    "venda seu carro"
+BASE_TESTES = [
+    "empresa de elevadores"
 ]
 
 # Configurações de busca

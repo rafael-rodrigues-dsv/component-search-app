@@ -16,7 +16,7 @@ class WebDriverManager:
         self.driver = None
         self.wait = None
     
-    def start_driver(self, headless: bool = False) -> bool:
+    def start_driver(self) -> bool:
         """Inicia o driver Chrome"""
         try:
             options = Options()
@@ -26,11 +26,7 @@ class WebDriverManager:
             options.add_argument("--disable-gpu")
             options.add_argument("--no-sandbox")
             
-            if headless:
-                options.add_argument("--headless")
-                print("[INFO] Executando em modo headless (segundo plano)")
-            else:
-                print("[INFO] Executando com navegador visível")
+            print("[INFO] Executando com navegador visível")
             
             service = Service(self.driver_path)
             self.driver = webdriver.Chrome(service=service, options=options)

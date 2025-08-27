@@ -38,9 +38,12 @@ class EmailCollectorService(EmailCollectorInterface):
         if self._get_restart_option():
             self._clear_all_data()
         
+        # Recria repositórios após limpeza
+        self.json_repo = JsonRepository(VISITED_JSON, SEEN_EMAILS_JSON)
+        self.excel_repo = ExcelRepository(OUTPUT_XLSX)
+        
         self.visited_domains = self.json_repo.load_visited_domains()
         self.seen_emails = self.json_repo.load_seen_emails()
-        self.headless_mode = self._get_execution_mode()
         self.top_results_total = self._get_results_limit()
     
 
@@ -73,19 +76,7 @@ class EmailCollectorService(EmailCollectorInterface):
         
         print("[OK] Dados anteriores limpos. Iniciando do zero...")
     
-    def _get_execution_mode(self) -> bool:
-        """Obtém do usuário o modo de execução"""
-        while True:
-            try:
-                mode = input("\n🕰️ Executar em segundo plano? (s/n - padrão: n): ").lower().strip()
-                if not mode or mode == 'n':
-                    return False  # Visível
-                elif mode == 's':
-                    return True   # Headless
-                else:
-                    print("[ERRO] Digite 's' para segundo plano ou 'n' para visível")
-            except:
-                print("[ERRO] Entrada inválida")
+
     
     def _get_results_limit(self) -> int:
         """Obtém do usuário o limite de resultados por termo"""
@@ -168,7 +159,7 @@ class EmailCollectorService(EmailCollectorInterface):
                 print("[ERRO] ChromeDriver não disponível")
                 return False
             
-            if not self.driver_manager.start_driver(self.headless_mode):
+            if not self.driver_manager.start_driver():
                 print("[ERRO] Falha ao iniciar driver")
                 return False
             
@@ -189,7 +180,7 @@ class EmailCollectorService(EmailCollectorInterface):
             #     for cidade in CIDADES_INTERIOR:
             #         search_terms.append(f"{base} {cidade} SP")
 
-            for base in BASE_SEMINOVOS:
+            for base in BASE_TESTES:
                 search_terms.append(f"{base} São Paulo capital")
 
             # Converte para objetos SearchTerm
@@ -237,7 +228,12 @@ class EmailCollectorService(EmailCollectorInterface):
                     domain = self.validation_service.extract_domain_from_url(link)
                     
                     if self.visited_domains.get(domain):
+                        print(f"    [PULAR] Site já visitado: {domain}")
                         continue
+                    
+                    # Marca domínio como visitado ANTES de extrair dados
+                    self.visited_domains[domain] = True
+                    print(f"    [VISITA] Acessando site: {domain}")
                     
                     company = self.scraper.extract_company_data(link, MAX_EMAILS_PER_SITE)
                     company.search_term = term.query  # Adiciona termo de busca
@@ -248,20 +244,23 @@ class EmailCollectorService(EmailCollectorInterface):
                         
                         if new_emails:
                             company.emails = new_emails
+                            print(f"    [DEBUG] Salvando empresa: {company.name}")
                             self.excel_repo.save_company(company)
+                            print(f"    [DEBUG] Empresa salva em: {OUTPUT_XLSX}")
                             
-                            # Atualiza controles
-                            self.visited_domains[domain] = True
+                            # Atualiza controle de e-mails
                             for email in new_emails:
                                 self.seen_emails.add(email)
                             
                             term_saved += 1
                             total_saved += 1
                             print(f"    [+] {company.name} | {new_emails}")
+                        else:
+                            print(f"    [-] E-mails já coletados: {domain}")
                     else:
                         print(f"    [-] Sem e-mail válido: {domain}")
                     
-                    # Salva progresso
+                    # Salva progresso sempre
                     self.json_repo.save_visited_domains(self.visited_domains)
                     self.json_repo.save_seen_emails(self.seen_emails)
                     
