@@ -1,5 +1,5 @@
 """
-Configurações do robô coletor de e-mails
+Configurações do PythonSearchApp - coletor de e-mails
 """
 import os
 

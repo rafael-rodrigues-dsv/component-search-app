@@ -21,7 +21,7 @@ from config.settings import *
 
 
 class EmailCollectorService(EmailCollectorInterface):
-    """Serviço principal do robô coletor de e-mails"""
+    """Serviço principal do PythonSearchApp coletor de e-mails"""
     
     # Constantes de configuração
     
@@ -305,5 +305,5 @@ class EmailCollectorService(EmailCollectorInterface):
             print(f"  => Termo concluído. Novas empresas: {term_saved}")
         
         print(f"\nFINALIZADO. Total de empresas novas: {total_saved}")
-        print("[INFO] Processamento concluído. Encerrando robô...")
+        print("[INFO] Processamento concluído. Encerrando PythonSearchApp...")
         return True

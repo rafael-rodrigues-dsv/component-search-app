@@ -1,6 +1,6 @@
-# 🤖 ROBO 2 - COLETOR DE E-MAILS (ELEVADORES)
+# 🤖 PYTHON SEARCH APP - COLETOR DE E-MAILS (ELEVADORES)
 
-Robô Python especializado em coleta de e-mails de empresas de elevadores usando DuckDuckGo, Firefox e Selenium com arquitetura em 3 camadas.
+Aplicação Python especializada em coleta de e-mails de empresas de elevadores usando DuckDuckGo, Chrome e Selenium com arquitetura em 3 camadas.
 
 ## 📋 O que o Robô Faz
 
@@ -16,7 +16,7 @@ Robô Python especializado em coleta de e-mails de empresas de elevadores usando
 ## 🏗️ Arquitetura - 3 Camadas
 
 ```
-📁 RoboApp/
+📁 PythonSearchApp/
 ├── 🔵 src/domain/              # CAMADA DE DOMÍNIO
 │   └── email_processor.py      # Entidades e regras de negócio
 ├── 🟡 src/infrastructure/      # CAMADA DE INFRAESTRUTURA
