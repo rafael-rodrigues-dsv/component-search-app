@@ -6,11 +6,12 @@ Robô Python especializado em coleta de e-mails de empresas de elevadores usando
 
 - **Busca profunda** por termos de elevadores em SP (capital, zonas, bairros, interior)
 - **Abre resultados** e simula navegação humana com scroll
-- **Extrai até 5 e-mails válidos** por site visitado
-- **Deduplica** sites e e-mails automaticamente
-- **Salva em Excel** formato: NOME | EMAIL (separados por ';')
-- **Respeita horário** de trabalho (8h-22h configurado)
-- **Firefox visível** para monitoramento em tempo real
+- **Extrai dados completos**: nome, telefone, e-mails, endereço e site
+- **Controle inteligente**: evita revisitar sites já processados
+- **Duplo salvamento**: Excel formatado + CSV para import
+- **Pasta organizada**: salva em C:/Arquivos/
+- **Chrome visível** para monitoramento em tempo real
+- **Opção de reiniciar** do zero ou continuar anterior
 
 ## 🏗️ Arquitetura - 3 Camadas
 
@@ -19,15 +20,26 @@ Robô Python especializado em coleta de e-mails de empresas de elevadores usando
 ├── 🔵 src/domain/              # CAMADA DE DOMÍNIO
 │   └── email_processor.py      # Entidades e regras de negócio
 ├── 🟡 src/infrastructure/      # CAMADA DE INFRAESTRUTURA
-│   ├── web_driver.py           # Gerenciamento Firefox/Selenium
-│   ├── email_scraper.py        # Web scraping de e-mails
-│   └── excel_repository.py     # Persistência em Excel
+│   ├── web_driver.py           # Gerenciamento Chrome/Selenium
+│   ├── scrapers/               # Web scraping
+│   └── repositories/           # Persistência Excel/CSV/JSON
 ├── 🟢 src/application/         # CAMADA DE APLICAÇÃO
 │   └── email_robot_service.py  # Orquestração e casos de uso
 ├── ⚙️ config/
 │   └── settings.py             # Configurações centralizadas
-├── 🧪 tests/
-│   └── test_email_processor.py # Testes unitários
+├── 📜 scripts/                 # Scripts utilitários
+│   ├── verificar_instalacao.py
+│   ├── verificar_instalacao_chrome.py
+│   └── baixar_chromedriver.py
+├── 💾 drivers/                 # Drivers de navegação
+│   └── chromedriver.exe        # ChromeDriver
+├── 💾 drivers/                 # Drivers de navegação
+│   └── chromedriver.exe        # ChromeDriver
+├── 💾 data/                    # Dados de controle
+│   ├── visited.json            # Domínios visitados
+│   └── emails.json             # E-mails coletados
+├── 📊 output/                  # Arquivos de saída
+│   └── empresas.xlsx           # Planilha Excel
 └── 🚀 main.py                  # Ponto de entrada
 ```
 
@@ -52,14 +64,14 @@ Robô Python especializado em coleta de e-mails de empresas de elevadores usando
 
 ### Pré-requisitos
 - Python 3.11+
-- Firefox instalado
-- GeckoDriver
+- Google Chrome instalado
+- ChromeDriver (baixa automaticamente)
 
 ### Instalação
-1. **Baixar GeckoDriver**:
-   - Acesse: https://github.com/mozilla/geckodriver/releases
-   - Baixe versão Windows
-   - Extraia `geckodriver.exe` na pasta do projeto
+1. **ChromeDriver Automático**:
+   - O robô detecta sua versão do Chrome
+   - Baixa ChromeDriver compatível automaticamente
+   - Nenhuma configuração manual necessária
 
 2. **Executar**:
    ```cmd
@@ -71,6 +83,15 @@ Robô Python especializado em coleta de e-mails de empresas de elevadores usando
 python -m pip install -r requirements.txt
 python main.py
 ```
+
+### Modo Teste
+Para execução rápida com poucos termos:
+1. Edite `config/settings.py`
+2. Altere `IS_TEST_MODE = True`
+3. Execute `python main.py`
+
+- **Teste**: 2 termos apenas
+- **Produção**: 336 termos completos
 
 ## 📦 Dependências
 
@@ -92,18 +113,29 @@ Edite `config/settings.py` para personalizar:
 - URLs
 - Dimensões do navegador
 
+### Modo de Execução
+- `IS_TEST_MODE = True` - Ativa modo teste (poucos termos)
+- `IS_TEST_MODE = False` - Modo produção (todos os termos)
+
 ## 📊 Saída
 
 O robô gera:
-- **empresas.xlsx**: Planilha com NOME | EMAIL (e-mails separados por ';')
-- **visited.json**: Controle de domínios já visitados
-- **emails.json**: Controle de e-mails já coletados
+- **output/empresas.xlsx**: Planilha com NOME DO SITE | URL DO SITE | EMAIL
+- **data/visited.json**: Controle de domínios já visitados
+- **data/emails.json**: Controle de e-mails já coletados
 - **Logs detalhados**: Progresso em tempo real
 
 ## 🎯 Especificações Técnicas
 
+### Modo Produção
 - **Termos de busca**: 6 bases x (1 capital + 5 zonas + 30 bairros + 20 cidades) = 336 termos
 - **Páginas por termo**: Capital(80), Zona(25), Bairro(12), Interior(20)
+
+### Modo Teste
+- **Termos de busca**: 2 termos apenas (BASE_TESTES)
+- **Execução rápida**: Para desenvolvimento e validação
+
+### Geral
 - **E-mails por site**: Máximo 5 e-mails válidos
 - **Simulação humana**: Scroll aleatório, pausas variáveis
 - **Horário**: Funciona apenas entre 8h-22h

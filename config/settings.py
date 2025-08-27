@@ -5,10 +5,11 @@ import os
 
 # Diretórios e arquivos
 BASE_DIR = os.getcwd()
-OUTPUT_DIR = "C:/Arquivos"
+DATA_DIR = os.path.join(BASE_DIR, "data")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 OUTPUT_XLSX = os.path.join(OUTPUT_DIR, "empresas.xlsx")
-VISITED_JSON = os.path.join(BASE_DIR, "visited.json")
-SEEN_EMAILS_JSON = os.path.join(BASE_DIR, "emails.json")
+VISITED_JSON = os.path.join(DATA_DIR, "visited.json")
+SEEN_EMAILS_JSON = os.path.join(DATA_DIR, "emails.json")
 
 # Horários de trabalho (24h)
 START_HOUR = 8
@@ -55,14 +56,17 @@ BASE_ELEVADORES = [
     "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
 ]
 
-# Termos consercionárias
+# Termos para testes
 BASE_TESTES = [
-    "empresa de elevadores"
+    "empresa de elevadores", "manutenção de elevadores"
 ]
 
 # Configurações de busca
 SEARCH_LOCATION = "SP"
 SEARCH_CATEGORY = "elevadores"
+
+# Modo de execução
+IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)
 
 # Blacklist
 BLACKLIST_HOSTS = [

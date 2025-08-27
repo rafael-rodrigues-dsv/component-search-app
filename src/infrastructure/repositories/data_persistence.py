@@ -3,7 +3,6 @@ Camada de Infraestrutura - Persistência de dados
 """
 import json
 import os
-import csv
 from typing import Dict, List, Set
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment
@@ -17,6 +16,9 @@ class JsonRepository:
     def __init__(self, visited_path: str, emails_path: str):
         self.visited_path = visited_path
         self.emails_path = emails_path
+        # Garante que pasta data existe
+        data_dir = os.path.dirname(visited_path)
+        os.makedirs(data_dir, exist_ok=True)
     
     def load_visited_domains(self) -> Dict[str, bool]:
         """Carrega domínios já visitados"""
@@ -56,20 +58,19 @@ class ExcelRepository:
     
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.csv_path = file_path.replace('.xlsx', '.csv')
         self._ensure_output_dir()
         self._ensure_excel_exists()
-        self._ensure_csv_exists()
     
     def save_company(self, company: Company):
-        """Salva empresa no Excel e CSV"""
+        """Salva empresa no Excel"""
         if not company.emails:
             return
         
         emails_str = ";".join(company.emails) + ";"
-        row_data = [company.name, company.phone, emails_str, company.search_term, company.address, company.url]
+        row_data = [company.name, company.url, emails_str]
+        # Colunas comentadas para uso futuro:
+        # row_data = [company.name, company.phone, emails_str, company.search_term, company.address, company.url]
         
-        # Salva no Excel
         try:
             wb = load_workbook(self.file_path)
             ws = wb["Dados"]
@@ -84,14 +85,6 @@ class ExcelRepository:
                 cell.alignment = Alignment(horizontal="left")
             
             wb.save(self.file_path)
-        except Exception:
-            pass
-        
-        # Salva no CSV
-        try:
-            with open(self.csv_path, 'a', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile, delimiter=';')
-                writer.writerow(row_data)
         except Exception:
             pass
     
@@ -111,20 +104,21 @@ class ExcelRepository:
             wb = Workbook()
             ws = wb.active
             ws.title = "Dados"
-            ws["A1"] = "NOME"
-            ws["B1"] = "TELEFONE"
+            ws["A1"] = "NOME DO SITE"
+            ws["B1"] = "URL DO SITE"
             ws["C1"] = "EMAIL"
-            ws["D1"] = "TERMO BUSCA"
-            ws["E1"] = "ENDEREÇO"
-            ws["F1"] = "SITE"
+            # Colunas comentadas para uso futuro:
+            # ws["D1"] = "TELEFONE"
+            # ws["E1"] = "TERMO BUSCA"
+            # ws["F1"] = "ENDEREÇO"
             
             # Ajusta largura das colunas
             ws.column_dimensions['A'].width = 30
-            ws.column_dimensions['B'].width = 20
+            ws.column_dimensions['B'].width = 40
             ws.column_dimensions['C'].width = 35
-            ws.column_dimensions['D'].width = 40
-            ws.column_dimensions['E'].width = 50
-            ws.column_dimensions['F'].width = 40
+            # ws.column_dimensions['D'].width = 20
+            # ws.column_dimensions['E'].width = 40
+            # ws.column_dimensions['F'].width = 50
             
             # Formatação do cabeçalho
             for cell in ws[1]:
@@ -133,12 +127,3 @@ class ExcelRepository:
             
             wb.save(self.file_path)
     
-    def _ensure_csv_exists(self):
-        """Garante que arquivo CSV existe com cabeçalho"""
-        if not os.path.exists(self.csv_path):
-            try:
-                with open(self.csv_path, 'w', newline='', encoding='utf-8') as csvfile:
-                    writer = csv.writer(csvfile, delimiter=';')
-                    writer.writerow(["NOME", "TELEFONE", "EMAIL", "TERMO BUSCA", "ENDEREÇO", "SITE"])
-            except Exception:
-                pass

@@ -11,7 +11,7 @@ from selenium.common.exceptions import WebDriverException
 class WebDriverManager:
     """Gerenciador do WebDriver Chrome"""
     
-    def __init__(self, driver_path: str = "chromedriver.exe"):
+    def __init__(self, driver_path: str = "drivers/chromedriver.exe"):
         self.driver_path = driver_path
         self.driver = None
         self.wait = None

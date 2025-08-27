@@ -4,7 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Deleta execução em segundo plano">
+    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Modificações de pastas">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/emails.json" beforeDir="false" afterPath="$PROJECT_DIR$/data/emails.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/visited.json" beforeDir="false" afterPath="$PROJECT_DIR$/data/visited.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/application/email_robot_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/application/email_robot_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/infrastructure/repositories/data_persistence.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/repositories/data_persistence.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -276,7 +282,55 @@
       <option name="project" value="LOCAL" />
       <updated>1756326917314</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="Deleta execução em segundo plano">
+      <option name="closed" value="true" />
+      <created>1756327160686</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1756327160686</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Modificações de pastas">
+      <option name="closed" value="true" />
+      <created>1756327496076</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1756327496076</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Modificações de pastas">
+      <option name="closed" value="true" />
+      <created>1756327928374</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1756327928374</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Modificações de pastas">
+      <option name="closed" value="true" />
+      <created>1756328169359</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1756328169359</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Modificações de pastas">
+      <option name="closed" value="true" />
+      <created>1756329640193</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1756329640193</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Modificações de pastas">
+      <option name="closed" value="true" />
+      <created>1756330155703</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1756330155703</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -287,7 +341,8 @@
     <MESSAGE value="Ajustes base de pesquisas" />
     <MESSAGE value="Mudança nas pastas dos arquivos de Excel" />
     <MESSAGE value="Deleta execução em segundo plano" />
-    <option name="LAST_COMMIT_MESSAGE" value="Deleta execução em segundo plano" />
+    <MESSAGE value="Modificações de pastas" />
+    <option name="LAST_COMMIT_MESSAGE" value="Modificações de pastas" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

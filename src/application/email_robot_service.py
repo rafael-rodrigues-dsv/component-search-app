@@ -44,7 +44,7 @@ class EmailCollectorService(EmailCollectorInterface):
         
         self.visited_domains = self.json_repo.load_visited_domains()
         self.seen_emails = self.json_repo.load_seen_emails()
-        self.top_results_total = self._get_results_limit()
+        self.top_results_total = self._get_processing_mode()
     
 
     
@@ -64,7 +64,10 @@ class EmailCollectorService(EmailCollectorInterface):
     
     def _clear_all_data(self):
         """Limpa todos os arquivos de dados"""
-        files_to_clear = [VISITED_JSON, SEEN_EMAILS_JSON, OUTPUT_XLSX, OUTPUT_XLSX.replace('.xlsx', '.csv')]
+        # Garante que pasta data existe
+        os.makedirs(DATA_DIR, exist_ok=True)
+        
+        files_to_clear = [VISITED_JSON, SEEN_EMAILS_JSON, OUTPUT_XLSX]
         
         for file_path in files_to_clear:
             try:
@@ -78,24 +81,35 @@ class EmailCollectorService(EmailCollectorInterface):
     
 
     
-    def _get_results_limit(self) -> int:
-        """Obtém do usuário o limite de resultados por termo"""
+    def _get_processing_mode(self) -> int:
+        """Obtém do usuário o modo de processamento"""
         while True:
             try:
-                limit = input("\n🔍 Quantos resultados processar por termo de busca? (padrão: 50): ")
-                if not limit.strip():
-                    return 50
-                limit = int(limit)
-                if limit > 0:
-                    return limit
+                mode = input("\n🔍 Processamento em lote ou completo? (l/c - padrão: c): ").lower().strip()
+                if not mode or mode == 'c':
+                    return 999999  # Processamento completo
+                elif mode == 'l':
+                    # Pergunta quantidade para lote
+                    while True:
+                        try:
+                            limit = input("Quantos resultados por termo? (padrão: 10): ")
+                            if not limit.strip():
+                                return 10
+                            limit = int(limit)
+                            if limit > 0:
+                                return limit
+                            else:
+                                print("[ERRO] Digite um número maior que zero")
+                        except ValueError:
+                            print("[ERRO] Digite um número válido")
                 else:
-                    print("[ERRO] Digite um número maior que zero")
-            except ValueError:
-                print("[ERRO] Digite um número válido")
+                    print("[ERRO] Digite 'l' para lote ou 'c' para completo")
+            except:
+                print("[ERRO] Entrada inválida")
     
     def _check_and_install_chromedriver(self) -> bool:
         """Verifica e instala ChromeDriver se necessário"""
-        if os.path.exists("chromedriver.exe"):
+        if os.path.exists("drivers/chromedriver.exe"):
             return True
         
         print("[INFO] ChromeDriver não encontrado. Baixando automaticamente...")
@@ -137,9 +151,12 @@ class EmailCollectorService(EmailCollectorInterface):
                 f.write(response.content)
             
             with zipfile.ZipFile("chromedriver.zip", 'r') as zip_ref:
+                # Garante que pasta drivers existe
+                os.makedirs('drivers', exist_ok=True)
+                
                 for file_info in zip_ref.filelist:
                     if file_info.filename.endswith('chromedriver.exe'):
-                        with zip_ref.open(file_info) as source, open('chromedriver.exe', 'wb') as target:
+                        with zip_ref.open(file_info) as source, open('drivers/chromedriver.exe', 'wb') as target:
                             target.write(source.read())
                         break
             
@@ -166,22 +183,33 @@ class EmailCollectorService(EmailCollectorInterface):
             # Lista única de termos de busca usando constantes
             search_terms = []
             
-            # # Capital
-            # for base in BASE_ELEVADORES:
-            #     search_terms.append(f"{base} São Paulo capital")
-            #
-            # # Bairros
-            # for base in BASE_ELEVADORES:
-            #     for bairro in BAIRROS_SP:
-            #         search_terms.append(f"{base} {bairro} São Paulo")
-            #
-            # # Interior
-            # for base in BASE_ELEVADORES:
-            #     for cidade in CIDADES_INTERIOR:
-            #         search_terms.append(f"{base} {cidade} SP")
+            # Verifica se é modo teste via configuração
+            if IS_TEST_MODE:
+                print("[INFO] Modo TESTE ativado via settings.py")
+                # Modo teste - apenas alguns termos
+                for base in BASE_TESTES:
+                    search_terms.append(f"{base} São Paulo capital")
+            else:
+                print("[INFO] Modo PRODUÇÃO - processamento completo")
+                # Modo produção - todos os termos
+                # Capital
+                for base in BASE_ELEVADORES:
+                    search_terms.append(f"{base} São Paulo capital")
 
-            for base in BASE_TESTES:
-                search_terms.append(f"{base} São Paulo capital")
+                # Zonas
+                for base in BASE_ELEVADORES:
+                    for zona in ZONAS_SP:
+                        search_terms.append(f"{base} {zona} São Paulo")
+
+                # Bairros
+                for base in BASE_ELEVADORES:
+                    for bairro in BAIRROS_SP:
+                        search_terms.append(f"{base} {bairro} São Paulo")
+
+                # Interior
+                for base in BASE_ELEVADORES:
+                    for cidade in CIDADES_INTERIOR:
+                        search_terms.append(f"{base} {cidade} SP")
 
             # Converte para objetos SearchTerm
             terms = [SearchTerm(query=term, location=SEARCH_LOCATION, category=SEARCH_CATEGORY, pages=10) for term in search_terms]
@@ -201,7 +229,8 @@ class EmailCollectorService(EmailCollectorInterface):
                 print(f"[PAUSA] Fora do horário ({START_HOUR}:00–{END_HOUR}:00). Recheco em {TIME_BETWEEN_OUT_OF_HOURS}s.")
                 time.sleep(TIME_BETWEEN_OUT_OF_HOURS)
             
-            print(f"\n[TERMO {i}/{len(terms)}] {term.query} | limite: {self.top_results_total} resultados")
+            mode_text = "completo" if self.top_results_total > 1000 else f"lote ({self.top_results_total})"
+            print(f"\n[TERMO {i}/{len(terms)}] {term.query} | modo: {mode_text}")
             
             if not self.scraper.search(term.query):
                 print("  [ERRO] Busca falhou")
