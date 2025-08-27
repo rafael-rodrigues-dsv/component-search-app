@@ -5,9 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Modificações de pastas de configurações">
-      <change beforePath="$PROJECT_DIR$/.idea/PythonSearchApp.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PythonSearchApp.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/iniciar_robo.bat" beforeDir="false" afterPath="$PROJECT_DIR$/iniciar_robo.bat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/emails.json" beforeDir="false" afterPath="$PROJECT_DIR$/data/emails.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/visited.json" beforeDir="false" afterPath="$PROJECT_DIR$/data/visited.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,6 +23,18 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "rafael-rodrigues-dsv"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/rafael-rodrigues-dsv/PythonSearchApp",
+    "accountId": "1512b08c-c894-4d1c-9ffe-47b1772c9d6a"
+  }
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -343,7 +356,23 @@
       <option name="project" value="LOCAL" />
       <updated>1756332309904</updated>
     </task>
-    <option name="localTasksCounter" value="32" />
+    <task id="LOCAL-00032" summary="Modificações de pastas de configurações">
+      <option name="closed" value="true" />
+      <created>1756332822996</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1756332822996</updated>
+    </task>
+    <task id="LOCAL-00033" summary="Modificações de pastas de configurações">
+      <option name="closed" value="true" />
+      <created>1756332899767</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1756332899767</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
