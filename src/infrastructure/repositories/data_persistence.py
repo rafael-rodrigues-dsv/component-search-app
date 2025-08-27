@@ -57,6 +57,7 @@ class ExcelRepository:
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.csv_path = file_path.replace('.xlsx', '.csv')
+        self._ensure_output_dir()
         self._ensure_excel_exists()
         self._ensure_csv_exists()
     
@@ -93,6 +94,16 @@ class ExcelRepository:
                 writer.writerow(row_data)
         except Exception:
             pass
+    
+    def _ensure_output_dir(self):
+        """Garante que diretório de saída existe"""
+        output_dir = os.path.dirname(self.file_path)
+        if not os.path.exists(output_dir):
+            try:
+                os.makedirs(output_dir)
+                print(f"[INFO] Pasta criada: {output_dir}")
+            except Exception as e:
+                print(f"[ERRO] Falha ao criar pasta {output_dir}: {e}")
     
     def _ensure_excel_exists(self):
         """Garante que arquivo Excel existe"""

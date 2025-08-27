@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Refatoração do serviço">
+    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Mudança nas pastas dos arquivos de Excel">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/empresas.csv" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/application/email_robot_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/application/email_robot_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -37,6 +38,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "master",
     "ignore.virus.scanning.warn.message": "true",
     "last_opened_file_path": "C:/GIT/GITHUB/PYTHON/RoboApp",
@@ -220,7 +222,23 @@
       <option name="project" value="LOCAL" />
       <updated>1755647092053</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="Ajustes base de pesquisas">
+      <option name="closed" value="true" />
+      <created>1756323744961</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1756323744961</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Mudança nas pastas dos arquivos de Excel">
+      <option name="closed" value="true" />
+      <created>1756324784185</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1756324784186</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -228,7 +246,9 @@
     <MESSAGE value="Ajustes nos termos" />
     <MESSAGE value="Ajustes no processamento" />
     <MESSAGE value="Refatoração do serviço" />
-    <option name="LAST_COMMIT_MESSAGE" value="Refatoração do serviço" />
+    <MESSAGE value="Ajustes base de pesquisas" />
+    <MESSAGE value="Mudança nas pastas dos arquivos de Excel" />
+    <option name="LAST_COMMIT_MESSAGE" value="Mudança nas pastas dos arquivos de Excel" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

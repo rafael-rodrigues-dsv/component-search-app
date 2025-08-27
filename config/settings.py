@@ -5,7 +5,8 @@ import os
 
 # Diretórios e arquivos
 BASE_DIR = os.getcwd()
-OUTPUT_XLSX = os.path.join(BASE_DIR, "empresas.xlsx")
+OUTPUT_DIR = "C:/Arquivos"
+OUTPUT_XLSX = os.path.join(OUTPUT_DIR, "empresas.xlsx")
 VISITED_JSON = os.path.join(BASE_DIR, "visited.json")
 SEEN_EMAILS_JSON = os.path.join(BASE_DIR, "emails.json")
 
@@ -56,7 +57,7 @@ BASE_ELEVADORES = [
 
 # Termos consercionárias
 BASE_SEMINOVOS = [
-    "venda seu carro", "venda de seminovos"
+    "venda seu carro"
 ]
 
 # Configurações de busca

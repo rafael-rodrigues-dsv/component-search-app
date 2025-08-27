@@ -34,12 +34,44 @@ class EmailCollectorService(EmailCollectorInterface):
         self.term_builder = SearchTermBuilder()
         self.validation_service = EmailValidationService()
         
+        # Verifica se deve reiniciar do zero
+        if self._get_restart_option():
+            self._clear_all_data()
+        
         self.visited_domains = self.json_repo.load_visited_domains()
         self.seen_emails = self.json_repo.load_seen_emails()
         self.headless_mode = self._get_execution_mode()
         self.top_results_total = self._get_results_limit()
     
 
+    
+    def _get_restart_option(self) -> bool:
+        """Obtém do usuário se deve reiniciar do zero"""
+        while True:
+            try:
+                option = input("\n🔄 Reiniciar busca do zero? (s/n - padrão: n): ").lower().strip()
+                if not option or option == 'n':
+                    return False  # Continuar
+                elif option == 's':
+                    return True   # Reiniciar
+                else:
+                    print("[ERRO] Digite 's' para reiniciar ou 'n' para continuar")
+            except:
+                print("[ERRO] Entrada inválida")
+    
+    def _clear_all_data(self):
+        """Limpa todos os arquivos de dados"""
+        files_to_clear = [VISITED_JSON, SEEN_EMAILS_JSON, OUTPUT_XLSX, OUTPUT_XLSX.replace('.xlsx', '.csv')]
+        
+        for file_path in files_to_clear:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"[INFO] Arquivo {file_path} removido")
+            except Exception as e:
+                print(f"[AVISO] Erro ao remover {file_path}: {e}")
+        
+        print("[OK] Dados anteriores limpos. Iniciando do zero...")
     
     def _get_execution_mode(self) -> bool:
         """Obtém do usuário o modo de execução"""
@@ -143,20 +175,23 @@ class EmailCollectorService(EmailCollectorInterface):
             # Lista única de termos de busca usando constantes
             search_terms = []
             
-            # Capital
-            for base in BASE_ELEVADORES:
+            # # Capital
+            # for base in BASE_ELEVADORES:
+            #     search_terms.append(f"{base} São Paulo capital")
+            #
+            # # Bairros
+            # for base in BASE_ELEVADORES:
+            #     for bairro in BAIRROS_SP:
+            #         search_terms.append(f"{base} {bairro} São Paulo")
+            #
+            # # Interior
+            # for base in BASE_ELEVADORES:
+            #     for cidade in CIDADES_INTERIOR:
+            #         search_terms.append(f"{base} {cidade} SP")
+
+            for base in BASE_SEMINOVOS:
                 search_terms.append(f"{base} São Paulo capital")
 
-            # Bairros
-            for base in BASE_ELEVADORES:
-                for bairro in BAIRROS_SP:
-                    search_terms.append(f"{base} {bairro} São Paulo")
-
-            # Interior
-            for base in BASE_ELEVADORES:
-                for cidade in CIDADES_INTERIOR:
-                    search_terms.append(f"{base} {cidade} SP")
-            
             # Converte para objetos SearchTerm
             terms = [SearchTerm(query=term, location=SEARCH_LOCATION, category=SEARCH_CATEGORY, pages=10) for term in search_terms]
             
