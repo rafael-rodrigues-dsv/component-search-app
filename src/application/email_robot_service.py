@@ -223,6 +223,14 @@ class EmailCollectorService(EmailCollectorInterface):
         """Coleta e-mails usando termos de busca"""
         total_saved = 0
         
+        # Calcula total real de resultados esperados
+        if self.top_results_total > 1000:  # Modo completo
+            total_expected_results = len(terms) * RESULTS_PER_TERM_LIMIT
+        else:  # Modo lote
+            total_expected_results = len(terms) * self.top_results_total
+        
+        global_results_processed = 0  # Contador global
+        
         for i, term in enumerate(terms, 1):
             # Verifica horário de trabalho
             while not self.working_hours.is_working_time():
@@ -254,6 +262,7 @@ class EmailCollectorService(EmailCollectorInterface):
                         break
                         
                     results_processed += 1
+                    global_results_processed += 1
                     domain = self.validation_service.extract_domain_from_url(link)
                     
                     if self.visited_domains.get(domain):
@@ -262,7 +271,7 @@ class EmailCollectorService(EmailCollectorInterface):
                     
                     # Marca domínio como visitado ANTES de extrair dados
                     self.visited_domains[domain] = True
-                    print(f"    [VISITA] Acessando site: {domain}")
+                    print(f"    [VISITA] Acessando site: {domain} ({global_results_processed}/{total_expected_results} processado)")
                     
                     company = self.scraper.extract_company_data(link, MAX_EMAILS_PER_SITE)
                     company.search_term = term.query  # Adiciona termo de busca

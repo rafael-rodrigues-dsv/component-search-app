@@ -66,7 +66,7 @@ SEARCH_LOCATION = "SP"
 SEARCH_CATEGORY = "elevadores"
 
 # Modo de execução
-IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)
+IS_TEST_MODE = False  # True para teste (poucos termos), False para produção (todos os termos)
 
 # Blacklist
 BLACKLIST_HOSTS = [
