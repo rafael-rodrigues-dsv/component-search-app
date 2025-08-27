@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclui instalação e configuração do Python">
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Ajuste ao iniciar robo">
       <change beforePath="$PROJECT_DIR$/iniciar_robo.bat" beforeDir="false" afterPath="$PROJECT_DIR$/iniciar_robo.bat" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -15,21 +15,21 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "rafael-rodrigues-dsv"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;rafael-rodrigues-dsv&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/rafael-rodrigues-dsv/PythonSearchApp",
-    "accountId": "1512b08c-c894-4d1c-9ffe-47b1772c9d6a"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/rafael-rodrigues-dsv/PythonSearchApp&quot;,
+    &quot;accountId&quot;: &quot;1512b08c-c894-4d1c-9ffe-47b1772c9d6a&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 0
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
   <component name="ProjectId" id="31tGdEnor0ZIr98jxWsWNZoNu7m" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -43,7 +43,7 @@
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "master",
     "ignore.virus.scanning.warn.message": "true",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+    "settings.editor.selected.configurable": "advanced.settings"
   }
 }]]></component>
   <component name="RunManager">
@@ -67,7 +67,7 @@
         <option name="useCurrentConnection" value="false" />
       </EXTENSION>
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-      <option name="PARAMETERS" value="" />
+      <option name="PARAMETERS" value="--onefile --windowed --name &quot;RoboColetorEmails&quot; --add-data &quot;config;config&quot; --add-data &quot;drivers;drivers&quot; --hidden-import selenium --hidden-import openpyxl --hidden-import tldextract --hidden-import requests main.py" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -123,12 +123,94 @@
       <option name="project" value="LOCAL" />
       <updated>1756337305768</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Inclui instalação e configuração do Python">
+      <option name="closed" value="true" />
+      <created>1756337500492</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1756337500492</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Inclui instalação e configuração do Python">
+      <option name="closed" value="true" />
+      <created>1756337702030</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1756337702030</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Inclui instalação e configuração do Python">
+      <option name="closed" value="true" />
+      <created>1756337710169</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1756337710169</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Inclui gitignore">
+      <option name="closed" value="true" />
+      <created>1756337757711</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1756337757711</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Ajuste ao iniciar robo">
+      <option name="closed" value="true" />
+      <created>1756338157913</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1756338157913</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Ajuste ao iniciar robo">
+      <option name="closed" value="true" />
+      <created>1756338695066</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1756338695066</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Ajuste ao iniciar robo">
+      <option name="closed" value="true" />
+      <created>1756339084894</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1756339084895</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Ajuste ao iniciar robo">
+      <option name="closed" value="true" />
+      <created>1756339241602</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1756339241602</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Ajuste ao iniciar robo">
+      <option name="closed" value="true" />
+      <created>1756339784426</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1756339784426</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Ajuste ao iniciar robo">
+      <option name="closed" value="true" />
+      <created>1756339917546</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1756339917546</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Ajuste modo debug" />
     <MESSAGE value="Inclui instalação e configuração do Python" />
-    <option name="LAST_COMMIT_MESSAGE" value="Inclui instalação e configuração do Python" />
+    <MESSAGE value="Inclui gitignore" />
+    <MESSAGE value="Ajuste ao iniciar robo" />
+    <option name="LAST_COMMIT_MESSAGE" value="Ajuste ao iniciar robo" />
   </component>
 </project>

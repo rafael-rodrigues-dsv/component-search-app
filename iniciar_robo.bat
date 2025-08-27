@@ -1,45 +1,121 @@
 @echo off
 setlocal enableextensions
-title ROBO 2 - E-mails reais (Firefox visivel)
+title ROBO COLETOR DE E-MAILS - Plug and Play
 
-echo [INFO] Pasta atual esperada: %cd%
-echo [OK] Pasta atual: %cd%
+echo [INFO] === INICIALIZACAO AUTOMATICA ===
+echo [INFO] Pasta: %cd%
+echo [INFO] Verificando ambiente...
 
-where py >nul 2>nul || (
-  echo [INFO] Python nao encontrado. Baixando Python 3.13...
-  powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.7/python-3.13.7-amd64.exe' -OutFile 'python-installer.exe'"
-  echo [INFO] Instalando Python 3.13...
-  python-installer.exe /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
+REM Verificar se Python >= 3.11 esta instalado
+echo [INFO] Verificando instalacao do Python...
+set PYTHON_CMD=
+set PYTHON_OK=0
+
+REM Testar python
+where python >nul 2>nul && (
+  for /f "tokens=2 delims=." %%v in ('python --version 2^>^&1') do (
+    if %%v GEQ 11 (
+      set PYTHON_CMD=python
+      set PYTHON_OK=1
+    )
+  )
+)
+
+REM Testar py se python nao funcionou
+if %PYTHON_OK%==0 (
+  where py >nul 2>nul && (
+    for /f "tokens=2 delims=." %%v in ('py --version 2^>^&1') do (
+      if %%v GEQ 11 (
+        set PYTHON_CMD=py
+        set PYTHON_OK=1
+      )
+    )
+  )
+)
+
+REM Instalar se nao tem Python >= 3.11
+if %PYTHON_OK%==0 (
+  echo [INFO] Python 3.11+ nao encontrado. Instalando versao mais recente...
+  powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.1/python-3.13.1-amd64.exe' -OutFile 'python-installer.exe'}"
+  if not exist "python-installer.exe" (
+    echo [ERRO] Falha no download do Python. Verifique sua conexao.
+    pause & exit /b 1
+  )
+  echo [INFO] Instalando Python 3.13.1...
+  python-installer.exe /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0
   del python-installer.exe
-  echo [OK] Python instalado. Reinicie o terminal e execute novamente.
-  pause & exit /b
+  echo [OK] Python instalado com sucesso!
+  set PYTHON_CMD=python
 )
 
 echo [INFO] Verificando versao do Python...
-py --version
-echo [INFO] Verificando dependencias...
-py -m pip install --user -r requirements.txt
-
-echo [INFO] Testando importacao das dependencias...
-py -c "import selenium, openpyxl, tldextract, requests; print('[OK] Todas as dependencias estao disponiveis')" || (
-  echo [ERRO] Dependencias nao instaladas corretamente
-  echo [INFO] Tentando instalacao global...
-  py -m pip install -r requirements.txt
-  echo [INFO] Pressione qualquer tecla para continuar...
-  pause >nul
+%PYTHON_CMD% --version
+%PYTHON_CMD% -c "import sys; print('Executavel:', sys.executable)"
+if %errorlevel% neq 0 (
+  echo [ERRO] Python nao esta funcionando corretamente.
+  pause & exit /b 1
 )
 
+REM Adicionar Scripts do Python ao PATH permanentemente
+for /f "delims=" %%i in ('%PYTHON_CMD% -c "import sys; print(sys.executable)"') do set PYTHON_PATH=%%i
+for %%i in ("%PYTHON_PATH%") do set PYTHON_DIR=%%~dpi
+set SCRIPTS_DIR=%PYTHON_DIR%Scripts
+echo [INFO] Verificando se %SCRIPTS_DIR% esta no PATH...
+echo %PATH% | find /i "%SCRIPTS_DIR%" >nul || (
+  echo [INFO] Adicionando %SCRIPTS_DIR% ao PATH do sistema...
+  setx PATH "%PATH%;%SCRIPTS_DIR%" >nul
+  echo [OK] Scripts do Python adicionado ao PATH permanentemente
+)
+set PATH=%SCRIPTS_DIR%;%PATH%
+
+echo [INFO] === VERIFICACAO DO CHROME ===
+where chrome >nul 2>nul || (
+  echo [AVISO] Chrome nao encontrado. Instale o Google Chrome manualmente.
+  echo [INFO] Continuando execucao...
+)
+
+echo [INFO] === CRIACAO DE PASTAS ===
+if not exist "C:\Arquivos" (
+  mkdir "C:\Arquivos"
+  echo [OK] Pasta C:\Arquivos criada
+)
+if not exist "data" mkdir data
+if not exist "output" mkdir output
+
+echo [INFO] === INSTALACAO DAS DEPENDENCIAS ===
+if not exist "requirements.txt" (
+  echo [ERRO] requirements.txt nao encontrado.
+  pause & exit /b 1
+)
+
+echo [INFO] Instalando dependencias necessarias...
+%PYTHON_CMD% -m pip install --upgrade pip
+%PYTHON_CMD% -m pip install --force-reinstall selenium openpyxl tldextract requests
+if %errorlevel% neq 0 (
+  echo [INFO] Tentando com --user...
+  %PYTHON_CMD% -m pip install --user --force-reinstall selenium openpyxl tldextract requests
+)
+
+echo [INFO] Testando importacao...
+%PYTHON_CMD% -c "import selenium, openpyxl, tldextract, requests; print('[OK] Dependencias funcionando!')"
+if %errorlevel% neq 0 (
+  echo [ERRO] Dependencias nao funcionam. Verifique a instalacao do Python.
+  pause & exit /b 1
+)
+
+echo [INFO] === EXECUCAO DO PROGRAMA ===
 if not exist "main.py" (
   echo [ERRO] main.py nao encontrado nesta pasta.
-  pause & exit /b
+  pause & exit /b 1
 )
 
-echo [INFO] Iniciando o ROBO 2...
-py "main.py"
+echo [OK] Iniciando o Robo Coletor de E-mails...
+%PYTHON_CMD% main.py
+
 if %errorlevel% neq 0 (
   echo [ERRO] O robo encontrou um erro durante a execucao.
-  echo [INFO] Pressione qualquer tecla para fechar...
-  pause >nul
+  pause
 ) else (
-  echo [INFO] Robo finalizado com sucesso.
+  echo [OK] Robo finalizado com sucesso!
+  pause
 )
