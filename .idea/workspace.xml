@@ -5,6 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Configuração Python">
+      <change beforePath="$PROJECT_DIR$/data/emails.json" beforeDir="false" afterPath="$PROJECT_DIR$/data/emails.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/visited.json" beforeDir="false" afterPath="$PROJECT_DIR$/data/visited.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -417,7 +419,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756335051771</updated>
     </task>
-    <option name="localTasksCounter" value="40" />
+    <task id="LOCAL-00040" summary="Configuração Python">
+      <option name="closed" value="true" />
+      <created>1756335340795</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1756335340795</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
