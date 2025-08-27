@@ -5,28 +5,10 @@ title ROBO 2 - E-mails reais (Firefox visivel)
 echo [INFO] Pasta atual esperada: %cd%
 echo [OK] Pasta atual: %cd%
 
-if not exist "chromedriver.exe" (
-  echo [ERRO] chromedriver.exe NAO encontrado nesta pasta.
-  echo [INFO] Baixe em: https://chromedriver.chromium.org/
-  pause & exit /b
-) else (
-  echo [OK] chromedriver.exe encontrado.
-)
+where py >nul 2>nul || (echo [ERRO] Python 3.11+ nao encontrado no PATH. & pause & exit /b)
 
-where python >nul 2>nul || (echo [ERRO] Python 3.11+ nao encontrado no PATH. & pause & exit /b)
-
-if not exist ".venv" (
-  echo [INFO] Criando venv...
-  python -m venv .venv || (echo [ERRO] Falha ao criar venv. & pause & exit /b)
-)
-
-call ".venv\Scripts\activate.bat" || (echo [ERRO] Nao consegui ativar a venv. & pause & exit /b)
-echo [OK] Venv ativada.
-
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-
-set "PATH=%PATH%;%cd%"
+echo [INFO] Verificando dependencias...
+py -m pip install -r requirements.txt
 
 if not exist "main.py" (
   echo [ERRO] main.py nao encontrado nesta pasta.
@@ -34,5 +16,5 @@ if not exist "main.py" (
 )
 
 echo [INFO] Iniciando o ROBO 2...
-python "main.py"
+py "main.py"
 echo [INFO] Robo finalizado.
