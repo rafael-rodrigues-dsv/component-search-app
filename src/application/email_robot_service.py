@@ -266,12 +266,12 @@ class EmailCollectorService(EmailCollectorInterface):
                     domain = self.validation_service.extract_domain_from_url(link)
                     
                     if self.visited_domains.get(domain):
-                        print(f"    [PULAR] Site já visitado: {domain}")
+                        print(f"\n    [PULAR] Site já visitado: {domain}")
                         continue
                     
                     # Marca domínio como visitado ANTES de extrair dados
                     self.visited_domains[domain] = True
-                    print(f"    [VISITA] Acessando site: {domain} ({global_results_processed}/{total_expected_results} processado)")
+                    print(f"\n    [VISITA] Acessando site: {domain} ({global_results_processed}/{total_expected_results} processado)")
                     
                     company = self.scraper.extract_company_data(link, MAX_EMAILS_PER_SITE)
                     company.search_term = term.query  # Adiciona termo de busca
@@ -282,9 +282,8 @@ class EmailCollectorService(EmailCollectorInterface):
                         
                         if new_emails:
                             company.emails = new_emails
-                            print(f"    [DEBUG] Salvando empresa: {company.name}")
                             self.excel_repo.save_company(company)
-                            print(f"    [DEBUG] Empresa salva em: {OUTPUT_XLSX}")
+                            print(f"    [OK] Empresa salva em: {OUTPUT_XLSX}")
                             
                             # Atualiza controle de e-mails
                             for email in new_emails:
@@ -292,7 +291,6 @@ class EmailCollectorService(EmailCollectorInterface):
                             
                             term_saved += 1
                             total_saved += 1
-                            print(f"    [+] {company.name} | {new_emails}")
                         else:
                             print(f"    [-] E-mails já coletados: {domain}")
                     else:

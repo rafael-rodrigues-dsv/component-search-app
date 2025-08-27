@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Modificações de pastas de configurações">
-      <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/settings.py" afterDir="false" />
+    <list default="true" id="0e0c44c8-a24b-4900-8cab-7bb4ddd2dec1" name="Changes" comment="Configuração Python">
+      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,7 +44,7 @@
   &quot;keyToString&quot;: {
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
     &quot;Python.hello_world.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Debug&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
@@ -393,7 +393,31 @@
       <option name="project" value="LOCAL" />
       <updated>1756334444346</updated>
     </task>
-    <option name="localTasksCounter" value="37" />
+    <task id="LOCAL-00037" summary="Modificações de pastas de configurações">
+      <option name="closed" value="true" />
+      <created>1756334471759</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1756334471759</updated>
+    </task>
+    <task id="LOCAL-00038" summary="Configuração Python">
+      <option name="closed" value="true" />
+      <created>1756335000716</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1756335000716</updated>
+    </task>
+    <task id="LOCAL-00039" summary="Configuração Python">
+      <option name="closed" value="true" />
+      <created>1756335051771</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1756335051771</updated>
+    </task>
+    <option name="localTasksCounter" value="40" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -417,7 +441,8 @@
     <MESSAGE value="Deleta execução em segundo plano" />
     <MESSAGE value="Modificações de pastas" />
     <MESSAGE value="Modificações de pastas de configurações" />
-    <option name="LAST_COMMIT_MESSAGE" value="Modificações de pastas de configurações" />
+    <MESSAGE value="Configuração Python" />
+    <option name="LAST_COMMIT_MESSAGE" value="Configuração Python" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
