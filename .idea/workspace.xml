@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Ajuste modo debug" />
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclui instalação e configuração do Python">
+      <change beforePath="$PROJECT_DIR$/iniciar_robo.bat" beforeDir="false" afterPath="$PROJECT_DIR$/iniciar_robo.bat" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -113,11 +115,20 @@
       <option name="project" value="LOCAL" />
       <updated>1756336609027</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Inclui instalação e configuração do Python">
+      <option name="closed" value="true" />
+      <created>1756337305768</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1756337305768</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Ajuste modo debug" />
-    <option name="LAST_COMMIT_MESSAGE" value="Ajuste modo debug" />
+    <MESSAGE value="Inclui instalação e configuração do Python" />
+    <option name="LAST_COMMIT_MESSAGE" value="Inclui instalação e configuração do Python" />
   </component>
 </project>

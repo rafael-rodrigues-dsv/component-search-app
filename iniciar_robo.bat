@@ -25,7 +25,8 @@ py -c "import selenium, openpyxl, tldextract, requests; print('[OK] Todas as dep
   echo [ERRO] Dependencias nao instaladas corretamente
   echo [INFO] Tentando instalacao global...
   py -m pip install -r requirements.txt
-  pause & exit /b
+  echo [INFO] Pressione qualquer tecla para continuar...
+  pause >nul
 )
 
 if not exist "main.py" (
@@ -35,4 +36,10 @@ if not exist "main.py" (
 
 echo [INFO] Iniciando o ROBO 2...
 py "main.py"
-echo [INFO] Robo finalizado.
+if %errorlevel% neq 0 (
+  echo [ERRO] O robo encontrou um erro durante a execucao.
+  echo [INFO] Pressione qualquer tecla para fechar...
+  pause >nul
+) else (
+  echo [INFO] Robo finalizado com sucesso.
+)
