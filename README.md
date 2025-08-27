@@ -120,7 +120,7 @@ Edite `config/settings.py` para personalizar:
 ## 📊 Saída
 
 O robô gera:
-- **output/empresas.xlsx**: Planilha com NOME DO SITE | URL DO SITE | EMAIL
+- **output/empresas.xlsx**: Planilha com SITE | EMAIL
 - **data/visited.json**: Controle de domínios já visitados
 - **data/emails.json**: Controle de e-mails já coletados
 - **Logs detalhados**: Progresso em tempo real

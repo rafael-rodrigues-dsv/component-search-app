@@ -67,7 +67,7 @@ class ExcelRepository:
             return
         
         emails_str = ";".join(company.emails) + ";"
-        row_data = [company.name, company.url, emails_str]
+        row_data = [company.url, emails_str]
         # Colunas comentadas para uso futuro:
         # row_data = [company.name, company.phone, emails_str, company.search_term, company.address, company.url]
         
@@ -77,11 +77,8 @@ class ExcelRepository:
             ws.append(row_data)
             
             # Formatação da linha
-            for i, cell in enumerate(ws[ws.max_row]):
-                if i == 0:  # Nome da empresa
-                    cell.font = Font(name="Arial", size=10, bold=True)
-                else:
-                    cell.font = Font(name="Arial", size=10)
+            for cell in ws[ws.max_row]:
+                cell.font = Font(name="Arial", size=10)
                 cell.alignment = Alignment(horizontal="left")
             
             wb.save(self.file_path)
@@ -104,18 +101,18 @@ class ExcelRepository:
             wb = Workbook()
             ws = wb.active
             ws.title = "Dados"
-            ws["A1"] = "NOME DO SITE"
-            ws["B1"] = "URL DO SITE"
-            ws["C1"] = "EMAIL"
+            ws["A1"] = "site"
+            ws["B1"] = "email"
             # Colunas comentadas para uso futuro:
+            # ws["C1"] = "NOME DO SITE"
             # ws["D1"] = "TELEFONE"
             # ws["E1"] = "TERMO BUSCA"
             # ws["F1"] = "ENDEREÇO"
             
             # Ajusta largura das colunas
-            ws.column_dimensions['A'].width = 30
+            ws.column_dimensions['A'].width = 50
             ws.column_dimensions['B'].width = 40
-            ws.column_dimensions['C'].width = 35
+            # ws.column_dimensions['C'].width = 30
             # ws.column_dimensions['D'].width = 20
             # ws.column_dimensions['E'].width = 40
             # ws.column_dimensions['F'].width = 50
