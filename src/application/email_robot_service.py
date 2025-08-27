@@ -144,22 +144,18 @@ class EmailCollectorService(EmailCollectorInterface):
             search_terms = []
             
             # Capital
-            # for base in BASE_ELEVADORES:
-            #     search_terms.append(f"{base} São Paulo capital")
-            
-            # Zonas
-            for base in BASE_SEMINOVOS:
-                    search_terms.append(f"{base} São Paulo")
+            for base in BASE_ELEVADORES:
+                search_terms.append(f"{base} São Paulo capital")
 
-            # # Bairros
-            # for base in BASE_ELEVADORES:
-            #     for bairro in BAIRROS_SP:
-            #         search_terms.append(f"{base} {bairro} São Paulo")
-            #
-            # # Interior
-            # for base in BASE_ELEVADORES:
-            #     for cidade in CIDADES_INTERIOR:
-            #         search_terms.append(f"{base} {cidade} SP")
+            # Bairros
+            for base in BASE_ELEVADORES:
+                for bairro in BAIRROS_SP:
+                    search_terms.append(f"{base} {bairro} São Paulo")
+
+            # Interior
+            for base in BASE_ELEVADORES:
+                for cidade in CIDADES_INTERIOR:
+                    search_terms.append(f"{base} {cidade} SP")
             
             # Converte para objetos SearchTerm
             terms = [SearchTerm(query=term, location=SEARCH_LOCATION, category=SEARCH_CATEGORY, pages=10) for term in search_terms]
