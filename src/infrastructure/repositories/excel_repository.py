@@ -2,10 +2,9 @@
 Camada de Infraestrutura - Repositório Excel
 """
 from typing import List
+
 import openpyxl
 from openpyxl import Workbook
-
-from ...domain.email_processor import Company
 
 
 class ExcelRepository:

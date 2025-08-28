@@ -2,12 +2,12 @@
 Camada de Infraestrutura - Extração de e-mails via web scraping
 """
 from typing import List
+
+import tldextract
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-import tldextract
 
-from ...domain.email_processor import Company
 from ..web_driver import WebDriverManager
 
 

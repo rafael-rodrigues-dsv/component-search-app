@@ -1,24 +1,24 @@
 """
 Camada de Aplicação - Serviço principal do robô coletor
 """
-import time
 import random
-import os
-import requests
+import time
 import zipfile
 from typing import List
+
+import requests
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
+from config.settings import *
 from ..domain.email_processor import (
-    Company, SearchTerm, EmailCollectorInterface, 
+    SearchTerm, EmailCollectorInterface,
     WorkingHoursService, SearchTermBuilder, EmailValidationService
 )
-from ..infrastructure.web_driver import WebDriverManager
+from ..infrastructure.repositories.data_persistence import JsonRepository, ExcelRepository
 from ..infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ..infrastructure.scrapers.google_scraper import GoogleScraper
-from ..infrastructure.repositories.data_persistence import JsonRepository, ExcelRepository
-from config.settings import *
+from ..infrastructure.web_driver import WebDriverManager
 
 
 class EmailCollectorService(EmailCollectorInterface):

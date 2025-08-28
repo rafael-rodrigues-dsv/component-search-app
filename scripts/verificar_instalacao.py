@@ -3,7 +3,7 @@
 Script para verificar se tudo está instalado corretamente
 """
 import os
-import sys
+
 
 def verificar_instalacao():
     print("🔍 Verificando instalação...")

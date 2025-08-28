@@ -3,10 +3,12 @@
 Script para baixar e instalar Python 3.13.7
 """
 import os
-import requests
 import subprocess
 import sys
 from pathlib import Path
+
+import requests
+
 
 def baixar_python():
     """Baixa o instalador do Python 3.13.7"""

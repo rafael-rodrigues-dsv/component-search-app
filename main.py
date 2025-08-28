@@ -5,6 +5,7 @@ ROBO 2 – COLETOR DE E-MAILS (ELEVADORES primeiro)
 Ponto de entrada principal do robô
 """
 import sys
+
 from src.application.email_robot_service import EmailCollectorService
 
 

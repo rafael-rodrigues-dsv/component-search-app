@@ -2,9 +2,9 @@
 """
 Script para verificar instalação do Python
 """
-import sys
 import subprocess
-import os
+import sys
+
 
 def verificar_versao_python():
     """Verifica se a versão do Python é compatível"""

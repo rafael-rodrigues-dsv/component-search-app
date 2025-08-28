@@ -75,7 +75,7 @@ Aplicação Python especializada em coleta de e-mails de empresas de elevadores 
 
 2. **Executar**:
    ```cmd
-   iniciar_robo.bat
+   iniciar_robo_simples.bat
    ```
 
 ### Execução Manual

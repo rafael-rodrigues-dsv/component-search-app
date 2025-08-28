@@ -3,7 +3,7 @@
 Script para verificar se tudo está instalado corretamente para Chrome
 """
 import os
-import sys
+
 
 def verificar_instalacao():
     print("🔍 Verificando instalação para Chrome...")

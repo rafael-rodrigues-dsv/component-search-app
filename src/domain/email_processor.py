@@ -1,12 +1,13 @@
 """
 Camada de Domínio - Regras de negócio para coleta de e-mails
 """
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
-import re
-import tldextract
 from datetime import datetime
+from typing import List
+
+import tldextract
 
 
 @dataclass

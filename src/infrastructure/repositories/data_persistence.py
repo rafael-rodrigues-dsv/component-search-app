@@ -3,7 +3,8 @@ Camada de Infraestrutura - Persistência de dados
 """
 import json
 import os
-from typing import Dict, List, Set
+from typing import Dict, Set
+
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment
 

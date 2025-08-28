@@ -3,12 +3,13 @@
 """
 Google Scraper Rápido - Versão otimizada para velocidade
 """
-import time
 import random
+import time
+
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+
 from config.settings import SCRAPER_DELAYS
 
 

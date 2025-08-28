@@ -3,10 +3,10 @@
 Script para baixar ChromeDriver automaticamente
 """
 import os
-import requests
 import zipfile
-import json
-from pathlib import Path
+
+import requests
+
 
 def get_chrome_version():
     """Detecta versão do Chrome instalado"""
