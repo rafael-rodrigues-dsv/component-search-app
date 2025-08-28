@@ -16,6 +16,8 @@ from ..domain.email_processor import (
 )
 from ..infrastructure.web_driver import WebDriverManager
 from ..infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
+from ..infrastructure.scrapers.google_scraper import GoogleScraper
+from ..infrastructure.scrapers.google_scraper_fast import GoogleScraper as GoogleScraperFast
 from ..infrastructure.repositories.data_persistence import JsonRepository, ExcelRepository
 from config.settings import *
 
@@ -27,7 +29,18 @@ class EmailCollectorService(EmailCollectorInterface):
     
     def __init__(self, ignore_working_hours=False):
         self.driver_manager = WebDriverManager()
-        self.scraper = DuckDuckGoScraper(self.driver_manager)
+        
+        # Escolhe scraper baseado na configuração
+        if SEARCH_ENGINE.upper() == "GOOGLE":
+            if FAST_MODE:
+                print("[INFO] Usando motor de busca: Google (modo rápido)")
+                self.scraper = GoogleScraperFast(None)
+            else:
+                print("[INFO] Usando motor de busca: Google (modo seguro)")
+                self.scraper = GoogleScraper(None)
+        else:
+            print("[INFO] Usando motor de busca: DuckDuckGo")
+            self.scraper = DuckDuckGoScraper(self.driver_manager)
         self.json_repo = JsonRepository(VISITED_JSON, SEEN_EMAILS_JSON)
         self.excel_repo = ExcelRepository(OUTPUT_XLSX)
         self.working_hours = WorkingHoursService(START_HOUR, END_HOUR)
@@ -180,6 +193,10 @@ class EmailCollectorService(EmailCollectorInterface):
             if not self.driver_manager.start_driver():
                 print("[ERRO] Falha ao iniciar driver")
                 return False
+            
+            # Define driver no scraper Google se necessário
+            if SEARCH_ENGINE.upper() == "GOOGLE":
+                self.scraper.driver = self.driver_manager.driver
             
             # Lista única de termos de busca usando constantes
             search_terms = []

@@ -68,6 +68,24 @@ SEARCH_CATEGORY = "elevadores"
 # Modo de execução
 IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)
 
+# Motor de busca
+SEARCH_ENGINE = "GOOGLE"  # "GOOGLE" ou "DUCKDUCKGO"
+
+# Anti-detecção Google
+USE_PROXY_ROTATION = False  # Rotação de proxy (configure proxies abaixo)
+PROXY_LIST = []  # Lista de proxies: ["ip:porta", "ip:porta"]
+USER_AGENT_ROTATION = True  # Rotação de User-Agent
+RANDOM_VIEWPORT = True  # Tamanho de janela aleatório
+
+# Velocidade de execução
+FAST_MODE = True  # True = rápido (menos delays), False = seguro (mais delays)
+GOOGLE_DELAYS = {
+    "navigation": (1.0, 2.0) if FAST_MODE else (3.0, 6.0),
+    "page_load": (2.0, 3.0) if FAST_MODE else (4.0, 8.0),
+    "mouse_move": (0.1, 0.3) if FAST_MODE else (0.5, 1.2),
+    "scroll": (0.2, 0.5) if FAST_MODE else (0.5, 1.2)
+}
+
 # Blacklist
 BLACKLIST_HOSTS = [
     "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "x.com", "twitter.com",
