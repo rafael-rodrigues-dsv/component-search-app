@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclusão de Busca pelo Google com mecanismo anti-decção de bot">
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclusão de opções de browsers">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/application/email_robot_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/application/email_robot_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -292,7 +293,23 @@
       <option name="project" value="LOCAL" />
       <updated>1756351254489</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="Inclusão de Busca pelo Google com mecanismo anti-decção de bot">
+      <option name="closed" value="true" />
+      <created>1756351817111</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1756351817111</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Inclusão de opções de browsers">
+      <option name="closed" value="true" />
+      <created>1756352721832</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1756352721832</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -302,6 +319,7 @@
     <MESSAGE value="Ajuste ao iniciar robo" />
     <MESSAGE value="Ajuste instalações do Python" />
     <MESSAGE value="Inclusão de Busca pelo Google com mecanismo anti-decção de bot" />
-    <option name="LAST_COMMIT_MESSAGE" value="Inclusão de Busca pelo Google com mecanismo anti-decção de bot" />
+    <MESSAGE value="Inclusão de opções de browsers" />
+    <option name="LAST_COMMIT_MESSAGE" value="Inclusão de opções de browsers" />
   </component>
 </project>

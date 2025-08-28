@@ -1,5 +1,5 @@
 """
-Camada de Infraestrutura - Scraper DuckDuckGo
+DuckDuckGo Scraper Rápido - Versão otimizada para velocidade
 """
 import time
 import random
@@ -13,93 +13,82 @@ from selenium.common.exceptions import TimeoutException
 
 from ...domain.email_processor import Company, EmailValidationService
 from ..web_driver import WebDriverManager
+from config.settings import SCRAPER_DELAYS
 
 
 class DuckDuckGoScraper:
-    """Scraper para DuckDuckGo"""
+    """Scraper rápido para DuckDuckGo"""
     
     def __init__(self, driver_manager: WebDriverManager):
         self.driver_manager = driver_manager
         self.validation_service = EmailValidationService()
     
-    def search(self, query: str, max_retries: int = 3) -> bool:
-        """Executa busca no DuckDuckGo com retry"""
-        for attempt in range(max_retries):
-            try:
-                print(f"    [INFO] Tentativa {attempt + 1}/{max_retries} de busca...")
-                
-                self.driver_manager.driver.get("https://duckduckgo.com/")
-                WebDriverWait(self.driver_manager.driver, 30).until(
-                    EC.presence_of_element_located((By.ID, "searchbox_input"))
-                )
-                
-                search_box = self.driver_manager.driver.find_element(By.ID, "searchbox_input")
-                search_box.clear()
-                search_box.send_keys(query)
-                search_box.send_keys(Keys.ENTER)
-                
-                # Aguarda resultados com timeout maior
-                WebDriverWait(self.driver_manager.driver, 30).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
-                )
-                time.sleep(random.uniform(1.5, 3.0))
-                print("    [OK] Busca realizada com sucesso")
-                return True
-                
-            except TimeoutException as e:
-                print(f"    [AVISO] Tentativa {attempt + 1} falhou: Timeout")
-                if attempt < max_retries - 1:
-                    time.sleep(random.uniform(2, 5))  # Pausa antes de tentar novamente
-                    continue
-            except Exception as e:
-                print(f"    [AVISO] Tentativa {attempt + 1} falhou: {str(e)[:50]}")
-                if attempt < max_retries - 1:
-                    time.sleep(random.uniform(2, 5))
-                    continue
-        
-        print("    [ERRO] Todas as tentativas de busca falharam")
-        return False
+    def search(self, query: str, max_retries: int = 2) -> bool:
+        """Executa busca rápida no DuckDuckGo"""
+        try:
+            self.driver_manager.driver.get("https://duckduckgo.com/")
+            
+            search_box = WebDriverWait(self.driver_manager.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "searchbox_input"))
+            )
+            
+            search_box.clear()
+            search_box.send_keys(query)
+            search_box.send_keys(Keys.ENTER)
+            
+            WebDriverWait(self.driver_manager.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
+            )
+            
+            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+            return True
+            
+        except Exception as e:
+            print(f"    [ERRO] Busca falhou: {str(e)[:50]}")
+            return False
     
     def get_result_links(self, blacklist_hosts: List[str]) -> List[str]:
-        """Extrai links dos resultados"""
+        """Extrai links rapidamente"""
         links = []
         try:
+            # Scroll mínimo
+            self.driver_manager.driver.execute_script("window.scrollBy(0, 1000);")
+            time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            
             cards = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']")
             for card in cards:
                 link_elements = card.find_elements(By.CSS_SELECTOR, "a[data-testid='result-title-a']")
-                if not link_elements:
-                    link_elements = card.find_elements(By.CSS_SELECTOR, "a.result__a")
                 
                 if link_elements:
                     href = link_elements[0].get_attribute("href") or ""
                     if href.startswith("http") and not self._is_blacklisted(href, blacklist_hosts):
                         links.append(href)
-        except Exception:
+        except:
             pass
         
-        return self._deduplicate_links(links)
+        return list(set(links))  # Remove duplicatas
     
     def extract_company_data(self, url: str, max_emails: int) -> Company:
-        """Extrai dados da empresa do site"""
+        """Extração rápida de dados da empresa"""
         try:
             self.driver_manager.driver.execute_script("window.open(arguments[0],'_blank');", url)
             self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[-1])
             
-            WebDriverWait(self.driver_manager.driver, 20).until(
+            WebDriverWait(self.driver_manager.driver, 8).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
-            time.sleep(random.uniform(1.0, 2.0))
-            self._human_scroll()
-            time.sleep(random.uniform(6, 12))
+            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
             
-            emails = self._extract_emails()[:max_emails]
-            name = self._get_company_name(url)
+            # Scroll rápido
+            self.driver_manager.driver.execute_script("window.scrollBy(0, 2000);")
+            time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            
+            emails = self._extract_emails_fast()[:max_emails]
+            name = self._get_company_name_fast(url)
             domain = self.validation_service.extract_domain_from_url(url)
-            address = self._extract_address()
-            phone = self._extract_phone()
             
-            return Company(name=name, emails=emails, domain=domain, url=url, address=address, phone=phone)
+            return Company(name=name, emails=emails, domain=domain, url=url, address="", phone="")
             
         except Exception:
             return Company(name="", emails=[], domain="", url=url)
@@ -111,156 +100,37 @@ class DuckDuckGoScraper:
             except:
                 pass
     
-    def _human_scroll(self):
-        """Simula rolagem humana"""
-        try:
-            height = self.driver_manager.driver.execute_script("return document.body.scrollHeight") or 2000
-        except:
-            height = 2000
-        
-        steps = random.randint(6, 10)
-        for i in range(1, steps + 1):
-            y = int(height * i / steps)
-            self.driver_manager.driver.execute_script(f"window.scrollTo(0, {y});")
-            time.sleep(random.uniform(0.8, 2.0))
-    
-    def _extract_emails(self) -> List[str]:
-        """Extrai e-mails da página"""
+    def _extract_emails_fast(self) -> List[str]:
+        """Extração rápida de e-mails"""
         emails = set()
         
         try:
-            text = self.driver_manager.driver.find_element(By.TAG_NAME, "body").text
-            found_emails = re.findall(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", text)
+            # Busca no texto da página
+            page_source = self.driver_manager.driver.page_source
+            found_emails = re.findall(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', page_source)
+            
             for email in found_emails:
                 if self.validation_service.is_valid_email(email):
                     emails.add(email.lower())
-        except:
-            pass
-        
-        try:
-            mailto_links = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "a[href^='mailto:']")
-            for link in mailto_links:
-                href = link.get_attribute("href") or ""
-                email = href.replace("mailto:", "").split("?")[0]
-                if email and self.validation_service.is_valid_email(email):
-                    emails.add(email.lower())
+                    if len(emails) >= 5:  # Limite para velocidade
+                        break
         except:
             pass
         
         return list(emails)
     
-    def _get_company_name(self, url: str) -> str:
-        """Extrai nome da empresa"""
+    def _get_company_name_fast(self, url: str) -> str:
+        """Extração rápida do nome da empresa"""
         try:
-            for tag in ["header", "h1", "h2"]:
-                elements = self.driver_manager.driver.find_elements(By.TAG_NAME, tag)
-                for element in elements:
-                    text = element.text.strip()
-                    if 3 <= len(text) <= 80:
-                        return text
-            
             title = self.driver_manager.driver.title or ""
             if title.strip():
-                return title.strip()[:80]
-                
+                return title.strip()[:50]
         except:
             pass
         
         return self.validation_service.extract_domain_from_url(url)
     
-    def _extract_address(self) -> str:
-        """Extrai endereço da empresa"""
-        try:
-            # Busca por padrões de endereço
-            body_text = self.driver_manager.driver.find_element(By.TAG_NAME, "body").text
-            
-            # Padrões de endereço brasileiro
-            import re
-            address_patterns = [
-                r'[A-ZÀ-ſ][a-zÀ-ſ\s]+,\s*\d+[\w\s,-]*\d{5}-?\d{3}',  # Rua, número, CEP
-                r'Rua\s+[A-ZÀ-ſ][\w\s,.-]+\d+[\w\s,-]*',  # Rua + nome + número
-                r'Av[\w\s.]*[A-ZÀ-ſ][\w\s,.-]+\d+[\w\s,-]*',  # Avenida
-                r'[A-ZÀ-ſ][\w\s,.-]+\d{5}-?\d{3}[\w\s,-]*São Paulo'  # Com CEP e SP
-            ]
-            
-            for pattern in address_patterns:
-                matches = re.findall(pattern, body_text)
-                if matches:
-                    return matches[0][:100]  # Limita a 100 caracteres
-            
-            # Busca por elementos com classes relacionadas a endereço
-            address_selectors = [
-                '[class*="address"]', '[class*="endereco"]', '[class*="location"]',
-                '[class*="contact"]', '[id*="address"]', '[id*="endereco"]'
-            ]
-            
-            for selector in address_selectors:
-                elements = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, selector)
-                for element in elements:
-                    text = element.text.strip()
-                    if 10 <= len(text) <= 150 and any(word in text.lower() for word in ['rua', 'av', 'avenida', 'cep']):
-                        return text[:100]
-                        
-        except:
-            pass
-        
-        return ""
-    
-    def _extract_phone(self) -> str:
-        """Extrai telefone da empresa"""
-        try:
-            body_text = self.driver_manager.driver.find_element(By.TAG_NAME, "body").text
-            
-            # Padrões de telefone brasileiro
-            phone_patterns = [
-                r'\(?\d{2}\)?\s*9?\d{4}-?\d{4}',  # (11) 99999-9999 ou 11 99999-9999
-                r'\+55\s*\(?\d{2}\)?\s*9?\d{4}-?\d{4}',  # +55 (11) 99999-9999
-                r'\d{2}\s*9\d{4}-?\d{4}',  # 11 99999-9999
-                r'\(?0?\d{2}\)?\s*\d{4}-?\d{4}'  # (011) 3333-3333
-            ]
-            
-            for pattern in phone_patterns:
-                matches = re.findall(pattern, body_text)
-                if matches:
-                    # Pega o primeiro telefone encontrado e limpa
-                    phone = matches[0]
-                    # Remove caracteres desnecessários e formata
-                    phone = re.sub(r'[^\d]', '', phone)
-                    if len(phone) >= 10:
-                        return phone[:11]  # Limita a 11 dígitos
-            
-            # Busca por elementos com classes relacionadas a telefone
-            phone_selectors = [
-                '[class*="phone"]', '[class*="telefone"]', '[class*="fone"]',
-                '[class*="contact"]', '[id*="phone"]', '[id*="telefone"]'
-            ]
-            
-            for selector in phone_selectors:
-                elements = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, selector)
-                for element in elements:
-                    text = element.text.strip()
-                    # Verifica se contém padrão de telefone
-                    if re.search(r'\d{2,}.*\d{4}', text):
-                        phone = re.sub(r'[^\d]', '', text)
-                        if len(phone) >= 10:
-                            return phone[:11]
-                            
-        except:
-            pass
-        
-        return ""
-    
-    def _is_blacklisted(self, url: str, blacklist: List[str]) -> bool:
+    def _is_blacklisted(self, url: str, blacklist_hosts: List[str]) -> bool:
         """Verifica se URL está na blacklist"""
         url_lower = url.lower()
-        return any(blocked in url_lower for blocked in blacklist)
-    
-    def _deduplicate_links(self, links: List[str]) -> List[str]:
-        """Remove links duplicados mantendo ordem"""
-        seen = set()
-        unique = []
-        for link in links:
-            if link not in seen:
-                unique.append(link)
-                seen.add(link)
-        return unique
+        return any(host in url_lower for host in blacklist_hosts)

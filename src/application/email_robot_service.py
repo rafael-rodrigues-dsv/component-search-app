@@ -17,7 +17,6 @@ from ..domain.email_processor import (
 from ..infrastructure.web_driver import WebDriverManager
 from ..infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ..infrastructure.scrapers.google_scraper import GoogleScraper
-from ..infrastructure.scrapers.google_scraper_fast import GoogleScraper as GoogleScraperFast
 from ..infrastructure.repositories.data_persistence import JsonRepository, ExcelRepository
 from config.settings import *
 
@@ -32,12 +31,8 @@ class EmailCollectorService(EmailCollectorInterface):
         
         # Escolhe scraper baseado na configuração
         if SEARCH_ENGINE.upper() == "GOOGLE":
-            if FAST_MODE:
-                print("[INFO] Usando motor de busca: Google (modo rápido)")
-                self.scraper = GoogleScraperFast(None)
-            else:
-                print("[INFO] Usando motor de busca: Google (modo seguro)")
-                self.scraper = GoogleScraper(None)
+            print("[INFO] Usando motor de busca: Google")
+            self.scraper = GoogleScraper(None)  # Driver será definido depois
         else:
             print("[INFO] Usando motor de busca: DuckDuckGo")
             self.scraper = DuckDuckGoScraper(self.driver_manager)
