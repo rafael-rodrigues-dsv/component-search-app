@@ -66,15 +66,15 @@ SEARCH_LOCATION = "SP"
 SEARCH_CATEGORY = "elevadores"
 
 # Modo de execução
-IS_TEST_MODE = False  # True para teste (poucos termos), False para produção (todos os termos)
+IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)
 
 # Motor de busca
 SEARCH_ENGINE = "GOOGLE"  # "GOOGLE" ou "DUCKDUCKGO"
 
 # Delays rápidos
 SCRAPER_DELAYS = {
-    "page_load": (1.0, 2.0),
-    "scroll": (0.2, 0.5)
+    "page_load": (2.0, 3.0),  # Aumentado para ver melhor
+    "scroll": (1.0, 1.5)     # Aumentado para ver melhor
 }
 
 # Blacklist
