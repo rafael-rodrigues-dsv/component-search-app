@@ -18,17 +18,8 @@ OUT_OF_HOURS_WAIT_SECONDS = 120
 
 # Coleta
 MAX_EMAILS_PER_SITE = 5
-SCROLL_STEPS = (6, 10)
-SCROLL_PAUSE = (0.8, 2.0)
-SITE_DWELL_TIME = (6, 12)
 SEARCH_DWELL = (1.2, 2.4)
 RESULTS_PER_TERM_LIMIT = 1200
-
-# Páginas por tipo
-PAGES_CAPITAL = 80
-PAGES_ZONA = 25
-PAGES_BAIRRO = 12
-PAGES_INTERIOR = 20
 
 # Zonas SP
 BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]

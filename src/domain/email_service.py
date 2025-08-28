@@ -3,39 +3,20 @@ Camada de Domínio - Regras de negócio para coleta de e-mails
 """
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
 from typing import List
 
 import tldextract
 
-
-@dataclass
-class Company:
-    """Entidade Empresa"""
-    name: str
-    emails: str  # String com e-mails separados por ;
-    domain: str
-    url: str
-    search_term: str = ""
-    address: str = ""
-    phone: str = ""
-
-
-@dataclass
-class SearchTerm:
-    """Entidade Termo de Busca"""
-    query: str
-    location: str
-    category: str
-    pages: int
+from .models.company_model import CompanyModel
+from .models.search_term_model import SearchTermModel
 
 
 class EmailCollectorInterface(ABC):
     """Interface para coleta de e-mails"""
     
     @abstractmethod
-    def collect_emails(self, terms: List[SearchTerm]) -> List[Company]:
+    def collect_emails(self, terms: List[SearchTermModel]) -> List[CompanyModel]:
         pass
 
 
@@ -182,31 +163,3 @@ class WorkingHoursService:
         return self.start_hour <= current_hour < self.end_hour
 
 
-class SearchTermBuilder:
-    """Construtor de termos de busca"""
-    
-    def build_elevator_terms(self, base_terms: List[str], zonas: List[str], 
-                           bairros: List[str], cidades: List[str]) -> List[SearchTerm]:
-        """Constrói termos para elevadores"""
-        terms = []
-        
-        # Capital geral
-        for base in base_terms:
-            terms.append(SearchTerm(f"{base} São Paulo capital", "capital", "elevadores", 80))
-        
-        # Por zonas
-        for base in base_terms:
-            for zona in zonas:
-                terms.append(SearchTerm(f"{base} {zona} São Paulo", "zona", "elevadores", 25))
-        
-        # Por bairros
-        for base in base_terms:
-            for bairro in bairros:
-                terms.append(SearchTerm(f"{base} {bairro} São Paulo", "bairro", "elevadores", 12))
-        
-        # Interior
-        for base in base_terms:
-            for cidade in cidades:
-                terms.append(SearchTerm(f"{base} {cidade} SP", "interior", "elevadores", 20))
-        
-        return terms

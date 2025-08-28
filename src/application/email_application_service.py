@@ -5,26 +5,23 @@ import random
 import time
 from typing import List
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-
 from config.settings import *
 from .services.user_config_service import UserConfigService
-from .services.chromedriver_manager import ChromeDriverManager
-from .services.search_term_factory import SearchTermFactory
-from .services.data_manager import DataManager
-from ..domain.email_processor import (
-    SearchTerm, EmailCollectorInterface,
-    WorkingHoursService, EmailValidationService
+from ..domain.email_service import (
+    EmailCollectorInterface, WorkingHoursService, EmailValidationService
 )
-from ..infrastructure.repositories.data_persistence import JsonRepository, ExcelRepository
+from ..domain.factories.search_term_factory import SearchTermFactory
+from ..domain.models.search_term_model import SearchTermModel
+from ..infrastructure.drivers.chromedriver_manager import ChromeDriverManager
+from ..infrastructure.repositories.data_repository import JsonRepository, ExcelRepository
 from ..infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ..infrastructure.scrapers.google_scraper import GoogleScraper
+from ..infrastructure.storage.data_manager import DataManager
 from ..infrastructure.web_driver import WebDriverManager
 
 
-class EmailCollectorService(EmailCollectorInterface):
-    """Serviço principal do PythonSearchApp coletor de e-mails"""
+class EmailApplicationService(EmailCollectorInterface):
+    """Serviço de aplicação do PythonSearchApp coletor de e-mails"""
     
     def __init__(self, ignore_working_hours=False):
         # Configurações do usuário
@@ -84,7 +81,7 @@ class EmailCollectorService(EmailCollectorInterface):
         finally:
             self.driver_manager.close_driver()
     
-    def collect_emails(self, terms: List[SearchTerm]) -> bool:
+    def collect_emails(self, terms: List[SearchTermModel]) -> bool:
         """Coleta e-mails usando termos de busca"""
         total_saved = 0
         
@@ -120,7 +117,7 @@ class EmailCollectorService(EmailCollectorInterface):
         print("[INFO] Processamento concluído. Encerrando PythonSearchApp...")
         return True
     
-    def _process_term_results(self, term: SearchTerm, total_expected: int, global_processed: int) -> int:
+    def _process_term_results(self, term: SearchTermModel, total_expected: int, global_processed: int) -> int:
         """Processa resultados de um termo específico"""
         term_saved = 0
         results_processed = 0

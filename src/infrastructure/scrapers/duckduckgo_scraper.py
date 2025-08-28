@@ -13,7 +13,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import SCRAPER_DELAYS
 from ..web_driver import WebDriverManager
-from ...domain.email_processor import Company, EmailValidationService
+from ...domain.email_service import EmailValidationService
+from ...domain.models.company_model import CompanyModel
 
 
 class DuckDuckGoScraper:
@@ -103,7 +104,7 @@ class DuckDuckGoScraper:
         except Exception:
             return False
     
-    def extract_company_data(self, url: str, max_emails: int) -> Company:
+    def extract_company_data(self, url: str, max_emails: int) -> CompanyModel:
         """Extração rápida de dados da empresa"""
         try:
             self.driver_manager.driver.execute_script("window.open(arguments[0],'_blank');", url)
@@ -126,10 +127,10 @@ class DuckDuckGoScraper:
             name = self._get_company_name_fast(url)
             domain = self.validation_service.extract_domain_from_url(url)
             
-            return Company(name=name, emails=emails_string, domain=domain, url=url, address="", phone=phones_string)
+            return CompanyModel(name=name, emails=emails_string, domain=domain, url=url, address="", phone=phones_string)
             
         except Exception:
-            return Company(name="", emails="", domain="", url=url)
+            return CompanyModel(name="", emails="", domain="", url=url)
         finally:
             try:
                 if len(self.driver_manager.driver.window_handles) > 1:

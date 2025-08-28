@@ -3,7 +3,9 @@ Gerenciador do ChromeDriver
 """
 import os
 import zipfile
+
 import requests
+
 
 class ChromeDriverManager:
     """Gerencia download e instalação do ChromeDriver"""

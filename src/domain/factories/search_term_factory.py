@@ -2,14 +2,16 @@
 Fábrica de termos de busca
 """
 from typing import List
-from ...domain.email_processor import SearchTerm
+
 from config.settings import *
+from ..models.search_term_model import SearchTermModel
+
 
 class SearchTermFactory:
     """Cria termos de busca baseado na configuração"""
     
     @staticmethod
-    def create_search_terms() -> List[SearchTerm]:
+    def create_search_terms() -> List[SearchTermModel]:
         """Cria lista de termos baseado no modo (teste/produção)"""
         search_terms = []
         
@@ -39,4 +41,4 @@ class SearchTermFactory:
                     search_terms.append(f"{base} {cidade} {UF_BASE}")
 
         # Converte para objetos SearchTerm
-        return [SearchTerm(query=term, location=UF_BASE, category=CATEGORIA_BASE, pages=10) for term in search_terms]
+        return [SearchTermModel(query=term, location=UF_BASE, category=CATEGORIA_BASE, pages=10) for term in search_terms]

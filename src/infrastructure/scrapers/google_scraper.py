@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import SCRAPER_DELAYS
-from ...domain.email_processor import EmailValidationService
+from ...domain.email_service import EmailValidationService
 
 
 class GoogleScraper:
@@ -128,7 +128,7 @@ class GoogleScraper:
     
     def extract_company_data(self, url, max_emails):
         """Extrai dados da empresa do site usando sistema de abas"""
-        from ...domain.email_processor import Company
+        from ...domain.models.company_model import CompanyModel
         
         try:
             # Abre site em nova aba (igual ao DuckDuckGo)
@@ -184,7 +184,7 @@ class GoogleScraper:
             except:
                 name = url.split('/')[2]
             
-            return Company(
+            return CompanyModel(
                 name=name,
                 emails=emails_string,
                 domain=url.split('/')[2] if '/' in url else url,
@@ -195,7 +195,7 @@ class GoogleScraper:
             
         except Exception as e:
             print(f"[ERRO] Falha ao extrair dados de {url}: {str(e)[:50]}")
-            return Company(
+            return CompanyModel(
                 name="", 
                 emails="", 
                 domain=url.split('/')[2] if '/' in url else url,

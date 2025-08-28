@@ -8,7 +8,7 @@ from typing import Dict, Set
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment
 
-from ...domain.email_processor import Company
+from ...domain.models.company_model import CompanyModel
 
 
 class JsonRepository:
@@ -62,7 +62,7 @@ class ExcelRepository:
         self._ensure_output_dir()
         self._ensure_excel_exists()
     
-    def save_company(self, company: Company):
+    def save_company(self, company: CompanyModel):
         """Salva empresa no Excel"""
         if not company.emails:
             return

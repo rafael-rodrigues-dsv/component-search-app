@@ -1,7 +1,6 @@
 """
 Gerenciador de dados e limpeza
 """
-import os
 from config.settings import *
 
 class DataManager:
