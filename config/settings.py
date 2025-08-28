@@ -31,10 +31,10 @@ PAGES_BAIRRO = 12
 PAGES_INTERIOR = 20
 
 # Zonas SP
-ZONAS_SP = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
+BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
 
 # Bairros SP
-BAIRROS_SP = [
+BASE_BAIRROS = [
     "Moema", "Vila Mariana", "Pinheiros", "Itaim Bibi", "Brooklin", "Campo Belo",
     "Saúde", "Santo Amaro", "Morumbi", "Tatuapé", "Anália Franco", "Carrão", "Penha",
     "Vila Prudente", "Ipiranga", "Liberdade", "Sé", "Bela Vista", "Higienópolis",
@@ -51,19 +51,20 @@ CIDADES_INTERIOR = [
 ]
 
 # Termos elevadores
-BASE_ELEVADORES = [
+BASE_BUSCA = [
     "empresa de elevadores", "manutenção de elevadores", "instalação de elevadores",
     "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
 ]
 
 # Termos para testes
-BASE_TESTES = [
+BASE_BUSCA_TESTES = [
     "empresa de elevadores", "manutenção de elevadores"
 ]
 
 # Configurações de busca
-SEARCH_LOCATION = "SP"
-SEARCH_CATEGORY = "elevadores"
+UF_BASE = "SP"
+CIDADE_BASE = "São Paulo"
+CATEGORIA_BASE = "elevadores"
 
 # Modo de execução
 IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)

@@ -4,11 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Ajustes no robo">
-      <change beforePath="$PROJECT_DIR$/.idea/aws.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/aws.xml" afterDir="false" />
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Ajustes no robo para encerramento">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/iniciar_robo_simples.bat" beforeDir="false" afterPath="$PROJECT_DIR$/iniciar_robo_simples.bat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/application/email_robot_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/application/email_robot_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -358,7 +358,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756354900673</updated>
     </task>
-    <option name="localTasksCounter" value="34" />
+    <task id="LOCAL-00034" summary="Ajustes no robo para encerramento">
+      <option name="closed" value="true" />
+      <created>1756380072540</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1756380072540</updated>
+    </task>
+    <option name="localTasksCounter" value="35" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -370,6 +378,7 @@
     <MESSAGE value="Inclusão de Busca pelo Google com mecanismo anti-decção de bot" />
     <MESSAGE value="Inclusão de opções de browsers" />
     <MESSAGE value="Ajustes no robo" />
-    <option name="LAST_COMMIT_MESSAGE" value="Ajustes no robo" />
+    <MESSAGE value="Ajustes no robo para encerramento" />
+    <option name="LAST_COMMIT_MESSAGE" value="Ajustes no robo para encerramento" />
   </component>
 </project>

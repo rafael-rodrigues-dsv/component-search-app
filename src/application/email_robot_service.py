@@ -200,32 +200,32 @@ class EmailCollectorService(EmailCollectorInterface):
             if IS_TEST_MODE:
                 print("[INFO] Modo TESTE ativado via settings.py")
                 # Modo teste - apenas alguns termos
-                for base in BASE_TESTES:
-                    search_terms.append(f"{base} São Paulo capital")
+                for base in BASE_BUSCA_TESTES:
+                    search_terms.append(f"{base} {CIDADE_BASE} capital")
             else:
                 print("[INFO] Modo PRODUÇÃO - processamento completo")
                 # Modo produção - todos os termos
                 # Capital
-                for base in BASE_ELEVADORES:
-                    search_terms.append(f"{base} São Paulo capital")
+                for base in BASE_BUSCA:
+                    search_terms.append(f"{base} {CIDADE_BASE} capital")
 
                 # Zonas
-                for base in BASE_ELEVADORES:
-                    for zona in ZONAS_SP:
-                        search_terms.append(f"{base} {zona} São Paulo")
+                for base in BASE_BUSCA:
+                    for zona in BASE_ZONAS:
+                        search_terms.append(f"{base} {zona} {CIDADE_BASE}")
 
                 # Bairros
-                for base in BASE_ELEVADORES:
-                    for bairro in BAIRROS_SP:
-                        search_terms.append(f"{base} {bairro} São Paulo")
+                for base in BASE_BUSCA:
+                    for bairro in BASE_BAIRROS:
+                        search_terms.append(f"{base} {bairro} {CIDADE_BASE}")
 
                 # Interior
-                for base in BASE_ELEVADORES:
+                for base in BASE_BUSCA:
                     for cidade in CIDADES_INTERIOR:
-                        search_terms.append(f"{base} {cidade} SP")
+                        search_terms.append(f"{base} {cidade} {UF_BASE}")
 
             # Converte para objetos SearchTerm
-            terms = [SearchTerm(query=term, location=SEARCH_LOCATION, category=SEARCH_CATEGORY, pages=10) for term in search_terms]
+            terms = [SearchTerm(query=term, location=UF_BASE, category=CATEGORIA_BASE, pages=10) for term in search_terms]
             
             return self.collect_emails(terms)
             
