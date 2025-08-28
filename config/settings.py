@@ -67,7 +67,7 @@ CIDADE_BASE = "São Paulo"
 CATEGORIA_BASE = "elevadores"
 
 # Modo de execução
-IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)
+IS_TEST_MODE = False  # True para teste (poucos termos), False para produção (todos os termos)
 
 # Motor de busca
 SEARCH_ENGINE = "GOOGLE"  # "GOOGLE" ou "DUCKDUCKGO"

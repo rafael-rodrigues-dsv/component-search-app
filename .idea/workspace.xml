@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Ajustes no robo para encerramento">
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Ajustes no robo em nome de variaveis">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/application/email_robot_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/application/email_robot_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -366,7 +364,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756380072540</updated>
     </task>
-    <option name="localTasksCounter" value="35" />
+    <task id="LOCAL-00035" summary="Ajustes no robo em nome de variaveis">
+      <option name="closed" value="true" />
+      <created>1756381515172</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1756381515172</updated>
+    </task>
+    <option name="localTasksCounter" value="36" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -379,6 +385,7 @@
     <MESSAGE value="Inclusão de opções de browsers" />
     <MESSAGE value="Ajustes no robo" />
     <MESSAGE value="Ajustes no robo para encerramento" />
-    <option name="LAST_COMMIT_MESSAGE" value="Ajustes no robo para encerramento" />
+    <MESSAGE value="Ajustes no robo em nome de variaveis" />
+    <option name="LAST_COMMIT_MESSAGE" value="Ajustes no robo em nome de variaveis" />
   </component>
 </project>
