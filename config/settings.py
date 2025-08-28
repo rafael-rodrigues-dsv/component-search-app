@@ -50,16 +50,19 @@ CIDADES_INTERIOR = [
     "Americana", "Piracicaba"
 ]
 
-# Termos elevadores
 BASE_BUSCA = [
     "empresa de elevadores", "manutenção de elevadores", "instalação de elevadores",
     "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
 ]
 
+
 # Termos para testes
-BASE_BUSCA_TESTES = [
+BASE_TESTES = [
     "empresa de elevadores", "manutenção de elevadores"
 ]
+
+# Alias para compatibilidade
+BASE_BUSCA_TESTES = BASE_TESTES
 
 # Configurações de busca
 UF_BASE = "SP"
@@ -67,10 +70,7 @@ CIDADE_BASE = "São Paulo"
 CATEGORIA_BASE = "elevadores"
 
 # Modo de execução
-IS_TEST_MODE = False  # True para teste (poucos termos), False para produção (todos os termos)
-
-# Motor de busca
-SEARCH_ENGINE = "GOOGLE"  # "GOOGLE" ou "DUCKDUCKGO"
+IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)
 
 # Delays rápidos
 SCRAPER_DELAYS = {
@@ -80,7 +80,13 @@ SCRAPER_DELAYS = {
 
 # Blacklist
 BLACKLIST_HOSTS = [
-    "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "x.com", "twitter.com",
+    "reclameaqui.com.br", "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "x.com", "twitter.com",
     "maps.google", "goo.gl", "waze.com", "wikipedia.org", "mercadolivre.com", "olx.com",
     "gov.br", "docplayer", "issuu.com", "uol.com.br", "noticias", "pdf"
+]
+
+# Domínios suspeitos para e-mails
+SUSPICIOUS_EMAIL_DOMAINS = [
+    'sentry.io', 'sentry.wixpress.com', 'sentry-next.wixpress.com',
+    'example.com', 'test.com', 'localhost', '127.0.0.1'
 ]

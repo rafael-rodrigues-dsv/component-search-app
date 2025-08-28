@@ -11,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import SCRAPER_DELAYS
+from ...domain.email_processor import EmailValidationService
 
 
 class GoogleScraper:
@@ -19,6 +20,7 @@ class GoogleScraper:
     def __init__(self, driver):
         self.driver = driver
         self.base_url = "https://www.google.com"
+        self.validation_service = EmailValidationService()
     
     def search(self, term, max_results=50):
         """Executa busca no Google de forma rápida"""
@@ -148,16 +150,28 @@ class GoogleScraper:
             page_source = self.driver.page_source
             
             import re
-            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-            found_emails = re.findall(email_pattern, page_source)
             
-            # Valida e limita e-mails
+            # Primeiro separa por delimitadores comuns
+            text_parts = re.split(r'[;|,\s]+', page_source)
+            
             emails = []
-            for email in found_emails:
-                if self._is_valid_email(email) and email.lower() not in [e.lower() for e in emails]:
-                    emails.append(email.lower())
-                    if len(emails) >= max_emails:
-                        break
+            for part in text_parts:
+                # Busca e-mails em cada parte separadamente
+                email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+                found_emails = re.findall(email_pattern, part)
+                
+                for email in found_emails:
+                    clean_email = email.strip().lower()
+                    if self.validation_service.is_valid_email(clean_email) and clean_email not in [e.lower() for e in emails]:
+                        emails.append(clean_email)
+                        if len(emails) >= max_emails:
+                            break
+                
+                if len(emails) >= max_emails:
+                    break
+            
+            # Valida e concatena e-mails (emails já é uma lista)
+            emails_string = self.validation_service.validate_and_join_emails(emails)
             
             # Nome da empresa (título da página)
             try:
@@ -168,7 +182,7 @@ class GoogleScraper:
             
             return Company(
                 name=name,
-                emails=emails,
+                emails=emails_string,
                 domain=url.split('/')[2] if '/' in url else url,
                 url=url,
                 address="",
@@ -179,7 +193,7 @@ class GoogleScraper:
             print(f"[ERRO] Falha ao extrair dados de {url}: {str(e)[:50]}")
             return Company(
                 name="", 
-                emails=[], 
+                emails="", 
                 domain=url.split('/')[2] if '/' in url else url,
                 url=url,
                 address="", 
@@ -205,11 +219,3 @@ class GoogleScraper:
         
         return not any(pattern in url.lower() for pattern in invalid_patterns)
     
-    def _is_valid_email(self, email):
-        """Valida formato do e-mail"""
-        import re
-        email = email.strip().lower()
-        if not re.match(r"^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$", email):
-            return False
-        bad_bits = ["example", "exemplo", "teste", "email@", "@email", "no-reply", "noreply", "spam"]
-        return not any(b in email for b in bad_bits)

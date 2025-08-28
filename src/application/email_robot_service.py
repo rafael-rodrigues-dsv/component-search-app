@@ -29,23 +29,27 @@ class EmailCollectorService(EmailCollectorInterface):
     def __init__(self, ignore_working_hours=False):
         self.driver_manager = WebDriverManager()
         
-        # Escolhe scraper baseado na configuração
-        if SEARCH_ENGINE.upper() == "GOOGLE":
-            print("[INFO] Usando motor de busca: Google")
+        # Escolhe motor de busca
+        self.search_engine = self._get_search_engine_option()
+        
+        # Verifica se deve reiniciar do zero
+        if self._get_restart_option():
+            self._clear_all_data()
+        
+        # Escolhe scraper baseado na seleção do usuário
+        if self.search_engine == "GOOGLE":
+            print("[INFO] Usando motor de busca: Google Chrome")
             self.scraper = GoogleScraper(None)  # Driver será definido depois
         else:
             print("[INFO] Usando motor de busca: DuckDuckGo")
             self.scraper = DuckDuckGoScraper(self.driver_manager)
+        
         self.json_repo = JsonRepository(VISITED_JSON, SEEN_EMAILS_JSON)
         self.excel_repo = ExcelRepository(OUTPUT_XLSX)
         self.working_hours = WorkingHoursService(START_HOUR, END_HOUR)
         self.ignore_working_hours = ignore_working_hours
         self.term_builder = SearchTermBuilder()
         self.validation_service = EmailValidationService()
-        
-        # Verifica se deve reiniciar do zero
-        if self._get_restart_option():
-            self._clear_all_data()
         
         # Recria repositórios após limpeza
         self.json_repo = JsonRepository(VISITED_JSON, SEEN_EMAILS_JSON)
@@ -56,6 +60,24 @@ class EmailCollectorService(EmailCollectorInterface):
         self.top_results_total = self._get_processing_mode()
     
 
+    
+    def _get_search_engine_option(self) -> str:
+        """Obtém do usuário qual motor de busca usar"""
+        while True:
+            try:
+                print("\n🔍 Escolha o motor de busca:")
+                print("1. DuckDuckGo")
+                print("2. Google Chrome")
+                option = input("Digite sua opção (1/2 - padrão: 1): ").strip()
+                
+                if not option or option == '1':
+                    return "DUCKDUCKGO"
+                elif option == '2':
+                    return "GOOGLE"
+                else:
+                    print("[ERRO] Digite '1' para DuckDuckGo ou '2' para Google Chrome")
+            except:
+                print("[ERRO] Entrada inválida")
     
     def _get_restart_option(self) -> bool:
         """Obtém do usuário se deve reiniciar do zero"""
@@ -190,7 +212,7 @@ class EmailCollectorService(EmailCollectorInterface):
                 return False
             
             # Define driver no scraper Google se necessário
-            if SEARCH_ENGINE.upper() == "GOOGLE":
+            if self.search_engine == "GOOGLE":
                 self.scraper.driver = self.driver_manager.driver
             
             # Lista única de termos de busca usando constantes
@@ -290,12 +312,15 @@ class EmailCollectorService(EmailCollectorInterface):
                     company = self.scraper.extract_company_data(link, MAX_EMAILS_PER_SITE)
                     company.search_term = term.query  # Adiciona termo de busca
                     
-                    if company.emails:
-                        # Filtra e-mails já vistos
-                        new_emails = [e for e in company.emails if e not in self.seen_emails]
+                    # Só processa se há e-mails válidos na string
+                    if company.emails and company.emails.strip():
+                        # Separa e-mails da string para verificar se já foram vistos
+                        email_list = [e.strip() for e in company.emails.split(';') if e.strip()]
+                        new_emails = [e for e in email_list if e not in self.seen_emails]
                         
                         if new_emails:
-                            company.emails = new_emails
+                            # Reconstrói string apenas com e-mails novos
+                            company.emails = ';'.join(new_emails)
                             self.excel_repo.save_company(company)
                             print(f"    [OK] Empresa salva em: {OUTPUT_XLSX}")
                             

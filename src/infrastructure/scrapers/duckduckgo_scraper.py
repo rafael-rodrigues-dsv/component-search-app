@@ -119,14 +119,15 @@ class DuckDuckGoScraper:
             self.driver_manager.driver.execute_script("window.scrollBy(0, 2000);")
             time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
             
-            emails = self._extract_emails_fast()[:max_emails]
+            email_list = self._extract_emails_fast()[:max_emails]
+            emails_string = self.validation_service.validate_and_join_emails(email_list)
             name = self._get_company_name_fast(url)
             domain = self.validation_service.extract_domain_from_url(url)
             
-            return Company(name=name, emails=emails, domain=domain, url=url, address="", phone="")
+            return Company(name=name, emails=emails_string, domain=domain, url=url, address="", phone="")
             
         except Exception:
-            return Company(name="", emails=[], domain="", url=url)
+            return Company(name="", emails="", domain="", url=url)
         finally:
             try:
                 if len(self.driver_manager.driver.window_handles) > 1:
@@ -142,13 +143,23 @@ class DuckDuckGoScraper:
         try:
             # Busca no texto da página
             page_source = self.driver_manager.driver.page_source
-            found_emails = re.findall(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', page_source)
             
-            for email in found_emails:
-                if self.validation_service.is_valid_email(email):
-                    emails.add(email.lower())
-                    if len(emails) >= 5:  # Limite para velocidade
-                        break
+            # Primeiro separa por delimitadores comuns
+            text_parts = re.split(r'[;|,\s]+', page_source)
+            
+            for part in text_parts:
+                # Busca e-mails em cada parte separadamente
+                found_emails = re.findall(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', part)
+                
+                for email in found_emails:
+                    clean_email = email.strip().lower()
+                    if self.validation_service.is_valid_email(clean_email):
+                        emails.add(clean_email)
+                        if len(emails) >= 5:  # Limite para velocidade
+                            break
+                
+                if len(emails) >= 5:
+                    break
         except:
             pass
         

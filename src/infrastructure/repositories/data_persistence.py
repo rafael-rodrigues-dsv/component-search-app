@@ -67,7 +67,7 @@ class ExcelRepository:
         if not company.emails:
             return
         
-        emails_str = ";".join(company.emails) + ";"
+        emails_str = company.emails
         row_data = [company.url, emails_str]
         # Colunas comentadas para uso futuro:
         # row_data = [company.name, company.phone, emails_str, company.search_term, company.address, company.url]

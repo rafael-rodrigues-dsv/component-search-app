@@ -14,7 +14,7 @@ import tldextract
 class Company:
     """Entidade Empresa"""
     name: str
-    emails: List[str]
+    emails: str  # String com e-mails separados por ;
     domain: str
     url: str
     search_term: str = ""
@@ -45,10 +45,54 @@ class EmailValidationService:
     def is_valid_email(self, email: str) -> bool:
         """Valida formato e conteúdo do e-mail"""
         email = email.strip().lower()
+        
+        # Verifica formato básico
         if not re.match(r"^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$", email):
             return False
-        bad_bits = ["example", "exemplo", "teste", "email@", "@email", "no-reply", "noreply", "spam"]
+        
+        # Rejeita e-mails muito longos (provavelmente lixo)
+        if len(email) > 100:
+            return False
+        
+        # Rejeita e-mails com caracteres suspeitos ou múltiplos e-mails
+        if any(char in email for char in ['@1.5x', '@2x', '@3x', ';', '|', '\\', '/', '?', '#']):
+            return False
+        
+        # Rejeita se contém múltiplos @ (múltiplos e-mails concatenados)
+        if email.count('@') != 1:
+            return False
+        
+        # Rejeita se começa ou termina com caracteres suspeitos
+        if email.startswith((';', '|', ',', ' ')) or email.endswith((';', '|', ',', ' ')):
+            return False
+        
+        # Rejeita domínios suspeitos
+        domain = email.split('@')[1] if '@' in email else ''
+        from config.settings import SUSPICIOUS_EMAIL_DOMAINS
+        if any(susp in domain for susp in SUSPICIOUS_EMAIL_DOMAINS):
+            return False
+        
+        # Rejeita e-mails com palavras suspeitas
+        bad_bits = [
+            "example", "exemplo", "teste", "test", "email@", "@email", 
+            "no-reply", "noreply", "spam", "featured", "@1.", "@2.", "@3.",
+            "jpg", "png", "gif", "webp", "svg"
+        ]
         return not any(b in email for b in bad_bits)
+    
+    def validate_and_join_emails(self, email_list: List[str]) -> str:
+        """Valida cada e-mail e junta em string separada por ;"""
+        valid_emails = []
+        seen = set()
+        
+        for email in email_list:
+            clean_email = email.strip().lower()
+            if clean_email and clean_email not in seen and self.is_valid_email(clean_email):
+                valid_emails.append(clean_email)
+                seen.add(clean_email)
+        
+        result = ';'.join(valid_emails)
+        return result + ';' if result else ''
     
     def extract_domain_from_url(self, url: str) -> str:
         """Extrai domínio da URL"""
