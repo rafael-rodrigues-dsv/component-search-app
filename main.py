@@ -16,6 +16,9 @@ def main():
     from src.domain.email_processor import WorkingHoursService
     working_hours = WorkingHoursService(8, 22)
     
+    ignore_working_hours = False
+    
+    # Só pergunta se estiver fora do horário
     if not working_hours.is_working_time():
         from config.settings import OUT_OF_HOURS_WAIT_SECONDS
         import time
@@ -24,18 +27,26 @@ def main():
         if not hasattr(main, '_asked_once'):
             response = input("[INFO] Fora do horário padrão (8:00–22:00). Executar mesmo assim? (S/N): ").strip().upper()
             if response == 'S':
-                return  # Continua execução
-            main._asked_once = True
-        
-        print("[INFO] Fora do horário padrão (8:00–22:00)")
-        print()
-        for i in range(OUT_OF_HOURS_WAIT_SECONDS, 0, -1):
-            print(f"\r[INFO] Próxima verificação em: {i}s", end="", flush=True)
-            time.sleep(1)
-        print()  # Nova linha
-        return main()  # Recheca recursivamente
+                ignore_working_hours = True
+            else:
+                main._asked_once = True
+                print("[INFO] Fora do horário padrão (8:00–22:00)")
+                print()
+                for i in range(OUT_OF_HOURS_WAIT_SECONDS, 0, -1):
+                    print(f"\r[INFO] Próxima verificação em: {i}s", end="", flush=True)
+                    time.sleep(1)
+                print()
+                return main()
+        else:
+            print("[INFO] Fora do horário padrão (8:00–22:00)")
+            print()
+            for i in range(OUT_OF_HOURS_WAIT_SECONDS, 0, -1):
+                print(f"\r[INFO] Próxima verificação em: {i}s", end="", flush=True)
+                time.sleep(1)
+            print()
+            return main()
     
-    collector_service = EmailCollectorService()
+    collector_service = EmailCollectorService(ignore_working_hours)
     
     try:
         success = collector_service.execute()

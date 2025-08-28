@@ -25,12 +25,13 @@ class EmailCollectorService(EmailCollectorInterface):
     
     # Constantes de configuração
     
-    def __init__(self):
+    def __init__(self, ignore_working_hours=False):
         self.driver_manager = WebDriverManager()
         self.scraper = DuckDuckGoScraper(self.driver_manager)
         self.json_repo = JsonRepository(VISITED_JSON, SEEN_EMAILS_JSON)
         self.excel_repo = ExcelRepository(OUTPUT_XLSX)
         self.working_hours = WorkingHoursService(START_HOUR, END_HOUR)
+        self.ignore_working_hours = ignore_working_hours
         self.term_builder = SearchTermBuilder()
         self.validation_service = EmailValidationService()
         
@@ -232,10 +233,11 @@ class EmailCollectorService(EmailCollectorInterface):
         global_results_processed = 0  # Contador global
         
         for i, term in enumerate(terms, 1):
-            # Verifica horário de trabalho
-            while not self.working_hours.is_working_time():
-                print(f"[PAUSA] Fora do horário ({START_HOUR}:00–{END_HOUR}:00). Recheco em {TIME_BETWEEN_OUT_OF_HOURS}s.")
-                time.sleep(TIME_BETWEEN_OUT_OF_HOURS)
+            # Verifica horário de trabalho apenas se não foi ignorado pelo usuário
+            if not self.ignore_working_hours:
+                while not self.working_hours.is_working_time():
+                    print(f"[PAUSA] Fora do horário ({START_HOUR}:00–{END_HOUR}:00). Recheco em {OUT_OF_HOURS_WAIT_SECONDS}s.")
+                    time.sleep(OUT_OF_HOURS_WAIT_SECONDS)
             
             mode_text = "completo" if self.top_results_total > 1000 else f"lote ({self.top_results_total})"
             print(f"\n[TERMO {i}/{len(terms)}] {term.query} | modo: {mode_text}")
