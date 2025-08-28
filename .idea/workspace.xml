@@ -6,9 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Mudança no mecanismo de validação de telefone">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/application/email_robot_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/application/email_robot_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/domain/email_processor.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/domain/email_processor.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
