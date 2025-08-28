@@ -22,12 +22,14 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
 │   ├── models/                       # Entidades
 │   │   ├── company_model.py          # Modelo de empresa
 │   │   └── search_term_model.py      # Modelo de termo de busca
-│   └── email_service.py              # Serviços de domínio
-├── 🟢 src/application/               # CAMADA DE APLICAÇÃO
-│   ├── services/                     # Serviços de aplicação
-│   │   ├── user_config_service.py    # Configuração do usuário
+│   ├── factories/                    # Fábricas de domínio
 │   │   └── search_term_factory.py    # Fábrica de termos
-│   └── email_application_service.py  # Orquestração principal
+│   └── services/                     # Serviços de domínio
+│       └── email_domain_service.py   # Regras de negócio e validações
+├── 🟢 src/application/               # CAMADA DE APLICAÇÃO
+│   └── services/                     # Serviços de aplicação
+│       ├── email_application_service.py  # Orquestração principal
+│       └── user_config_service.py    # Configuração do usuário
 ├── 🟡 src/infrastructure/            # CAMADA DE INFRAESTRUTURA
 │   ├── drivers/                      # Gerenciamento de drivers
 │   │   └── chromedriver_manager.py   # Download automático ChromeDriver
@@ -50,16 +52,13 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
 ```
 
 ### 🔵 Camada de Domínio
-- **CompanyModel**: Entidade empresa com e-mails e telefones
-- **SearchTermModel**: Termos de busca estruturados
-- **EmailValidationService**: Validação rigorosa de e-mails e telefones
-- **WorkingHoursService**: Controle de horário de funcionamento
-- **EmailCollectorInterface**: Interface para coleta
+- **Models**: CompanyModel e SearchTermModel (entidades)
+- **Factories**: SearchTermFactory (criação de termos)
+- **Services**: EmailDomainService com EmailValidationService, WorkingHoursService e EmailCollectorInterface
 
 ### 🟢 Camada de Aplicação
 - **EmailApplicationService**: Orquestra todo o fluxo de coleta
 - **UserConfigService**: Gerencia configurações do usuário
-- **SearchTermFactory**: Cria termos baseado em configuração
 
 ### 🟡 Camada de Infraestrutura
 - **ChromeDriverManager**: Download automático do ChromeDriver
@@ -150,20 +149,118 @@ O robô gera:
 - **Deduplicação**: Por domínio e por e-mail
 - **Simulação humana**: Scroll aleatório, pausas variáveis
 
+## 🧪 Testes e Cobertura
+
+### Estrutura de Testes
+```
+📁 tests/
+├── 📁 unit/                          # Testes unitários
+│   ├── 📁 application/services/      # Testes dos serviços de aplicação
+│   ├── 📁 domain/                    # Testes da camada de domínio
+│   │   ├── 📁 models/                # Testes dos modelos
+│   │   ├── 📁 factories/             # Testes das fábricas
+│   │   └── 📁 services/              # Testes dos serviços de domínio
+│   └── 📁 infrastructure/            # Testes da camada de infraestrutura
+├── 📁 integration/                   # Testes de integração
+├── 📁 fixtures/                      # Dados de exemplo
+├── 📁 utils/                         # Utilitários de teste
+├── conftest.py                       # Configuração global pytest
+├── pytest.ini                       # Configuração pytest
+├── requirements-test.txt             # Dependências de teste
+├── .coveragerc                       # Configuração cobertura
+├── run_tests.bat                     # Executar testes
+└── run_coverage.bat                  # Relatório completo
+```
+
+### Executar Testes
+
+#### **Testes básicos:**
+```cmd
+cd tests
+run_tests.bat
+```
+
+#### **Cobertura completa:**
+```cmd
+cd tests
+run_coverage.bat
+```
+
+#### **Comandos manuais:**
+```cmd
+cd tests
+python -m pytest . --cov=../src --cov-report=html -v
+```
+
+### Relatórios de Cobertura
+
+#### **Localização:**
+- **HTML**: `tests/htmlcov/index.html` (navegação interativa)
+- **XML**: `tests/coverage.xml` (integração CI/CD)
+- **Terminal**: exibido durante execução
+
+#### **Interpretação:**
+- **Verde**: linhas cobertas pelos testes
+- **Vermelho**: linhas não cobertas
+- **Percentual**: % de cobertura por arquivo
+- **Missing**: números das linhas não testadas
+
+#### **Exemplo de saída:**
+```
+Name                                   Stmts   Miss  Cover   Missing
+------------------------------------------------------------------
+src/application/email_application_service.py  95      5    95%   45-47, 89
+------------------------------------------------------------------
+TOTAL                                         95      5    95%
+```
+
+### Adicionar Novos Testes
+
+#### **Teste unitário de domínio:**
+```python
+# tests/unit/domain/test_email_service.py
+class TestEmailValidationService(unittest.TestCase):
+    def test_valid_email(self):
+        service = EmailValidationService()
+        self.assertTrue(service.is_valid_email("test@example.com"))
+```
+
+#### **Teste de infraestrutura:**
+```python
+# tests/unit/infrastructure/test_scrapers.py
+class TestGoogleScraper(unittest.TestCase):
+    def test_search_success(self):
+        scraper = GoogleScraper(mock_driver)
+        result = scraper.search("test query")
+        self.assertTrue(result)
+```
+
+#### **Teste de integração:**
+```python
+# tests/integration/test_full_flow.py
+class TestFullFlow(unittest.TestCase):
+    def test_complete_email_collection(self):
+        # Teste do fluxo completo
+        pass
+```
+
 ## 🔧 Extensibilidade
 
 ### Adicionar novo motor de busca:
 1. Crie scraper em `infrastructure/scrapers/`
 2. Implemente métodos: `search()`, `get_result_links()`, `extract_company_data()`
 3. Adicione opção em `UserConfigService`
+4. **Crie testes** em `tests/unit/infrastructure/`
 
 ### Adicionar nova validação:
 1. Estenda `EmailValidationService` em `domain/email_service.py`
 2. Adicione regras específicas conforme necessário
+3. **Crie testes** em `tests/unit/domain/`
 
 ### Personalizar saída:
 1. Modifique `ExcelRepository` em `infrastructure/repositories/`
 2. Ajuste formato e colunas conforme necessário
+3. **Crie testes** em `tests/unit/infrastructure/`
 
 ## 📝 Logs
 
@@ -184,3 +281,32 @@ O robô gera:
 - ✅ **Formatação padronizada** de telefones brasileiros
 - ✅ **Modo lote/completo** configurável
 - ✅ **Horário de funcionamento** respeitado
+- ✅ **Testes unitários** com cobertura completa
+- ✅ **Relatórios de cobertura** HTML e XML
+- ✅ **Estrutura de testes** organizada por camadas
+
+## 📊 Qualidade e Testes
+
+### Cobertura de Código
+- **EmailApplicationService**: 95%+ de cobertura
+- **Testes unitários**: Todas as camadas (Domain, Application, Infrastructure)
+- **Mocks completos**: Dependências externas isoladas
+- **Fixtures reutilizáveis**: Dados de exemplo padronizados
+
+### Ferramentas de Qualidade
+- **pytest**: Framework de testes moderno
+- **coverage**: Análise de cobertura de código
+- **unittest.mock**: Isolamento de dependências
+- **Relatórios HTML**: Visualização interativa da cobertura
+
+### Execução de Testes
+```cmd
+# Testes rápidos
+cd tests && run_tests.bat
+
+# Cobertura completa
+cd tests && run_coverage.bat
+
+# Comando manual
+python -m pytest tests/ --cov=src --cov-report=html -v
+```

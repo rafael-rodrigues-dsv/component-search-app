@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Refatoração completa antes de inicio dos testes unitários" />
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclusão de testes unitários" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -33,19 +33,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;advanced.settings&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python tests.Python tests for tests.unit.application.services.test_user_config_service.TestUserConfigService.executor": "Run",
+    "Python tests.Python tests for tests.unit.application.test_user_config_service.TestUserConfigService.executor": "Run",
+    "Python tests.Python tests for tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory.executor": "Run",
+    "Python tests.Python tests in test_email_application_service.py.executor": "Run",
+    "Python.main.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
+    "kotlin-language-version-configured": "true",
+    "settings.editor.selected.configurable": "advanced.settings"
   }
-}</component>
-  <component name="RunManager">
+}]]></component>
+  <component name="RunManager" selected="Python tests.Python tests for tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="PythonSearchApp" />
       <option name="ENV_FILES" value="" />
@@ -74,6 +78,74 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="Python tests for tests.unit.application.services.test_user_config_service.TestUserConfigService" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+      <module name="PythonSearchApp" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.unit.application.services.test_user_config_service.TestUserConfigService&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Python tests for tests.unit.application.test_user_config_service.TestUserConfigService" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+      <module name="PythonSearchApp" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.unit.application.test_user_config_service.TestUserConfigService&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Python tests for tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+      <module name="PythonSearchApp" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Python tests in test_email_application_service.py" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+      <module name="PythonSearchApp" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/unit/application/test_email_application_service.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python tests.Python tests for tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory" />
+        <item itemvalue="Python tests.Python tests for tests.unit.application.services.test_user_config_service.TestUserConfigService" />
+        <item itemvalue="Python tests.Python tests for tests.unit.application.test_user_config_service.TestUserConfigService" />
+        <item itemvalue="Python tests.Python tests in test_email_application_service.py" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
@@ -89,70 +161,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1756336041036</updated>
-    </task>
-    <task id="LOCAL-00002" summary="Ajuste modo debug">
-      <option name="closed" value="true" />
-      <created>1756336202930</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1756336202930</updated>
-    </task>
-    <task id="LOCAL-00003" summary="Ajuste modo debug">
-      <option name="closed" value="true" />
-      <created>1756336609027</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1756336609027</updated>
-    </task>
-    <task id="LOCAL-00004" summary="Inclui instalação e configuração do Python">
-      <option name="closed" value="true" />
-      <created>1756337305768</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1756337305768</updated>
-    </task>
-    <task id="LOCAL-00005" summary="Inclui instalação e configuração do Python">
-      <option name="closed" value="true" />
-      <created>1756337500492</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1756337500492</updated>
-    </task>
-    <task id="LOCAL-00006" summary="Inclui instalação e configuração do Python">
-      <option name="closed" value="true" />
-      <created>1756337702030</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1756337702030</updated>
-    </task>
-    <task id="LOCAL-00007" summary="Inclui instalação e configuração do Python">
-      <option name="closed" value="true" />
-      <created>1756337710169</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1756337710169</updated>
-    </task>
-    <task id="LOCAL-00008" summary="Inclui gitignore">
-      <option name="closed" value="true" />
-      <created>1756337757711</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1756337757711</updated>
-    </task>
-    <task id="LOCAL-00009" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756338157913</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1756338157913</updated>
     </task>
     <task id="LOCAL-00010" summary="Ajuste ao iniciar robo">
       <option name="closed" value="true" />
@@ -482,7 +490,71 @@
       <option name="project" value="LOCAL" />
       <updated>1756419420554</updated>
     </task>
-    <option name="localTasksCounter" value="51" />
+    <task id="LOCAL-00051" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756422082964</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1756422082965</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756422224359</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1756422224359</updated>
+    </task>
+    <task id="LOCAL-00053" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756423156949</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1756423156950</updated>
+    </task>
+    <task id="LOCAL-00054" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756423373862</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1756423373862</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756428266886</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1756428266886</updated>
+    </task>
+    <task id="LOCAL-00056" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756435385146</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1756435385146</updated>
+    </task>
+    <task id="LOCAL-00057" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756435797584</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1756435797584</updated>
+    </task>
+    <task id="LOCAL-00058" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756435857531</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1756435857531</updated>
+    </task>
+    <option name="localTasksCounter" value="59" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -502,6 +574,7 @@
     <MESSAGE value="Mudança no mecanismo de validação de telefone" />
     <MESSAGE value="Refatoração do email service" />
     <MESSAGE value="Refatoração completa antes de inicio dos testes unitários" />
-    <option name="LAST_COMMIT_MESSAGE" value="Refatoração completa antes de inicio dos testes unitários" />
+    <MESSAGE value="Inclusão de testes unitários" />
+    <option name="LAST_COMMIT_MESSAGE" value="Inclusão de testes unitários" />
   </component>
 </project>

@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import SCRAPER_DELAYS
-from ...domain.email_service import EmailValidationService
+from ...domain.services.email_domain_service import EmailValidationService
 
 
 class GoogleScraper:

@@ -6,18 +6,18 @@ import time
 from typing import List
 
 from config.settings import *
-from .services.user_config_service import UserConfigService
-from ..domain.email_service import (
+from .user_config_service import UserConfigService
+from ...domain.services.email_domain_service import (
     EmailCollectorInterface, WorkingHoursService, EmailValidationService
 )
-from ..domain.factories.search_term_factory import SearchTermFactory
-from ..domain.models.search_term_model import SearchTermModel
-from ..infrastructure.drivers.chromedriver_manager import ChromeDriverManager
-from ..infrastructure.repositories.data_repository import JsonRepository, ExcelRepository
-from ..infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
-from ..infrastructure.scrapers.google_scraper import GoogleScraper
-from ..infrastructure.storage.data_manager import DataManager
-from ..infrastructure.web_driver import WebDriverManager
+from ...domain.factories.search_term_factory import SearchTermFactory
+from ...domain.models.search_term_model import SearchTermModel
+from ...infrastructure.drivers.chromedriver_manager import ChromeDriverManager
+from ...infrastructure.repositories.data_repository import JsonRepository, ExcelRepository
+from ...infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
+from ...infrastructure.scrapers.google_scraper import GoogleScraper
+from ...infrastructure.storage.data_manager import DataManager
+from ...infrastructure.web_driver import WebDriverManager
 
 
 class EmailApplicationService(EmailCollectorInterface):

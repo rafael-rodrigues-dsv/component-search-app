@@ -13,7 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import SCRAPER_DELAYS
 from ..web_driver import WebDriverManager
-from ...domain.email_service import EmailValidationService
+from ...domain.services.email_domain_service import EmailValidationService
 from ...domain.models.company_model import CompanyModel
 
 

@@ -8,8 +8,8 @@ from typing import List
 
 import tldextract
 
-from .models.company_model import CompanyModel
-from .models.search_term_model import SearchTermModel
+from ..models.company_model import CompanyModel
+from ..models.search_term_model import SearchTermModel
 
 
 class EmailCollectorInterface(ABC):

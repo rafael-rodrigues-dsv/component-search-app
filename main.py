@@ -6,7 +6,7 @@ Ponto de entrada principal do robô
 """
 import sys
 
-from src.application.email_application_service import EmailApplicationService
+from src.application.services.email_application_service import EmailApplicationService
 
 
 def main():
@@ -14,7 +14,7 @@ def main():
     print("[INFO] Iniciando ROBO 2 - COLETOR DE E-MAILS (ELEVADORES)")
     
     # Verificar horário de funcionamento
-    from src.domain.email_service import WorkingHoursService
+    from src.domain.services.email_domain_service import WorkingHoursService
     working_hours = WorkingHoursService(8, 22)
     
     ignore_working_hours = False
