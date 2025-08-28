@@ -51,8 +51,8 @@ class DuckDuckGoScraper:
         """Extrai links rapidamente"""
         links = []
         try:
-            # Scroll mínimo
-            self.driver_manager.driver.execute_script("window.scrollBy(0, 1000);")
+            # Scroll para carregar mais resultados
+            self.driver_manager.driver.execute_script("window.scrollBy(0, 1500);")
             time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
             
             cards = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']")
@@ -67,6 +67,41 @@ class DuckDuckGoScraper:
             pass
         
         return list(set(links))  # Remove duplicatas
+    
+    def go_to_next_page(self):
+        """Navega para a próxima página de resultados"""
+        try:
+            # Scroll para o final da página
+            self.driver_manager.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            
+            # Procura botão "More results" ou similar
+            more_selectors = [
+                "button[id='more-results']",
+                "a[class*='more']",
+                "button:contains('More')",
+                "[data-testid='more-results']"
+            ]
+            
+            for selector in more_selectors:
+                try:
+                    more_btn = self.driver_manager.driver.find_element(By.CSS_SELECTOR, selector)
+                    if more_btn.is_displayed():
+                        more_btn.click()
+                        time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+                        return True
+                except:
+                    continue
+            
+            # Se não encontrou botão, tenta scroll adicional para carregar mais
+            for _ in range(3):
+                self.driver_manager.driver.execute_script("window.scrollBy(0, 1000);")
+                time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            
+            return True  # Assume que carregou mais resultados
+            
+        except Exception:
+            return False
     
     def extract_company_data(self, url: str, max_emails: int) -> Company:
         """Extração rápida de dados da empresa"""

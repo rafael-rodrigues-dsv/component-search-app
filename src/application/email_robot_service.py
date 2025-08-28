@@ -316,12 +316,19 @@ class EmailCollectorService(EmailCollectorInterface):
                     
                     time.sleep(random.uniform(*SEARCH_DWELL))
                 
-                # Scroll na página de resultados
-                try:
-                    self.driver_manager.driver.find_element(By.TAG_NAME, "body").send_keys(Keys.END)
-                    time.sleep(random.uniform(1.0, 1.6))
-                except:
-                    pass
+                # Vai para próxima página se ainda há páginas para processar
+                if page < term.pages - 1 and results_processed < self.top_results_total:
+                    if hasattr(self.scraper, 'go_to_next_page'):
+                        if not self.scraper.go_to_next_page():
+                            print(f"    [INFO] Não há mais páginas para o termo '{term.query}'")
+                            break
+                    else:
+                        # Fallback para scrapers sem go_to_next_page
+                        try:
+                            self.driver_manager.driver.find_element(By.TAG_NAME, "body").send_keys(Keys.END)
+                            time.sleep(random.uniform(1.0, 1.6))
+                        except:
+                            pass
             
             print(f"  => Termo concluído. Novas empresas: {term_saved}")
         

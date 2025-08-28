@@ -4,9 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclusão de opções de browsers">
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Ajustes no robo">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/infrastructure/scrapers/google_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/scrapers/google_scraper.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -316,7 +318,23 @@
       <option name="project" value="LOCAL" />
       <updated>1756353084061</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="Ajustes no robo">
+      <option name="closed" value="true" />
+      <created>1756353939795</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1756353939795</updated>
+    </task>
+    <task id="LOCAL-00030" summary="Ajustes no robo">
+      <option name="closed" value="true" />
+      <created>1756354168577</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1756354168577</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -327,6 +345,7 @@
     <MESSAGE value="Ajuste instalações do Python" />
     <MESSAGE value="Inclusão de Busca pelo Google com mecanismo anti-decção de bot" />
     <MESSAGE value="Inclusão de opções de browsers" />
-    <option name="LAST_COMMIT_MESSAGE" value="Inclusão de opções de browsers" />
+    <MESSAGE value="Ajustes no robo" />
+    <option name="LAST_COMMIT_MESSAGE" value="Ajustes no robo" />
   </component>
 </project>
