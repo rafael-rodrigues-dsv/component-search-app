@@ -14,7 +14,7 @@ SEEN_EMAILS_JSON = os.path.join(DATA_DIR, "emails.json")
 # Horários de trabalho (24h)
 START_HOUR = 8
 END_HOUR = 22
-TIME_BETWEEN_OUT_OF_HOURS = 120
+OUT_OF_HOURS_WAIT_SECONDS = 120
 
 # Coleta
 MAX_EMAILS_PER_SITE = 5
