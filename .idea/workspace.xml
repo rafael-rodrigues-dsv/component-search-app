@@ -4,10 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Mudança no mecanismo de validação de e-mail">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Mudança no mecanismo de validação de telefone">
+      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/domain/email_processor.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/domain/email_processor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/infrastructure/scrapers/duckduckgo_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/scrapers/duckduckgo_scraper.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/infrastructure/scrapers/google_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/scrapers/google_scraper.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -422,7 +423,23 @@
       <option name="project" value="LOCAL" />
       <updated>1756395019237</updated>
     </task>
-    <option name="localTasksCounter" value="42" />
+    <task id="LOCAL-00042" summary="Mudança no mecanismo de validação de e-mail">
+      <option name="closed" value="true" />
+      <created>1756395730708</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1756395730708</updated>
+    </task>
+    <task id="LOCAL-00043" summary="Mudança no mecanismo de validação de telefone">
+      <option name="closed" value="true" />
+      <created>1756396578898</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1756396578899</updated>
+    </task>
+    <option name="localTasksCounter" value="44" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -437,7 +454,9 @@
     <MESSAGE value="Ajustes no robo para encerramento" />
     <MESSAGE value="Ajustes no robo em nome de variaveis" />
     <MESSAGE value="novos ajustes" />
+    <MESSAGE value="Ajustes scrappers" />
     <MESSAGE value="Mudança no mecanismo de validação de e-mail" />
-    <option name="LAST_COMMIT_MESSAGE" value="Mudança no mecanismo de validação de e-mail" />
+    <MESSAGE value="Mudança no mecanismo de validação de telefone" />
+    <option name="LAST_COMMIT_MESSAGE" value="Mudança no mecanismo de validação de telefone" />
   </component>
 </project>

@@ -68,9 +68,7 @@ class ExcelRepository:
             return
         
         emails_str = company.emails
-        row_data = [company.url, emails_str]
-        # Colunas comentadas para uso futuro:
-        # row_data = [company.name, company.phone, emails_str, company.search_term, company.address, company.url]
+        row_data = [company.url, emails_str, company.phone]
         
         try:
             wb = load_workbook(self.file_path)
@@ -104,19 +102,12 @@ class ExcelRepository:
             ws.title = "Dados"
             ws["A1"] = "site"
             ws["B1"] = "email"
-            # Colunas comentadas para uso futuro:
-            # ws["C1"] = "NOME DO SITE"
-            # ws["D1"] = "TELEFONE"
-            # ws["E1"] = "TERMO BUSCA"
-            # ws["F1"] = "ENDEREÇO"
+            ws["C1"] = "telefone"
             
             # Ajusta largura das colunas
             ws.column_dimensions['A'].width = 50
             ws.column_dimensions['B'].width = 40
-            # ws.column_dimensions['C'].width = 30
-            # ws.column_dimensions['D'].width = 20
-            # ws.column_dimensions['E'].width = 40
-            # ws.column_dimensions['F'].width = 50
+            ws.column_dimensions['C'].width = 20
             
             # Formatação do cabeçalho
             for cell in ws[1]:

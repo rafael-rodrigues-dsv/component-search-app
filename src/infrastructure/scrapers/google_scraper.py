@@ -173,6 +173,10 @@ class GoogleScraper:
             # Valida e concatena e-mails (emails já é uma lista)
             emails_string = self.validation_service.validate_and_join_emails(emails)
             
+            # Extração de telefones
+            phones = self._extract_phones_fast(page_source)
+            phones_string = self.validation_service.validate_and_join_phones(phones)
+            
             # Nome da empresa (título da página)
             try:
                 name = self.driver.title or url.split('/')[2]
@@ -186,7 +190,7 @@ class GoogleScraper:
                 domain=url.split('/')[2] if '/' in url else url,
                 url=url,
                 address="",
-                phone=""
+                phone=phones_string
             )
             
         except Exception as e:
@@ -218,4 +222,33 @@ class GoogleScraper:
         ]
         
         return not any(pattern in url.lower() for pattern in invalid_patterns)
+    
+    def _extract_phones_fast(self, page_source) -> list:
+        """Extração rápida de telefones"""
+        phones = set()
+        
+        try:
+            # Padrões mais específicos de telefone brasileiro
+            import re
+            phone_patterns = [
+                r'\([1-9][1-9]\)\s?9\d{4}[-\s]?\d{4}',     # (11) 99999-9999
+                r'\([1-9][1-9]\)\s?[2-5]\d{3}[-\s]?\d{4}', # (11) 3333-4444
+                r'[1-9][1-9]\s9\d{4}[-\s]?\d{4}',          # 11 99999-9999
+                r'[1-9][1-9]\s[2-5]\d{3}[-\s]?\d{4}',      # 11 3333-4444
+            ]
+            
+            for pattern in phone_patterns:
+                found_phones = re.findall(pattern, page_source)
+                for phone in found_phones:
+                    clean_phone = re.sub(r'[^0-9]', '', phone)
+                    if self.validation_service.is_valid_phone(clean_phone):
+                        phones.add(clean_phone)
+                        if len(phones) >= 3:
+                            break
+                if len(phones) >= 3:
+                    break
+        except:
+            pass
+        
+        return list(phones)
     

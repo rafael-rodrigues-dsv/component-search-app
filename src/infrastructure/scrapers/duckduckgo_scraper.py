@@ -121,10 +121,12 @@ class DuckDuckGoScraper:
             
             email_list = self._extract_emails_fast()[:max_emails]
             emails_string = self.validation_service.validate_and_join_emails(email_list)
+            phone_list = self._extract_phones_fast()[:3]  # Máximo 3 telefones
+            phones_string = self.validation_service.validate_and_join_phones(phone_list)
             name = self._get_company_name_fast(url)
             domain = self.validation_service.extract_domain_from_url(url)
             
-            return Company(name=name, emails=emails_string, domain=domain, url=url, address="", phone="")
+            return Company(name=name, emails=emails_string, domain=domain, url=url, address="", phone=phones_string)
             
         except Exception:
             return Company(name="", emails="", domain="", url=url)
@@ -164,6 +166,38 @@ class DuckDuckGoScraper:
             pass
         
         return list(emails)
+    
+    def _extract_phones_fast(self) -> list:
+        """Extração rápida de telefones"""
+        phones = set()
+        
+        try:
+            # Busca no texto da página
+            page_source = self.driver_manager.driver.page_source
+            
+            # Padrões mais específicos de telefone brasileiro
+            import re
+            phone_patterns = [
+                r'\([1-9][1-9]\)\s?9\d{4}[-\s]?\d{4}',     # (11) 99999-9999
+                r'\([1-9][1-9]\)\s?[2-5]\d{3}[-\s]?\d{4}', # (11) 3333-4444
+                r'[1-9][1-9]\s9\d{4}[-\s]?\d{4}',          # 11 99999-9999
+                r'[1-9][1-9]\s[2-5]\d{3}[-\s]?\d{4}',      # 11 3333-4444
+            ]
+            
+            for pattern in phone_patterns:
+                found_phones = re.findall(pattern, page_source)
+                for phone in found_phones:
+                    clean_phone = re.sub(r'[^0-9]', '', phone)
+                    if self.validation_service.is_valid_phone(clean_phone):
+                        phones.add(clean_phone)
+                        if len(phones) >= 3:
+                            break
+                if len(phones) >= 3:
+                    break
+        except:
+            pass
+        
+        return list(phones)
     
     def _get_company_name_fast(self, url: str) -> str:
         """Extração rápida do nome da empresa"""

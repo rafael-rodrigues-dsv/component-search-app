@@ -94,6 +94,69 @@ class EmailValidationService:
         result = ';'.join(valid_emails)
         return result + ';' if result else ''
     
+    def is_valid_phone(self, phone: str) -> bool:
+        """Valida formato de telefone brasileiro"""
+        import re
+        phone = re.sub(r'[^0-9]', '', phone.strip())
+        
+        # Telefone deve ter exatamente 10 ou 11 dígitos
+        if len(phone) not in [10, 11]:
+            return False
+        
+        # Não pode começar com 0
+        if phone.startswith('0'):
+            return False
+        
+        # DDD deve ser válido (11-99)
+        ddd = phone[:2]
+        if not (11 <= int(ddd) <= 99):
+            return False
+        
+        # Se tem 11 dígitos, o terceiro deve ser 9 (celular)
+        if len(phone) == 11 and phone[2] != '9':
+            return False
+        
+        # Rejeita números repetitivos ou sequenciais
+        if len(set(phone)) <= 3:  # Muitos dígitos iguais
+            return False
+        
+        # Rejeita padrões suspeitos
+        suspicious_patterns = [
+            '1234567890', '0987654321', '1111111111', '2222222222',
+            '9999999999', '0000000000', '1234512345'
+        ]
+        if phone in suspicious_patterns:
+            return False
+            
+        return True
+    
+    def format_phone(self, phone: str) -> str:
+        """Formata telefone com máscara brasileira"""
+        import re
+        clean_phone = re.sub(r'[^0-9]', '', phone.strip())
+        
+        if len(clean_phone) == 11:  # Celular com 9
+            return f"({clean_phone[:2]}) {clean_phone[2:7]}-{clean_phone[7:]}"
+        elif len(clean_phone) == 10:  # Fixo
+            return f"({clean_phone[:2]}) {clean_phone[2:6]}-{clean_phone[6:]}"
+        else:
+            return clean_phone
+    
+    def validate_and_join_phones(self, phone_list: list) -> str:
+        """Valida cada telefone e junta em string separada por ;"""
+        valid_phones = []
+        seen = set()
+        
+        for phone in phone_list:
+            clean_phone = phone.strip()
+            if clean_phone and clean_phone not in seen and self.is_valid_phone(clean_phone):
+                formatted_phone = self.format_phone(clean_phone)
+                valid_phones.append(formatted_phone)
+                seen.add(clean_phone)
+        
+        result = ';'.join(valid_phones)
+        return result + ';' if result else ''
+    
     def extract_domain_from_url(self, url: str) -> str:
         """Extrai domínio da URL"""
         ext = tldextract.extract(url)

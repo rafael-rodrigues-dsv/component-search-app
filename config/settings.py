@@ -80,7 +80,7 @@ SCRAPER_DELAYS = {
 
 # Blacklist
 BLACKLIST_HOSTS = [
-    "reclameaqui.com.br", "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "x.com", "twitter.com",
+    "coteibem.sindiconet.com.br","reclameaqui.com.br", "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "x.com", "twitter.com",
     "maps.google", "goo.gl", "waze.com", "wikipedia.org", "mercadolivre.com", "olx.com",
     "gov.br", "docplayer", "issuu.com", "uol.com.br", "noticias", "pdf"
 ]
