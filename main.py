@@ -53,9 +53,12 @@ def main():
         
         if success:
             print("[OK] Robô executado com sucesso")
-            print("[INFO] Encerrando automaticamente em 3 segundos...")
+            print("[INFO] Encerrando em:")
             import time
-            time.sleep(3)
+            for i in range(3, 0, -1):
+                print(f"{i}")
+                time.sleep(1)
+            print("[INFO] Finalizando...")
             return 0
         else:
             print("[ERRO] Falha na execução do robô")

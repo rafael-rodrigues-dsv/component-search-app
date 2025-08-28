@@ -130,7 +130,4 @@ echo [INFO] Executando programa...
 if %errorlevel% neq 0 (
   echo [ERRO] Programa falhou
   pause
-) else (
-  echo [OK] Programa finalizado com sucesso!
-  pause
 )
