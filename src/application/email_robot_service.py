@@ -319,8 +319,8 @@ class EmailCollectorService(EmailCollectorInterface):
                         new_emails = [e for e in email_list if e not in self.seen_emails]
                         
                         if new_emails:
-                            # Reconstrói string apenas com e-mails novos
-                            company.emails = ';'.join(new_emails)
+                            # Reconstrói string apenas com e-mails novos (com ; no final)
+                            company.emails = ';'.join(new_emails) + ';'
                             self.excel_repo.save_company(company)
                             print(f"    [OK] Empresa salva em: {OUTPUT_XLSX}")
                             

@@ -5,10 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Mudança no mecanismo de validação de telefone">
-      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/output/empresas.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/output/empresas.xlsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/application/email_robot_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/application/email_robot_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/domain/email_processor.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/domain/email_processor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/infrastructure/scrapers/duckduckgo_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/scrapers/duckduckgo_scraper.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/infrastructure/scrapers/google_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/infrastructure/scrapers/google_scraper.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -439,7 +439,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756396578899</updated>
     </task>
-    <option name="localTasksCounter" value="44" />
+    <task id="LOCAL-00044" summary="Mudança no mecanismo de validação de telefone">
+      <option name="closed" value="true" />
+      <created>1756396847427</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1756396847427</updated>
+    </task>
+    <option name="localTasksCounter" value="45" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">

@@ -55,7 +55,11 @@ class EmailValidationService:
             return False
         
         # Rejeita e-mails com caracteres suspeitos ou múltiplos e-mails
-        if any(char in email for char in ['@1.5x', '@2x', '@3x', ';', '|', '\\', '/', '?', '#']):
+        if any(char in email for char in ['@1.5x', '@2x', '@3x', ';', '|', '\\', '/', '?', '#', '%20', '%', '&']):
+            return False
+        
+        # Rejeita e-mails que começam com caracteres suspeitos
+        if email.startswith(('%20', '%', '&', ' ', '\t', '\n')):
             return False
         
         # Rejeita se contém múltiplos @ (múltiplos e-mails concatenados)
@@ -63,7 +67,7 @@ class EmailValidationService:
             return False
         
         # Rejeita se começa ou termina com caracteres suspeitos
-        if email.startswith((';', '|', ',', ' ')) or email.endswith((';', '|', ',', ' ')):
+        if email.startswith((';', '|', ',', ' ', '%')) or email.endswith((';', '|', ',', ' ', '%')):
             return False
         
         # Rejeita domínios suspeitos
