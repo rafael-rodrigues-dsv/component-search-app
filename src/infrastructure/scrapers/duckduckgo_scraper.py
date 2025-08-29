@@ -67,8 +67,8 @@ class DuckDuckGoScraper:
                     href = link_elements[0].get_attribute("href") or ""
                     if href.startswith("http") and not self._is_blacklisted(href, blacklist_hosts):
                         links.append(href)
-        except:
-            pass
+        except Exception as e:
+            print(f"    [DEBUG] Erro ao extrair links: {str(e)[:50]}")
         
         return list(set(links))  # Remove duplicatas
     
@@ -94,7 +94,8 @@ class DuckDuckGoScraper:
                         more_btn.click()
                         time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
                         return True
-                except:
+                except Exception as e:
+                    print(f"    [DEBUG] Erro no seletor {selector}: {str(e)[:30]}")
                     continue
             
             # Se não encontrou botão, tenta scroll adicional para carregar mais
@@ -140,8 +141,8 @@ class DuckDuckGoScraper:
                 if len(self.driver_manager.driver.window_handles) > 1:
                     self.driver_manager.driver.close()
                     self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[0])
-            except:
-                pass
+            except Exception as e:
+                print(f"[DEBUG] Erro ao fechar janela: {str(e)[:30]}")
     
     def _extract_emails_fast(self) -> List[str]:
         """Extração rápida de e-mails"""
@@ -167,8 +168,8 @@ class DuckDuckGoScraper:
                 
                 if len(emails) >= 5:
                     break
-        except:
-            pass
+        except Exception as e:
+            print(f"[DEBUG] Erro na extração de e-mails: {str(e)[:30]}")
         
         return list(emails)
     
@@ -199,8 +200,8 @@ class DuckDuckGoScraper:
                             break
                 if len(phones) >= 3:
                     break
-        except:
-            pass
+        except Exception as e:
+            print(f"[DEBUG] Erro na extração de telefones: {str(e)[:30]}")
         
         return list(phones)
     
@@ -210,8 +211,8 @@ class DuckDuckGoScraper:
             title = self.driver_manager.driver.title or ""
             if title.strip():
                 return title.strip()[:50]
-        except:
-            pass
+        except Exception as e:
+            print(f"[DEBUG] Erro ao obter nome da empresa: {str(e)[:30]}")
         
         return self.validation_service.extract_domain_from_url(url)
     

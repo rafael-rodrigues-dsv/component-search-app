@@ -68,8 +68,7 @@ UF_BASE = "SP"
 CIDADE_BASE = "São Paulo"
 CATEGORIA_BASE = "elevadores"
 
-# Modo de execução - via configuração
-IS_TEST_MODE = config.is_test_mode
+
 
 # Delays rápidos - via configuração
 SCRAPER_DELAYS = {

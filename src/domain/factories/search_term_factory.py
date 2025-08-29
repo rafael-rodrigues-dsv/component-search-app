@@ -5,40 +5,33 @@ from typing import List
 
 from config.settings import *
 from ..models.search_term_model import SearchTermModel
+from src.infrastructure.config.config_manager import ConfigManager
 
 
 class SearchTermFactory:
     """Cria termos de busca baseado na configuração"""
     
-    @staticmethod
-    def create_search_terms() -> List[SearchTermModel]:
+    _config = ConfigManager()
+    IS_TEST_MODE = _config.is_test_mode
+    
+    @classmethod
+    def create_search_terms(cls) -> List[SearchTermModel]:
         """Cria lista de termos baseado no modo (teste/produção)"""
-        search_terms = []
-        
-        if IS_TEST_MODE:
-            print("[INFO] Modo TESTE ativado via settings.py")
-            for base in BASE_TESTES:
-                search_terms.append(f"{base} {CIDADE_BASE} capital")
+        if cls.IS_TEST_MODE:
+            print("[INFO] Modo TESTE ativado")
+            search_terms = [f"{base} {CIDADE_BASE} capital" for base in BASE_TESTES]
         else:
             print("[INFO] Modo PRODUÇÃO - processamento completo")
-            # Capital
-            for base in BASE_BUSCA:
-                search_terms.append(f"{base} {CIDADE_BASE} capital")
-
-            # Zonas
-            for base in BASE_BUSCA:
-                for zona in BASE_ZONAS:
-                    search_terms.append(f"{base} {zona} {CIDADE_BASE}")
-
-            # Bairros
-            for base in BASE_BUSCA:
-                for bairro in BASE_BAIRROS:
-                    search_terms.append(f"{base} {bairro} {CIDADE_BASE}")
-
-            # Interior
-            for base in BASE_BUSCA:
-                for cidade in CIDADES_INTERIOR:
-                    search_terms.append(f"{base} {cidade} {UF_BASE}")
+            search_terms = (
+                # Capital
+                [f"{base} {CIDADE_BASE} capital" for base in BASE_BUSCA] +
+                # Zonas
+                [f"{base} {zona} {CIDADE_BASE}" for base in BASE_BUSCA for zona in BASE_ZONAS] +
+                # Bairros
+                [f"{base} {bairro} {CIDADE_BASE}" for base in BASE_BUSCA for bairro in BASE_BAIRROS] +
+                # Interior
+                [f"{base} {cidade} {UF_BASE}" for base in BASE_BUSCA for cidade in CIDADES_INTERIOR]
+            )
 
         # Converte para objetos SearchTerm
         return [SearchTermModel(query=term, location=UF_BASE, category=CATEGORIA_BASE, pages=10) for term in search_terms]

@@ -3,6 +3,7 @@ Gerenciador de configurações via YAML/JSON
 """
 import yaml
 import json
+import os
 from pathlib import Path
 from typing import Dict, Any, Union
 
@@ -11,9 +12,25 @@ class ConfigManager:
     """Gerenciador centralizado de configurações"""
     
     def __init__(self, config_path: str = "src/resources/application.yaml"):
-        self.config_path = Path(config_path)
+        self.config_path = self._validate_path(config_path)
         self._config: Dict[str, Any] = {}
         self._load_config()
+    
+    def _validate_path(self, path: str) -> Path:
+        """Valida e sanitiza o caminho do arquivo para prevenir path traversal"""
+        # Resolve o caminho absoluto
+        resolved_path = Path(path).resolve()
+        
+        # Define diretório base permitido (raiz do projeto)
+        base_dir = Path.cwd().resolve()
+        
+        # Verifica se o caminho está dentro do diretório permitido
+        try:
+            resolved_path.relative_to(base_dir)
+        except ValueError:
+            raise ValueError(f"Caminho não permitido: {path}. Deve estar dentro de {base_dir}")
+        
+        return resolved_path
     
     def _load_config(self) -> None:
         """Carrega configuração do arquivo"""

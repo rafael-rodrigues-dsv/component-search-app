@@ -35,7 +35,9 @@ class EmailValidationService:
     
     def is_valid_email(self, email: str) -> bool:
         """Valida formato e conteúdo do e-mail"""
-        email = email.strip().lower()
+        import html
+        # Sanitiza e-mail para prevenir XSS
+        email = html.escape(email.strip().lower())
         
         # Verifica formato básico
         if not re.match(r"^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$", email):
@@ -151,10 +153,13 @@ class EmailValidationService:
     
     def extract_domain_from_url(self, url: str) -> str:
         """Extrai domínio da URL"""
-        ext = tldextract.extract(url)
+        import html
+        # Sanitiza URL para prevenir XSS
+        sanitized_url = html.escape(url.strip())
+        ext = tldextract.extract(sanitized_url)
         if ext.domain and ext.suffix:
             return f"{ext.domain}.{ext.suffix}"
-        return url
+        return sanitized_url
 
 
 class WorkingHoursService:

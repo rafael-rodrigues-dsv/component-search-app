@@ -137,7 +137,7 @@ class EmailApplicationService(EmailCollectorInterface):
         """Executa busca para um termo específico"""
         mode_text = "completo" if self.top_results_total > COMPLETE_MODE_THRESHOLD else f"lote ({self.top_results_total})"
         self.logger.info("Processando termo", 
-                        term=term.query, 
+                        term=self.logger._sanitize_input(term.query), 
                         progress=f"{current}/{total}", 
                         mode=mode_text)
         
@@ -148,7 +148,7 @@ class EmailApplicationService(EmailCollectorInterface):
             search_result = self.scraper.search(term.query)
         
         if not search_result:
-            self.logger.error("Busca falhou", term=term.query)
+            self.logger.error("Busca falhou", term=self.logger._sanitize_input(term.query))
             return False
         return True
     
@@ -157,7 +157,7 @@ class EmailApplicationService(EmailCollectorInterface):
         term_saved = self._process_term_results(term, stats.total_expected if hasattr(stats, 'total_expected') else 1000, stats.total_processed)
         
         self.logger.info("Termo concluído", 
-                        term=term.query, 
+                        term=self.logger._sanitize_input(term.query), 
                         saved_count=term_saved,
                         progress=f"{current}/{total}")
         
@@ -214,12 +214,12 @@ class EmailApplicationService(EmailCollectorInterface):
                 domain = self.validation_service.extract_domain_from_url(link)
                 
                 if self.visited_domains.get(domain):
-                    self.logger.debug("Site já visitado", domain=domain)
+                    self.logger.debug("Site já visitado", domain=self.logger._sanitize_input(domain))
                     continue
                 
                 self.visited_domains[domain] = True
                 self.logger.info("Acessando site", 
-                               domain=domain, 
+                               domain=self.logger._sanitize_input(domain), 
                                progress=f"{global_processed}/{total_expected}")
                 
                 if self.performance_tracker:
@@ -240,7 +240,7 @@ class EmailApplicationService(EmailCollectorInterface):
             if page < term.pages - 1 and results_processed < self.top_results_total:
                 if hasattr(self.scraper, 'go_to_next_page'):
                     if not self.scraper.go_to_next_page():
-                        self.logger.info("Não há mais páginas", term=term.query)
+                        self.logger.info("Não há mais páginas", term=self.logger._sanitize_input(term.query))
                         break
         
         return term_saved
@@ -248,20 +248,20 @@ class EmailApplicationService(EmailCollectorInterface):
     def _save_company_if_valid(self, company: CompanyModel, domain: str) -> bool:
         """Salva empresa se tiver e-mails válidos e novos"""
         if not company.emails or not company.emails.strip():
-            self.logger.debug("Sem e-mail válido", domain=domain)
+            self.logger.debug("Sem e-mail válido", domain=self.logger._sanitize_input(domain))
             return False
         
         email_list = [e.strip() for e in company.emails.split(';') if e.strip()]
         new_emails = [e for e in email_list if e not in self.seen_emails]
         
         if not new_emails:
-            self.logger.debug("E-mails já coletados", domain=domain)
+            self.logger.debug("E-mails já coletados", domain=self.logger._sanitize_input(domain))
             return False
         
         company.emails = ';'.join(new_emails) + ';'
         self.excel_repo.save_company(company)
         self.logger.info("Empresa salva", 
-                        domain=domain, 
+                        domain=self.logger._sanitize_input(domain), 
                         emails_count=len(new_emails),
                         file=OUTPUT_XLSX)
         

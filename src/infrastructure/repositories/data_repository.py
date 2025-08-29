@@ -3,6 +3,8 @@ Camada de Infraestrutura - Persistência de dados
 """
 import json
 import os
+import tempfile
+from pathlib import Path
 from typing import Dict, Set
 
 from openpyxl import Workbook, load_workbook
@@ -15,11 +17,33 @@ class JsonRepository:
     """Repositório JSON para controle de visitados e e-mails"""
     
     def __init__(self, visited_path: str, emails_path: str):
-        self.visited_path = visited_path
-        self.emails_path = emails_path
+        self.visited_path = self._validate_path(visited_path)
+        self.emails_path = self._validate_path(emails_path)
         # Garante que pasta data existe
-        data_dir = os.path.dirname(visited_path)
+        data_dir = os.path.dirname(str(self.visited_path))
         os.makedirs(data_dir, exist_ok=True)
+    
+    def _validate_path(self, path: str) -> str:
+        """Valida e sanitiza o caminho do arquivo para prevenir path traversal"""
+        # Resolve o caminho absoluto
+        resolved_path = Path(path).resolve()
+        
+        # Define diretório base permitido (raiz do projeto)
+        base_dir = Path.cwd().resolve()
+        
+        # Permite diretórios temporários para testes
+        temp_dir = Path(tempfile.gettempdir()).resolve()
+        
+        # Verifica se o caminho está dentro do diretório permitido ou é temporário
+        try:
+            resolved_path.relative_to(base_dir)
+        except ValueError:
+            try:
+                resolved_path.relative_to(temp_dir)
+            except ValueError:
+                raise ValueError(f"Caminho não permitido: {path}. Deve estar dentro de {base_dir} ou {temp_dir}")
+        
+        return str(resolved_path)
     
     def load_visited_domains(self) -> Dict[str, bool]:
         """Carrega domínios já visitados"""
@@ -44,7 +68,8 @@ class JsonRepository:
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except:
+            except Exception as e:
+                print(f"[DEBUG] Erro ao carregar JSON {path}: {str(e)[:30]}")
                 return None
         return None
     
@@ -58,9 +83,31 @@ class ExcelRepository:
     """Repositório Excel para empresas"""
     
     def __init__(self, file_path: str):
-        self.file_path = file_path
+        self.file_path = self._validate_path(file_path)
         self._ensure_output_dir()
         self._ensure_excel_exists()
+    
+    def _validate_path(self, path: str) -> str:
+        """Valida e sanitiza o caminho do arquivo para prevenir path traversal"""
+        # Resolve o caminho absoluto
+        resolved_path = Path(path).resolve()
+        
+        # Define diretório base permitido (raiz do projeto)
+        base_dir = Path.cwd().resolve()
+        
+        # Permite diretórios temporários para testes
+        temp_dir = Path(tempfile.gettempdir()).resolve()
+        
+        # Verifica se o caminho está dentro do diretório permitido ou é temporário
+        try:
+            resolved_path.relative_to(base_dir)
+        except ValueError:
+            try:
+                resolved_path.relative_to(temp_dir)
+            except ValueError:
+                raise ValueError(f"Caminho não permitido: {path}. Deve estar dentro de {base_dir} ou {temp_dir}")
+        
+        return str(resolved_path)
     
     def save_company(self, company: CompanyModel):
         """Salva empresa no Excel"""
@@ -81,8 +128,8 @@ class ExcelRepository:
                 cell.alignment = Alignment(horizontal="left")
             
             wb.save(self.file_path)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[DEBUG] Erro ao salvar empresa: {str(e)[:30]}")
     
     def _ensure_output_dir(self):
         """Garante que diretório de saída existe"""

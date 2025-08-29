@@ -51,7 +51,8 @@ class GoogleScraper:
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div.g, div.tF2Cxc"))
                 )
                 return True  # Sucesso na busca
-            except:
+            except Exception as e:
+                print(f"    [DEBUG] Timeout na busca, tentando fallback: {str(e)[:30]}")
                 return self._fallback_search_simple(term)
             
         except Exception as e:
@@ -65,7 +66,8 @@ class GoogleScraper:
             self.driver.get(ddg_url)
             time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
             return True
-        except:
+        except Exception as e:
+            print(f"    [DEBUG] Erro no fallback: {str(e)[:30]}")
             return False
     
     def get_result_links(self, blacklist_hosts):
@@ -93,11 +95,13 @@ class GoogleScraper:
                             domain = url.split('/')[2].lower()
                             if not any(host in domain for host in blacklist_hosts):
                                 urls.append(url)
-                    except:
+                    except Exception as e:
+                        print(f"    [DEBUG] Erro ao processar link: {str(e)[:30]}")
                         continue
                 if urls:
                     break
-            except:
+            except Exception as e:
+                print(f"    [DEBUG] Erro no seletor: {str(e)[:30]}")
                 continue
         
         return urls
@@ -132,7 +136,8 @@ class GoogleScraper:
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div.g, div.tF2Cxc"))
                 )
                 return True
-            except:
+            except Exception as e:
+                print(f"    [DEBUG] Erro ao verificar próxima página: {str(e)[:30]}")
                 return False
                 
         except Exception as e:
@@ -195,7 +200,8 @@ class GoogleScraper:
             try:
                 name = self.driver.title or url.split('/')[2]
                 name = name.strip()[:MAX_TITLE_LENGTH]  # Limita tamanho
-            except:
+            except Exception as e:
+                print(f"    [DEBUG] Erro ao obter título: {str(e)[:30]}")
                 name = url.split('/')[2]
             
             return CompanyModel(
@@ -223,8 +229,8 @@ class GoogleScraper:
                 if len(self.driver.window_handles) > 1:
                     self.driver.close()
                     self.driver.switch_to.window(self.driver.window_handles[0])
-            except:
-                pass
+            except Exception as e:
+                print(f"[DEBUG] Erro ao fechar janela: {str(e)[:30]}")
     
     def _is_valid_url(self, url):
         """Verifica se URL é válida"""
@@ -261,8 +267,8 @@ class GoogleScraper:
                             break
                 if len(phones) >= MAX_PHONES_PER_SITE:
                     break
-        except:
-            pass
+        except Exception as e:
+            print(f"    [DEBUG] Erro ao extrair telefones: {str(e)[:30]}")
         
         return list(phones)
     
