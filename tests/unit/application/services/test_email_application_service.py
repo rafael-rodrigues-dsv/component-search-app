@@ -30,10 +30,10 @@ class TestEmailApplicationService(unittest.TestCase):
         self.mock_user_config_cls.get_processing_mode.return_value = 10
         self.patches.append(self.mock_user_config)
         
-        # Mock DataManager
-        self.mock_data_manager = patch('src.application.services.email_application_service.DataManager')
-        self.mock_data_manager_cls = self.mock_data_manager.start()
-        self.patches.append(self.mock_data_manager)
+        # Mock DataStorage
+        self.mock_data_storage = patch('src.application.services.email_application_service.DataStorage')
+        self.mock_data_storage_cls = self.mock_data_storage.start()
+        self.patches.append(self.mock_data_storage)
         
         # Mock WebDriverManager
         self.mock_web_driver = patch('src.application.services.email_application_service.WebDriverManager')
@@ -83,11 +83,7 @@ class TestEmailApplicationService(unittest.TestCase):
         self.mock_validation_cls.return_value = self.mock_validation_instance
         self.patches.append(self.mock_validation)
         
-        # Mock ChromeDriverManager
-        self.mock_chrome_driver = patch('src.application.services.email_application_service.ChromeDriverManager')
-        self.mock_chrome_driver_cls = self.mock_chrome_driver.start()
-        self.mock_chrome_driver_cls.ensure_chromedriver.return_value = True
-        self.patches.append(self.mock_chrome_driver)
+
         
         # Mock SearchTermFactory
         self.mock_search_factory = patch('src.application.services.email_application_service.SearchTermFactory')
@@ -135,7 +131,7 @@ class TestEmailApplicationService(unittest.TestCase):
         
         service = EmailApplicationService()
         
-        self.mock_data_manager_cls.clear_all_data.assert_called_once()
+        self.mock_data_storage_cls.clear_all_data.assert_called_once()
     
     def test_init_with_ignore_working_hours(self):
         """Testa inicialização ignorando horário de trabalho"""
@@ -190,16 +186,14 @@ class TestEmailApplicationService(unittest.TestCase):
             result = service.execute()
             
             self.assertTrue(result)
-            self.mock_chrome_driver_cls.ensure_chromedriver.assert_called_once()
             service.driver_manager.start_driver.assert_called_once()
             mock_collect.assert_called_once()
             service.driver_manager.close_driver.assert_called_once()
     
     def test_execute_chromedriver_failure(self):
-        """Testa falha no ChromeDriver"""
-        self.mock_chrome_driver_cls.ensure_chromedriver.return_value = False
-        
+        """Testa falha no driver start"""
         service = EmailApplicationService()
+        service.driver_manager.start_driver.return_value = False
         
         result = service.execute()
         

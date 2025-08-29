@@ -12,11 +12,11 @@ from ...domain.services.email_domain_service import (
 )
 from ...domain.factories.search_term_factory import SearchTermFactory
 from ...domain.models.search_term_model import SearchTermModel
-from ...infrastructure.drivers.chromedriver_manager import ChromeDriverManager
+
 from ...infrastructure.repositories.data_repository import JsonRepository, ExcelRepository
 from ...infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ...infrastructure.scrapers.google_scraper import GoogleScraper
-from ...infrastructure.storage.data_manager import DataManager
+from ...infrastructure.storage.data_storage import DataStorage
 from ...infrastructure.web_driver import WebDriverManager
 
 
@@ -28,7 +28,7 @@ class EmailApplicationService(EmailCollectorInterface):
         self.search_engine = UserConfigService.get_search_engine()
         
         if UserConfigService.get_restart_option():
-            DataManager.clear_all_data()
+            DataStorage.clear_all_data()
         
         # Inicialização de componentes
         self.driver_manager = WebDriverManager()
@@ -64,9 +64,7 @@ class EmailApplicationService(EmailCollectorInterface):
     def execute(self) -> bool:
         """Executa coleta completa de e-mails"""
         try:
-            if not ChromeDriverManager.ensure_chromedriver():
-                print("[ERRO] ChromeDriver não disponível")
-                return False
+            # ChromeDriver deve estar disponível via scripts de inicialização
             
             if not self.driver_manager.start_driver():
                 print("[ERRO] Falha ao iniciar driver")

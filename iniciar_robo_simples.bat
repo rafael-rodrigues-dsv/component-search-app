@@ -124,6 +124,13 @@ echo [INFO] Verificando e instalando dependencias...
   exit /b 1
 )
 
+echo [INFO] Verificando ChromeDriver...
+%PYTHON_CMD% scripts\verificar_chromedriver.py || (
+  echo [ERRO] ChromeDriver nao disponivel
+  pause
+  exit /b 1
+)
+
 echo [INFO] Executando programa...
 %PYTHON_CMD% main.py
 

@@ -24,8 +24,9 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
 │   │   └── search_term_model.py      # Modelo de termo de busca
 │   ├── factories/                    # Fábricas de domínio
 │   │   └── search_term_factory.py    # Fábrica de termos
-│   └── services/                     # Serviços de domínio
-│       └── email_domain_service.py   # Regras de negócio e validações
+│   ├── services/                     # Serviços de domínio
+│   │   └── email_domain_service.py   # Regras de negócio e validações
+│   └── __version__.py                # 📌 Controle de versão semântica
 ├── 🟢 src/application/               # CAMADA DE APLICAÇÃO
 │   └── services/                     # Serviços de aplicação
 │       ├── email_application_service.py  # Orquestração principal
@@ -48,6 +49,7 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
 │   └── emails.json                   # E-mails coletados
 ├── 📊 output/                        # Arquivos de saída
 │   └── empresas.xlsx                 # Planilha Excel
+├── 📋 pyproject.toml                 # 📌 Gerenciamento de dependências e versioning
 └── 🚀 main.py                        # Ponto de entrada
 ```
 
@@ -79,6 +81,10 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
    ```cmd
    pip install -r requirements.txt
    ```
+   ou usando pyproject.toml:
+   ```cmd
+   pip install -e .
+   ```
 
 2. **Executar o robô**:
    ```cmd
@@ -87,6 +93,11 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
    ou
    ```cmd
    iniciar_robo_simples.bat
+   ```
+
+3. **Verificar versão**:
+   ```cmd
+   python -c "from src import __version__; print(__version__.__version__)"
    ```
 
 ### Fluxo Interativo
@@ -100,12 +111,49 @@ O robô perguntará:
 - **Horário**: Funciona entre 8h-22h (configurável)
 - **ChromeDriver**: Download automático da versão compatível
 
-## 📦 Dependências
+## 📦 Dependências e Versionamento
 
+### Dependências Principais
 - **selenium**: Automação web
 - **openpyxl**: Manipulação Excel
 - **tldextract**: Processamento domínios
 - **requests**: Download ChromeDriver
+
+### 📌 Semantic Versioning
+A aplicação utiliza **Semantic Versioning** (SemVer) no formato `MAJOR.MINOR.PATCH`:
+
+- **MAJOR** (1.x.x): Mudanças incompatíveis na API
+- **MINOR** (x.1.x): Novas funcionalidades compatíveis
+- **PATCH** (x.x.1): Correções de bugs
+
+#### Controle de Versão:
+```python
+# src/__version__.py
+__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+```
+
+#### Configuração pyproject.toml:
+```toml
+[project]
+name = "python-search-app"
+dynamic = ["version"]  # Lê do código
+
+[tool.setuptools.dynamic]
+version = {attr = "src.__version__.__version__"}
+```
+
+#### Comandos de Versionamento:
+```bash
+# Verificar versão atual
+python -c "from src import __version__; print(__version__.__version__)"
+
+# Instalar em modo desenvolvimento
+pip install -e .
+
+# Build da aplicação
+python -m build
+```
 
 ## ⚙️ Configurações
 
@@ -281,6 +329,8 @@ class TestFullFlow(unittest.TestCase):
 - ✅ **Formatação padronizada** de telefones brasileiros
 - ✅ **Modo lote/completo** configurável
 - ✅ **Horário de funcionamento** respeitado
+- ✅ **Semantic Versioning** com controle centralizado
+- ✅ **pyproject.toml** moderno para gerenciamento de dependências
 - ✅ **Testes unitários** com cobertura completa
 - ✅ **Relatórios de cobertura** HTML e XML
 - ✅ **Estrutura de testes** organizada por camadas

@@ -3,8 +3,8 @@ Gerenciador de dados e limpeza
 """
 from config.settings import *
 
-class DataManager:
-    """Gerencia limpeza e inicialização de dados"""
+class DataStorage:
+    """Gerencia armazenamento e limpeza de dados"""
     
     @staticmethod
     def clear_all_data():

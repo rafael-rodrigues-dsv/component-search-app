@@ -5,13 +5,14 @@ ROBO 2 – COLETOR DE E-MAILS (ELEVADORES primeiro)
 Ponto de entrada principal do robô
 """
 import sys
+from src.__version__ import __version__
 
 from src.application.services.email_application_service import EmailApplicationService
 
 
 def main():
     """Função principal do robô"""
-    print("[INFO] Iniciando ROBO 2 - COLETOR DE E-MAILS (ELEVADORES)")
+    print(f"[INFO] Iniciando ROBO 2 - COLETOR DE E-MAILS (ELEVADORES) v{__version__}")
     
     # Verificar horário de funcionamento
     from src.domain.services.email_domain_service import WorkingHoursService

@@ -160,13 +160,21 @@ cython_debug/
 .idea/
 
 # Arquivos específicos do projeto
+# Dados de runtime
 data/
 output/
+
+# Drivers
 drivers/chromedriver.exe
+drivers/python-installer.exe
+
+# Arquivos gerados
 *.xlsx
 *.json
 *.zip
-python-installer.exe
+
+# Logs específicos
+*.log
 
 # Logs
 *.log

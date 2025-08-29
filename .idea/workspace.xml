@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclusão de testes unitários" />
+    <list default="true" id="ffc6a38f-c71e-46b7-8d4b-9fdfb589c923" name="Changes" comment="Inclusão de verionamento semantico" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -49,7 +49,7 @@
     "settings.editor.selected.configurable": "advanced.settings"
   }
 }]]></component>
-  <component name="RunManager" selected="Python tests.Python tests for tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory">
+  <component name="RunManager">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="PythonSearchApp" />
       <option name="ENV_FILES" value="" />
@@ -78,74 +78,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="Python tests for tests.unit.application.services.test_user_config_service.TestUserConfigService" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
-      <module name="PythonSearchApp" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;tests.unit.application.services.test_user_config_service.TestUserConfigService&quot;" />
-      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
-      <method v="2" />
-    </configuration>
-    <configuration name="Python tests for tests.unit.application.test_user_config_service.TestUserConfigService" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
-      <module name="PythonSearchApp" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;tests.unit.application.test_user_config_service.TestUserConfigService&quot;" />
-      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
-      <method v="2" />
-    </configuration>
-    <configuration name="Python tests for tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
-      <module name="PythonSearchApp" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory&quot;" />
-      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
-      <method v="2" />
-    </configuration>
-    <configuration name="Python tests in test_email_application_service.py" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
-      <module name="PythonSearchApp" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/unit/application/test_email_application_service.py&quot;" />
-      <option name="_new_targetType" value="&quot;PATH&quot;" />
-      <method v="2" />
-    </configuration>
-    <recent_temporary>
-      <list>
-        <item itemvalue="Python tests.Python tests for tests.unit.domain.factories.test_search_term_factory.TestSearchTermFactory" />
-        <item itemvalue="Python tests.Python tests for tests.unit.application.services.test_user_config_service.TestUserConfigService" />
-        <item itemvalue="Python tests.Python tests for tests.unit.application.test_user_config_service.TestUserConfigService" />
-        <item itemvalue="Python tests.Python tests in test_email_application_service.py" />
-      </list>
-    </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
@@ -161,86 +93,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1756336041036</updated>
-    </task>
-    <task id="LOCAL-00010" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756338695066</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1756338695066</updated>
-    </task>
-    <task id="LOCAL-00011" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756339084894</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1756339084895</updated>
-    </task>
-    <task id="LOCAL-00012" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756339241602</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1756339241602</updated>
-    </task>
-    <task id="LOCAL-00013" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756339784426</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1756339784426</updated>
-    </task>
-    <task id="LOCAL-00014" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756339917546</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1756339917546</updated>
-    </task>
-    <task id="LOCAL-00015" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756340038390</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1756340038390</updated>
-    </task>
-    <task id="LOCAL-00016" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756340500564</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
-      <option name="project" value="LOCAL" />
-      <updated>1756340500564</updated>
-    </task>
-    <task id="LOCAL-00017" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756342322963</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1756342322964</updated>
-    </task>
-    <task id="LOCAL-00018" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756343472953</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1756343472953</updated>
-    </task>
-    <task id="LOCAL-00019" summary="Ajuste ao iniciar robo">
-      <option name="closed" value="true" />
-      <created>1756344005640</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1756344005640</updated>
     </task>
     <task id="LOCAL-00020" summary="Ajuste ao iniciar robo">
       <option name="closed" value="true" />
@@ -554,7 +406,87 @@
       <option name="project" value="LOCAL" />
       <updated>1756435857531</updated>
     </task>
-    <option name="localTasksCounter" value="59" />
+    <task id="LOCAL-00059" summary="Inclusão de testes unitários">
+      <option name="closed" value="true" />
+      <created>1756435920694</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1756435920694</updated>
+    </task>
+    <task id="LOCAL-00060" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756436119710</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1756436119710</updated>
+    </task>
+    <task id="LOCAL-00061" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756436281203</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1756436281203</updated>
+    </task>
+    <task id="LOCAL-00062" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756436444143</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1756436444143</updated>
+    </task>
+    <task id="LOCAL-00063" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756437016828</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1756437016828</updated>
+    </task>
+    <task id="LOCAL-00064" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756437167616</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1756437167616</updated>
+    </task>
+    <task id="LOCAL-00065" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756437970196</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1756437970196</updated>
+    </task>
+    <task id="LOCAL-00066" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756438464522</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1756438464522</updated>
+    </task>
+    <task id="LOCAL-00067" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756438794707</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1756438794708</updated>
+    </task>
+    <task id="LOCAL-00068" summary="Inclusão de verionamento semantico">
+      <option name="closed" value="true" />
+      <created>1756439019787</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1756439019787</updated>
+    </task>
+    <option name="localTasksCounter" value="69" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -575,6 +507,7 @@
     <MESSAGE value="Refatoração do email service" />
     <MESSAGE value="Refatoração completa antes de inicio dos testes unitários" />
     <MESSAGE value="Inclusão de testes unitários" />
-    <option name="LAST_COMMIT_MESSAGE" value="Inclusão de testes unitários" />
+    <MESSAGE value="Inclusão de verionamento semantico" />
+    <option name="LAST_COMMIT_MESSAGE" value="Inclusão de verionamento semantico" />
   </component>
 </project>
