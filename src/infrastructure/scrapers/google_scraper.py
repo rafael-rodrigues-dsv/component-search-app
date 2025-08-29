@@ -9,9 +9,11 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import WebDriverException, TimeoutException
 
 from config.settings import SCRAPER_DELAYS, MAX_PHONES_PER_SITE
 from ...domain.services.email_domain_service import EmailValidationService
+from ..network.retry_manager import RetryManager
 
 # Constantes para scraping
 MAX_SCROLL_PIXELS = 1500
@@ -31,6 +33,7 @@ class GoogleScraper:
         self.base_url = "https://www.google.com"
         self.validation_service = EmailValidationService()
     
+    @RetryManager.with_retry(max_attempts=3, base_delay=2.0, exceptions=(WebDriverException, TimeoutException))
     def search(self, term, max_results=50):
         """Executa busca no Google de forma rápida"""
         try:
@@ -99,6 +102,7 @@ class GoogleScraper:
         
         return urls
     
+    @RetryManager.with_retry(max_attempts=2, base_delay=1.5, exceptions=(WebDriverException, TimeoutException))
     def go_to_next_page(self):
         """Navega para a próxima página de resultados"""
         try:
@@ -135,6 +139,7 @@ class GoogleScraper:
             print(f"    [AVISO] Falha ao ir para próxima página: {str(e)[:MAX_ERROR_URL_LENGTH]}")
             return False
     
+    @RetryManager.with_retry(max_attempts=2, base_delay=1.0, exceptions=(WebDriverException, TimeoutException))
     def extract_company_data(self, url, max_emails):
         """Extrai dados da empresa do site usando sistema de abas"""
         from ...domain.models.company_model import CompanyModel

@@ -182,7 +182,9 @@ class TestEmailApplicationService(unittest.TestCase):
         service.driver_manager.start_driver.return_value = True
         service.scraper = Mock()
         
-        with patch.object(service, 'collect_emails', return_value=True) as mock_collect:
+        mock_result = MagicMock()
+        mock_result.success = True
+        with patch.object(service, 'collect_emails', return_value=mock_result) as mock_collect:
             result = service.execute()
             
             self.assertTrue(result)
@@ -218,7 +220,9 @@ class TestEmailApplicationService(unittest.TestCase):
         service.driver_manager.start_driver.return_value = True
         service.scraper = Mock()
         
-        with patch.object(service, 'collect_emails', return_value=True):
+        mock_result = MagicMock()
+        mock_result.success = True
+        with patch.object(service, 'collect_emails', return_value=mock_result):
             service.execute()
             
             # Verifica se o driver foi atribuído ao scraper Google
@@ -234,7 +238,7 @@ class TestEmailApplicationService(unittest.TestCase):
         with patch.object(service, '_process_term_results', return_value=2):
             result = service.collect_emails(terms)
             
-            self.assertTrue(result)
+            self.assertTrue(result.success)
     
     def test_collect_emails_with_working_hours_check(self):
         """Testa coleta respeitando horário de trabalho"""
@@ -409,6 +413,85 @@ class TestEmailApplicationService(unittest.TestCase):
                 # Verifica se tentou ir para próxima página
                 service.scraper.go_to_next_page.assert_called()
     
+    def test_initialize_collection_stats(self):
+        """Testa inicialização das estatísticas"""
+        service = EmailApplicationService()
+        service.top_results_total = 10
+        
+        terms = [SearchTermModel("test", "SP", "elevadores", 1)]
+        stats = service._initialize_collection_stats(terms)
+        
+        self.assertEqual(stats.total_saved, 0)
+        self.assertEqual(stats.total_processed, 0)
+        self.assertEqual(stats.terms_completed, 0)
+        self.assertEqual(stats.terms_failed, 0)
+        self.assertGreater(stats.start_time, 0)
+    
+    def test_wait_for_working_hours_ignored(self):
+        """Testa que não espera quando ignore_working_hours=True"""
+        service = EmailApplicationService(ignore_working_hours=True)
+        
+        # Não deve fazer nada quando ignore_working_hours=True
+        service._wait_for_working_hours()
+        # Se chegou aqui sem travar, o teste passou
+        self.assertTrue(True)
+    
+    def test_execute_search_for_term_success(self):
+        """Testa execução de busca para termo com sucesso"""
+        service = EmailApplicationService()
+        service.scraper = Mock()
+        service.scraper.search.return_value = True
+        
+        term = SearchTermModel("test", "SP", "elevadores", 1)
+        result = service._execute_search_for_term(term, 1, 5)
+        
+        self.assertTrue(result)
+        service.scraper.search.assert_called_once_with("test")
+    
+    def test_execute_search_for_term_failure(self):
+        """Testa execução de busca para termo com falha"""
+        service = EmailApplicationService()
+        service.scraper = Mock()
+        service.scraper.search.return_value = False
+        
+        term = SearchTermModel("test", "SP", "elevadores", 1)
+        result = service._execute_search_for_term(term, 1, 5)
+        
+        self.assertFalse(result)
+    
+    def test_process_single_term(self):
+        """Testa processamento de um único termo"""
+        service = EmailApplicationService()
+        
+        from src.domain.models.collection_stats_model import CollectionStatsModel
+        stats = CollectionStatsModel()
+        term = SearchTermModel("test", "SP", "elevadores", 1)
+        
+        with patch.object(service, '_process_term_results', return_value=3):
+            result = service._process_single_term(term, stats, 1, 5)
+            
+            self.assertEqual(result.saved_count, 3)
+            self.assertEqual(result.term_query, "test")
+            self.assertTrue(result.success)
+    
+    def test_finalize_collection(self):
+        """Testa finalização da coleta"""
+        service = EmailApplicationService()
+        
+        from src.domain.models.collection_stats_model import CollectionStatsModel
+        stats = CollectionStatsModel(
+            total_saved=10,
+            terms_completed=3
+        )
+        
+        start_time = 1000.0
+        result = service._finalize_collection(stats, start_time)
+        
+        self.assertTrue(result.success)
+        self.assertEqual(result.stats, stats)
+        self.assertGreater(result.duration_seconds, 0)
+        self.assertIn("10 empresas salvas", result.message)
+    
     def test_collect_emails_search_failure(self):
         """Testa coleta quando busca falha"""
         service = EmailApplicationService()
@@ -418,7 +501,7 @@ class TestEmailApplicationService(unittest.TestCase):
         terms = [SearchTermModel("test", "SP", "elevadores", 1)]
         result = service.collect_emails(terms)
         
-        self.assertTrue(result)  # Deve continuar mesmo com falha
+        self.assertTrue(result.success)  # Deve continuar mesmo com falha
     
     def test_process_term_results_no_go_to_next_page_method(self):
         """Testa processamento quando scraper não tem go_to_next_page"""
@@ -458,7 +541,7 @@ class TestEmailApplicationService(unittest.TestCase):
         with patch.object(service, '_process_term_results', return_value=1):
             result = service.collect_emails(terms)
             
-            self.assertTrue(result)
+            self.assertTrue(result.success)
 
 
 if __name__ == '__main__':

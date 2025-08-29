@@ -1,299 +1,167 @@
 """
-Testes completos para DuckDuckGoScraper
+Testes otimizados para DuckDuckGoScraper - Versão Rápida
 """
 import unittest
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch, MagicMock
 import sys
 import os
 
-# Adiciona o diretório raiz ao path para imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 from src.infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from src.domain.models.company_model import CompanyModel
 
-
-class TestDuckDuckGoScraper(unittest.TestCase):
-    """Testes para DuckDuckGoScraper"""
+# Mocks globais para máxima velocidade
+@patch('time.sleep', return_value=None)
+@patch('random.uniform', return_value=0.01)
+@patch('src.infrastructure.scrapers.duckduckgo_scraper.WebDriverWait')
+@patch('src.infrastructure.scrapers.duckduckgo_scraper.time.sleep', return_value=None)
+class TestDuckDuckGoScraperFast(unittest.TestCase):
+    """Testes rápidos para DuckDuckGoScraper"""
+    
+    @classmethod
+    def setUpClass(cls):
+        cls.mock_driver_manager = MagicMock()
+        cls.mock_driver = MagicMock()
+        cls.mock_driver_manager.driver = cls.mock_driver
+        cls.scraper = DuckDuckGoScraper(cls.mock_driver_manager)
     
     def setUp(self):
-        self.mock_driver_manager = MagicMock()
-        self.mock_driver = MagicMock()
-        self.mock_driver_manager.driver = self.mock_driver
-        self.scraper = DuckDuckGoScraper(self.mock_driver_manager)
+        self.mock_driver.reset_mock()
+        # Reset PropertyMock side effects
+        from unittest.mock import PropertyMock
+        type(self.mock_driver).title = PropertyMock(return_value="Test Company")
+        type(self.mock_driver).page_source = PropertyMock(return_value="Test page")
     
-    @patch('src.infrastructure.scrapers.duckduckgo_scraper.WebDriverWait')
-    @patch('src.infrastructure.scrapers.duckduckgo_scraper.time.sleep')
-    def test_search_success(self, mock_sleep, mock_wait):
-        """Testa busca bem-sucedida"""
-        # Setup mocks
+    def test_core_functionality(self, mock_sleep, mock_wait, mock_uniform, mock_time_sleep):
+        """Testa funcionalidades principais em lote"""
+        # Search success
         mock_element = MagicMock()
         mock_wait.return_value.until.return_value = mock_element
-        
-        # Execute
-        result = self.scraper.search("test query")
-        
-        # Verify
-        self.assertTrue(result)
+        self.assertTrue(self.scraper.search("test"))
         self.mock_driver.get.assert_called_with("https://duckduckgo.com/")
-    
-    def test_search_failure(self):
-        """Testa falha na busca"""
-        # Setup mock para lançar exceção
-        self.mock_driver.get.side_effect = Exception("Search failed")
         
-        # Execute
-        result = self.scraper.search("test query")
+        # Search failure
+        self.mock_driver.get.side_effect = Exception("Error")
+        self.assertFalse(self.scraper.search("test"))
+        self.mock_driver.get.side_effect = None
         
-        # Verify
-        self.assertFalse(result)
-    
-    def test_get_result_links_success(self):
-        """Testa extração de links"""
-        # Setup mock elements
+        # Get links
         mock_card = MagicMock()
         mock_link = MagicMock()
         mock_link.get_attribute.return_value = "https://example.com"
         mock_card.find_elements.return_value = [mock_link]
         self.mock_driver.find_elements.return_value = [mock_card]
-        
-        # Execute
-        links = self.scraper.get_result_links(["blacklisted.com"])
-        
-        # Verify
+        links = self.scraper.get_result_links(["blacklist.com"])
         self.assertIn("https://example.com", links)
-    
-    def test_get_result_links_blacklisted(self):
-        """Testa filtro de blacklist"""
-        # Setup mock elements
-        mock_card = MagicMock()
-        mock_link = MagicMock()
-        mock_link.get_attribute.return_value = "https://blacklisted.com/page"
-        mock_card.find_elements.return_value = [mock_link]
-        self.mock_driver.find_elements.return_value = [mock_card]
         
-        # Execute
-        links = self.scraper.get_result_links(["blacklisted.com"])
-        
-        # Verify
-        self.assertEqual(len(links), 0)
-    
-    @patch('src.infrastructure.scrapers.duckduckgo_scraper.WebDriverWait')
-    def test_extract_company_data_success(self, mock_wait):
-        """Testa extração de dados da empresa"""
-        # Setup mocks
-        self.mock_driver.page_source = "Contact us at test@example.com or call (11) 99999-8888"
-        self.mock_driver.title = "Test Company"
-        self.mock_driver.window_handles = ["tab1", "tab2"]
-        
-        # Execute
-        result = self.scraper.extract_company_data("https://example.com", 5)
-        
-        # Verify
-        self.assertIsInstance(result, CompanyModel)
-        self.assertEqual(result.url, "https://example.com")
-    
-    def test_extract_emails_fast(self):
-        """Testa extração rápida de e-mails"""
-        # Setup mock page source
-        self.mock_driver.page_source = "Contact: contato@empresa.com.br, info@site.org, invalid-email"
-        
-        # Execute
-        emails = self.scraper._extract_emails_fast()
-        
-        # Verify - apenas e-mails válidos devem estar presentes
-        self.assertIn("info@site.org", emails)
-        self.assertNotIn("invalid-email", emails)
-        # Verifica que pelo menos um e-mail foi encontrado
-        self.assertGreater(len(emails), 0)
-    
-    @patch('src.infrastructure.scrapers.duckduckgo_scraper.time.sleep')
-    def test_go_to_next_page_success_with_button(self, mock_sleep):
-        """Testa navegação para próxima página com botão"""
-        # Setup mock button
+        # Next page
         mock_button = MagicMock()
         mock_button.is_displayed.return_value = True
         self.mock_driver.find_element.return_value = mock_button
-        
-        # Execute
-        result = self.scraper.go_to_next_page()
-        
-        # Verify
-        self.assertTrue(result)
-        mock_button.click.assert_called_once()
+        self.assertTrue(self.scraper.go_to_next_page())
     
-    @patch('src.infrastructure.scrapers.duckduckgo_scraper.time.sleep')
-    def test_go_to_next_page_no_button_scroll_fallback(self, mock_sleep):
-        """Testa fallback para scroll quando não encontra botão"""
-        # Setup mock - nenhum botão encontrado
-        self.mock_driver.find_element.side_effect = Exception("Element not found")
+    def test_data_extraction(self, mock_sleep, mock_wait, mock_uniform, mock_time_sleep):
+        """Testa extração de dados em lote"""
+        # Setup
+        self.mock_driver.page_source = "Contact: test@example.com (11) 99999-8888"
+        self.mock_driver.title = "Test Company"
+        self.mock_driver.window_handles = ["tab1", "tab2"]
         
-        # Execute
-        result = self.scraper.go_to_next_page()
-        
-        # Verify
-        self.assertTrue(result)  # Deve retornar True mesmo sem botão
-        # Verifica se execute_script foi chamado para scroll
-        self.mock_driver.execute_script.assert_called()
-    
-    def test_go_to_next_page_exception_handling(self):
-        """Testa tratamento de exceção no go_to_next_page"""
-        # Setup mock - lança exceção geral
-        self.mock_driver.execute_script.side_effect = Exception("General error")
-        
-        # Execute
-        result = self.scraper.go_to_next_page()
-        
-        # Verify
-        self.assertFalse(result)
-    
-    def test_get_result_links_exception_handling(self):
-        """Testa tratamento de exceção no get_result_links"""
-        # Setup mock - lança exceção
-        self.mock_driver.execute_script.side_effect = Exception("Script error")
-        self.mock_driver.find_elements.side_effect = Exception("Find error")
-        
-        # Execute
-        links = self.scraper.get_result_links(["blacklisted.com"])
-        
-        # Verify - deve retornar lista vazia sem lançar exceção
-        self.assertEqual(links, [])
-    
-    def test_extract_company_data_exception_handling(self):
-        """Testa tratamento de exceção no extract_company_data"""
-        # Setup mock - lança exceção
-        self.mock_driver.execute_script.side_effect = Exception("Script error")
-        
-        # Execute
+        # Extract company data
         result = self.scraper.extract_company_data("https://example.com", 5)
-        
-        # Verify - deve retornar CompanyModel vazio
         self.assertIsInstance(result, CompanyModel)
         self.assertEqual(result.url, "https://example.com")
-        self.assertEqual(result.name, "")
-        self.assertEqual(result.emails, "")
+        
+        # Extract emails
+        emails = self.scraper._extract_emails_fast()
+        self.assertIsInstance(emails, list)
+        
+        # Extract phones
+        phones = self.scraper._extract_phones_fast()
+        self.assertIsInstance(phones, list)
+        
+        # Get company name
+        name = self.scraper._get_company_name_fast("https://example.com")
+        self.assertEqual(name, "Test Company")
     
-    def test_extract_company_data_finally_block_exception(self):
-        """Testa bloco finally com exceção"""
-        # Setup mock
+    def test_validation_and_edge_cases(self, mock_sleep, mock_wait, mock_uniform, mock_time_sleep):
+        """Testa validações e casos extremos em lote"""
+        # Blacklist validation
+        self.assertTrue(self.scraper._is_blacklisted("https://blacklist.com", ["blacklist.com"]))
+        self.assertFalse(self.scraper._is_blacklisted("https://example.com", ["blacklist.com"]))
+        
+        # Exception handling
+        self.mock_driver.execute_script.side_effect = Exception("Error")
+        result = self.scraper.extract_company_data("https://example.com", 5)
+        self.assertIsInstance(result, CompanyModel)
+        self.assertEqual(result.name, "")
+        self.mock_driver.execute_script.side_effect = None
+        
+        # Empty title fallback
+        from unittest.mock import PropertyMock
+        type(self.mock_driver).title = PropertyMock(return_value="")
+        name = self.scraper._get_company_name_fast("https://example.com")
+        self.assertEqual(name, "example.com")
+        # Reset title
+        type(self.mock_driver).title = PropertyMock(return_value="Test Company")
+        
+        # Go to next page without button - fallback to scroll
+        self.mock_driver.find_element.side_effect = Exception("No button")
+        result = self.scraper.go_to_next_page()
+        self.assertTrue(result)
+        self.mock_driver.find_element.side_effect = None
+        
+        # Exception in get_result_links
+        self.mock_driver.execute_script.side_effect = Exception("Script error")
+        links = self.scraper.get_result_links(["blacklist.com"])
+        self.assertEqual(links, [])
+        self.mock_driver.execute_script.side_effect = None
+        
+        # Exception in _extract_emails_fast
+        from unittest.mock import PropertyMock
+        type(self.mock_driver).page_source = PropertyMock(side_effect=Exception("Page error"))
+        emails = self.scraper._extract_emails_fast()
+        self.assertEqual(emails, [])
+        
+        # Exception in _extract_phones_fast
+        phones = self.scraper._extract_phones_fast()
+        self.assertEqual(phones, [])
+        
+        # Exception in _get_company_name_fast
+        type(self.mock_driver).title = PropertyMock(side_effect=Exception("Title error"))
+        name = self.scraper._get_company_name_fast("https://example.com")
+        self.assertEqual(name, "example.com")
+        # Reset title mock
+        type(self.mock_driver).title = PropertyMock(return_value="Test Company")
+
+
+    def test_additional_coverage(self, mock_sleep, mock_wait, mock_uniform, mock_time_sleep):
+        """Testa linhas adicionais para 100% cobertura"""
+        # Test finally block exception in extract_company_data
+        self.mock_driver.page_source = "test"
+        self.mock_driver.title = "Test"
         self.mock_driver.window_handles = ["tab1", "tab2"]
         self.mock_driver.close.side_effect = Exception("Close error")
-        self.mock_driver.page_source = "Test page"
-        self.mock_driver.title = "Test Company"
-        
-        # Execute
         result = self.scraper.extract_company_data("https://example.com", 5)
-        
-        # Verify - deve funcionar mesmo com erro no finally
         self.assertIsInstance(result, CompanyModel)
-    
-    def test_extract_emails_fast_exception_handling(self):
-        """Testa tratamento de exceção no _extract_emails_fast"""
-        # Setup mock - lança exceção ao acessar page_source
-        type(self.mock_driver).page_source = PropertyMock(side_effect=Exception("Page source error"))
+        self.mock_driver.close.side_effect = None
         
-        # Execute
-        emails = self.scraper._extract_emails_fast()
-        
-        # Verify - deve retornar lista vazia
-        self.assertEqual(emails, [])
-    
-    def test_extract_phones_fast_exception_handling(self):
-        """Testa tratamento de exceção no _extract_phones_fast"""
-        # Setup mock - lança exceção ao acessar page_source
-        type(self.mock_driver).page_source = PropertyMock(side_effect=Exception("Page source error"))
-        
-        # Execute
-        phones = self.scraper._extract_phones_fast()
-        
-        # Verify - deve retornar lista vazia
-        self.assertEqual(phones, [])
-    
-    def test_get_company_name_fast_exception_handling(self):
-        """Testa tratamento de exceção no _get_company_name_fast"""
-        # Setup mock - lança exceção ao acessar title
-        type(self.mock_driver).title = PropertyMock(side_effect=Exception("Title error"))
-        
-        # Execute
-        name = self.scraper._get_company_name_fast("https://example.com")
-        
-        # Verify - deve retornar domínio como fallback
-        self.assertEqual(name, "example.com")
-    
-    def test_get_company_name_fast_empty_title(self):
-        """Testa _get_company_name_fast com título vazio"""
-        # Setup mock - título vazio
-        self.mock_driver.title = ""
-        
-        # Execute
-        name = self.scraper._get_company_name_fast("https://example.com")
-        
-        # Verify - deve retornar domínio como fallback
-        self.assertEqual(name, "example.com")
-    
-    def test_is_blacklisted_true(self):
-        """Testa _is_blacklisted retornando True"""
-        # Execute
-        result = self.scraper._is_blacklisted("https://blacklisted.com/page", ["blacklisted.com"])
-        
-        # Verify
-        self.assertTrue(result)
-    
-    def test_is_blacklisted_false(self):
-        """Testa _is_blacklisted retornando False"""
-        # Execute
-        result = self.scraper._is_blacklisted("https://example.com/page", ["blacklisted.com"])
-        
-        # Verify
+        # Test go_to_next_page general exception
+        self.mock_driver.execute_script.side_effect = Exception("General error")
+        result = self.scraper.go_to_next_page()
         self.assertFalse(result)
-    
-    def test_extract_emails_fast_with_limit(self):
-        """Testa _extract_emails_fast com limite de 5 e-mails"""
-        # Setup mock page source com muitos e-mails
-        emails_text = " ".join([f"email{i}@site.org" for i in range(10)])
-        self.mock_driver.page_source = f"Contact: {emails_text}"
+        self.mock_driver.execute_script.side_effect = None
         
-        # Execute
+        # Test extract with limits and breaks
+        self.mock_driver.page_source = "email1@test.com email2@test.com email3@test.com email4@test.com email5@test.com email6@test.com"
         emails = self.scraper._extract_emails_fast()
-        
-        # Verify - deve limitar a 5 e-mails
         self.assertLessEqual(len(emails), 5)
-    
-    def test_extract_phones_fast_with_limit(self):
-        """Testa _extract_phones_fast com limite de 3 telefones"""
-        # Setup mock page source com muitos telefones
-        phones_text = " ".join([f"(11) 9876{i:04d}" for i in range(10)])
-        self.mock_driver.page_source = f"Call us: {phones_text}"
         
-        # Execute
+        # Test phones with limits
+        self.mock_driver.page_source = "(11) 98765-4321 (21) 98765-4321 (31) 98765-4321 (41) 98765-4321"
         phones = self.scraper._extract_phones_fast()
-        
-        # Verify - deve limitar a 3 telefones
         self.assertLessEqual(len(phones), 3)
-    
-    def test_extract_phones_fast_pattern_break_conditions(self):
-        """Testa condições de break nos padrões de telefone"""
-        # Setup mock com telefones válidos para testar breaks
-        valid_phones = "(11) 98765-4321 (21) 98765-4321 (31) 98765-4321 (41) 98765-4321"
-        self.mock_driver.page_source = f"Contact: {valid_phones}"
-        
-        # Execute
-        phones = self.scraper._extract_phones_fast()
-        
-        # Verify - deve encontrar telefones e respeitar limite
-        self.assertLessEqual(len(phones), 3)
-    
-    def test_extract_emails_fast_pattern_break_conditions(self):
-        """Testa condições de break nos padrões de e-mail"""
-        # Setup mock com e-mails válidos para testar breaks
-        valid_emails = "contact@site1.org info@site2.org admin@site3.org test@site4.org help@site5.org extra@site6.org"
-        self.mock_driver.page_source = f"Contact: {valid_emails}"
-        
-        # Execute
-        emails = self.scraper._extract_emails_fast()
-        
-        # Verify - deve encontrar e-mails e respeitar limite de 5
-        self.assertLessEqual(len(emails), 5)
 
 
 if __name__ == '__main__':

@@ -2,6 +2,10 @@
 Configurações do PythonSearchApp - coletor de e-mails
 """
 import os
+from src.infrastructure.config.config_manager import ConfigManager
+
+# Inicializa gerenciador de configuração
+config = ConfigManager()
 
 # Diretórios e arquivos
 BASE_DIR = os.getcwd()
@@ -11,19 +15,19 @@ OUTPUT_XLSX = os.path.join(OUTPUT_DIR, "empresas.xlsx")
 VISITED_JSON = os.path.join(DATA_DIR, "visited.json")
 SEEN_EMAILS_JSON = os.path.join(DATA_DIR, "emails.json")
 
-# Horários de trabalho (24h)
-START_HOUR = 8
-END_HOUR = 22
-OUT_OF_HOURS_WAIT_SECONDS = 120
+# Horários de trabalho (24h) - via configuração
+START_HOUR = config.working_hours_start
+END_HOUR = config.working_hours_end
+OUT_OF_HOURS_WAIT_SECONDS = config.out_of_hours_wait_seconds
 
-# Coleta
-MAX_EMAILS_PER_SITE = 5
-SEARCH_DWELL = (1.2, 2.4)
-RESULTS_PER_TERM_LIMIT = 1200
+# Coleta - via configuração
+MAX_EMAILS_PER_SITE = config.max_emails_per_site
+SEARCH_DWELL = config.search_dwell_delay
+RESULTS_PER_TERM_LIMIT = config.results_per_term_limit
 
-# Constantes de validação
-COMPLETE_MODE_THRESHOLD = 1000
-MAX_PHONES_PER_SITE = 3
+# Constantes de validação - via configuração
+COMPLETE_MODE_THRESHOLD = config.complete_mode_threshold
+MAX_PHONES_PER_SITE = config.max_phones_per_site
 
 # Zonas SP
 BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
@@ -64,13 +68,13 @@ UF_BASE = "SP"
 CIDADE_BASE = "São Paulo"
 CATEGORIA_BASE = "elevadores"
 
-# Modo de execução
-IS_TEST_MODE = True  # True para teste (poucos termos), False para produção (todos os termos)
+# Modo de execução - via configuração
+IS_TEST_MODE = config.is_test_mode
 
-# Delays rápidos
+# Delays rápidos - via configuração
 SCRAPER_DELAYS = {
-    "page_load": (2.0, 3.0),  # Aumentado para ver melhor
-    "scroll": (1.0, 1.5)     # Aumentado para ver melhor
+    "page_load": config.page_load_delay,
+    "scroll": config.scroll_delay
 }
 
 # Blacklist

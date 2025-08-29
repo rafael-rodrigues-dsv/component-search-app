@@ -7,6 +7,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 
+from ..network.retry_manager import RetryManager
+
 
 class WebDriverManager:
     """Gerenciador do WebDriver Chrome"""
@@ -95,6 +97,7 @@ class WebDriverManager:
         except WebDriverException:
             return False
     
+    @RetryManager.with_retry(max_attempts=3, base_delay=1.5, exceptions=(WebDriverException,))
     def navigate_to(self, url: str) -> bool:
         """Navega para URL"""
         try:

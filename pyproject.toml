@@ -9,7 +9,8 @@ dependencies = [
     "selenium>=4.0.0",
     "openpyxl>=3.0.0", 
     "tldextract>=3.0.0",
-    "requests>=2.25.0"
+    "requests>=2.25.0",
+    "pyyaml>=6.0"
 ]
 
 [project.optional-dependencies]

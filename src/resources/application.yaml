@@ -1,0 +1,47 @@
+app:
+  name: "PythonSearchApp"
+  version: "1.0.0"
+
+search:
+  engines:
+    google:
+      enabled: true
+      max_pages: 3
+    duckduckgo:
+      enabled: true
+      max_pages: 2
+
+scraping:
+  max_emails_per_site: 5
+  max_phones_per_site: 3
+  request_delay: 2.0
+  timeout: 30
+  results_per_term_limit: 1200
+
+retry:
+  max_attempts: 3
+  base_delay: 1.0
+  backoff_factor: 2.0
+  max_delay: 60.0
+
+working_hours:
+  start: 8
+  end: 22
+  enabled: true
+  out_of_hours_wait_seconds: 120
+
+performance:
+  tracking_enabled: true
+  metrics_retention_hours: 24
+
+delays:
+  page_load_min: 2.0
+  page_load_max: 3.0
+  scroll_min: 1.0
+  scroll_max: 1.5
+  search_dwell_min: 1.2
+  search_dwell_max: 2.4
+
+mode:
+  is_test: true
+  complete_threshold: 1000
