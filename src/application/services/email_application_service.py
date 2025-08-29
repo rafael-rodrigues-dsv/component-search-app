@@ -5,7 +5,11 @@ import random
 import time
 from typing import List
 
-from config.settings import *
+from config.settings import (
+    START_HOUR, END_HOUR, OUT_OF_HOURS_WAIT_SECONDS, VISITED_JSON, 
+    SEEN_EMAILS_JSON, OUTPUT_XLSX, BLACKLIST_HOSTS, MAX_EMAILS_PER_SITE,
+    RESULTS_PER_TERM_LIMIT, SEARCH_DWELL, COMPLETE_MODE_THRESHOLD
+)
 from .user_config_service import UserConfigService
 from ...domain.services.email_domain_service import (
     EmailCollectorInterface, WorkingHoursService, EmailValidationService
@@ -84,7 +88,7 @@ class EmailApplicationService(EmailCollectorInterface):
         total_saved = 0
         
         # Calcula total esperado
-        if self.top_results_total > 1000:
+        if self.top_results_total > COMPLETE_MODE_THRESHOLD:
             total_expected_results = len(terms) * RESULTS_PER_TERM_LIMIT
         else:
             total_expected_results = len(terms) * self.top_results_total
@@ -98,7 +102,7 @@ class EmailApplicationService(EmailCollectorInterface):
                     print(f"[PAUSA] Fora do horário ({START_HOUR}:00–{END_HOUR}:00). Recheco em {OUT_OF_HOURS_WAIT_SECONDS}s.")
                     time.sleep(OUT_OF_HOURS_WAIT_SECONDS)
             
-            mode_text = "completo" if self.top_results_total > 1000 else f"lote ({self.top_results_total})"
+            mode_text = "completo" if self.top_results_total > COMPLETE_MODE_THRESHOLD else f"lote ({self.top_results_total})"
             print(f"\n[TERMO {i}/{len(terms)}] {term.query} | modo: {mode_text}")
             
             if not self.scraper.search(term.query):

@@ -7,9 +7,19 @@ from datetime import datetime
 from typing import List
 
 import tldextract
+from config.settings import SUSPICIOUS_EMAIL_DOMAINS
 
 from ..models.company_model import CompanyModel
 from ..models.search_term_model import SearchTermModel
+
+# Constantes para validação
+MAX_EMAIL_LENGTH = 100
+MIN_PHONE_DIGITS = 10
+MAX_PHONE_DIGITS = 11
+MIN_DDD = 11
+MAX_DDD = 99
+MIN_UNIQUE_DIGITS_PHONE = 3
+CELLULAR_THIRD_DIGIT = '9'
 
 
 class EmailCollectorInterface(ABC):
@@ -32,7 +42,7 @@ class EmailValidationService:
             return False
         
         # Rejeita e-mails muito longos (provavelmente lixo)
-        if len(email) > 100:
+        if len(email) > MAX_EMAIL_LENGTH:
             return False
         
         # Rejeita e-mails com caracteres suspeitos ou múltiplos e-mails
@@ -53,7 +63,6 @@ class EmailValidationService:
         
         # Rejeita domínios suspeitos
         domain = email.split('@')[1] if '@' in email else ''
-        from config.settings import SUSPICIOUS_EMAIL_DOMAINS
         if any(susp in domain for susp in SUSPICIOUS_EMAIL_DOMAINS):
             return False
         
@@ -81,11 +90,10 @@ class EmailValidationService:
     
     def is_valid_phone(self, phone: str) -> bool:
         """Valida formato de telefone brasileiro"""
-        import re
         phone = re.sub(r'[^0-9]', '', phone.strip())
         
         # Telefone deve ter exatamente 10 ou 11 dígitos
-        if len(phone) not in [10, 11]:
+        if len(phone) not in [MIN_PHONE_DIGITS, MAX_PHONE_DIGITS]:
             return False
         
         # Não pode começar com 0
@@ -94,15 +102,15 @@ class EmailValidationService:
         
         # DDD deve ser válido (11-99)
         ddd = phone[:2]
-        if not (11 <= int(ddd) <= 99):
+        if not (MIN_DDD <= int(ddd) <= MAX_DDD):
             return False
         
         # Se tem 11 dígitos, o terceiro deve ser 9 (celular)
-        if len(phone) == 11 and phone[2] != '9':
+        if len(phone) == MAX_PHONE_DIGITS and phone[2] != CELLULAR_THIRD_DIGIT:
             return False
         
         # Rejeita números repetitivos ou sequenciais
-        if len(set(phone)) <= 3:  # Muitos dígitos iguais
+        if len(set(phone)) <= MIN_UNIQUE_DIGITS_PHONE:  # Muitos dígitos iguais
             return False
         
         # Rejeita padrões suspeitos
@@ -117,12 +125,11 @@ class EmailValidationService:
     
     def format_phone(self, phone: str) -> str:
         """Formata telefone com máscara brasileira"""
-        import re
         clean_phone = re.sub(r'[^0-9]', '', phone.strip())
         
-        if len(clean_phone) == 11:  # Celular com 9
+        if len(clean_phone) == MAX_PHONE_DIGITS:  # Celular com 9
             return f"({clean_phone[:2]}) {clean_phone[2:7]}-{clean_phone[7:]}"
-        elif len(clean_phone) == 10:  # Fixo
+        elif len(clean_phone) == MIN_PHONE_DIGITS:  # Fixo
             return f"({clean_phone[:2]}) {clean_phone[2:6]}-{clean_phone[6:]}"
         else:
             return clean_phone

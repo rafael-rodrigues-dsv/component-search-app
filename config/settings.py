@@ -21,6 +21,10 @@ MAX_EMAILS_PER_SITE = 5
 SEARCH_DWELL = (1.2, 2.4)
 RESULTS_PER_TERM_LIMIT = 1200
 
+# Constantes de validação
+COMPLETE_MODE_THRESHOLD = 1000
+MAX_PHONES_PER_SITE = 3
+
 # Zonas SP
 BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
 

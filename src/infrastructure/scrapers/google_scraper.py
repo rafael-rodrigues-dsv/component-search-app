@@ -10,8 +10,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from config.settings import SCRAPER_DELAYS
+from config.settings import SCRAPER_DELAYS, MAX_PHONES_PER_SITE
 from ...domain.services.email_domain_service import EmailValidationService
+
+# Constantes para scraping
+MAX_SCROLL_PIXELS = 1500
+SECOND_PAGE_START = 10
+MAX_TITLE_LENGTH = 50
+MAX_ERROR_MESSAGE_LENGTH = 50
+MAX_ERROR_URL_LENGTH = 30
+PAGE_LOAD_TIMEOUT = 8
+SEARCH_TIMEOUT = 5
 
 
 class GoogleScraper:
@@ -61,7 +70,7 @@ class GoogleScraper:
         urls = []
         
         # Scroll para carregar mais resultados
-        self.driver.execute_script("window.scrollBy(0, 1500);")
+        self.driver.execute_script(f"window.scrollBy(0, {MAX_SCROLL_PIXELS});")
         time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
         
         selectors = [
@@ -102,13 +111,13 @@ class GoogleScraper:
                 start_match = re.search(r'&start=(\d+)', current_url)
                 if start_match:
                     current_start = int(start_match.group(1))
-                    new_start = current_start + 10
+                    new_start = current_start + SECOND_PAGE_START
                     new_url = re.sub(r'&start=\d+', f'&start={new_start}', current_url)
                 else:
-                    new_url = current_url + "&start=10"
+                    new_url = current_url + f"&start={SECOND_PAGE_START}"
             else:
                 # Adiciona start=10 para segunda página
-                new_url = current_url + "&start=10"
+                new_url = current_url + f"&start={SECOND_PAGE_START}"
             
             self.driver.get(new_url)
             time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
@@ -123,7 +132,7 @@ class GoogleScraper:
                 return False
                 
         except Exception as e:
-            print(f"    [AVISO] Falha ao ir para próxima página: {str(e)[:30]}")
+            print(f"    [AVISO] Falha ao ir para próxima página: {str(e)[:MAX_ERROR_URL_LENGTH]}")
             return False
     
     def extract_company_data(self, url, max_emails):
@@ -180,7 +189,7 @@ class GoogleScraper:
             # Nome da empresa (título da página)
             try:
                 name = self.driver.title or url.split('/')[2]
-                name = name.strip()[:50]  # Limita tamanho
+                name = name.strip()[:MAX_TITLE_LENGTH]  # Limita tamanho
             except:
                 name = url.split('/')[2]
             
@@ -194,7 +203,7 @@ class GoogleScraper:
             )
             
         except Exception as e:
-            print(f"[ERRO] Falha ao extrair dados de {url}: {str(e)[:50]}")
+            print(f"[ERRO] Falha ao extrair dados de {url}: {str(e)[:MAX_ERROR_MESSAGE_LENGTH]}")
             return CompanyModel(
                 name="", 
                 emails="", 
@@ -243,9 +252,9 @@ class GoogleScraper:
                     clean_phone = re.sub(r'[^0-9]', '', phone)
                     if self.validation_service.is_valid_phone(clean_phone):
                         phones.add(clean_phone)
-                        if len(phones) >= 3:
+                        if len(phones) >= MAX_PHONES_PER_SITE:
                             break
-                if len(phones) >= 3:
+                if len(phones) >= MAX_PHONES_PER_SITE:
                     break
         except:
             pass
