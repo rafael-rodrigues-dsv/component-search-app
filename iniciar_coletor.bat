@@ -1,8 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
-title ROBO COLETOR DE E-MAILS - Simples
+title COLETOR DE E-MAILS E CONTATOS
 
-echo [INFO] Iniciando Robo Coletor de E-mails...
+echo [INFO] Iniciando Coletor de E-mails e Contatos...
 echo [INFO] Pasta: %cd%
 
 REM Verificar se Python funciona e versao minima

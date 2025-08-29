@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# ROBO COLETOR DE E-MAILS - Simples (Linux/macOS)
+# COLETOR DE E-MAILS E CONTATOS (Linux/macOS)
 set -e
 
-echo "[INFO] Iniciando Robo Coletor de E-mails..."
+echo "[INFO] Iniciando Coletor de E-mails e Contatos..."
 echo "[INFO] Pasta: $(pwd)"
 
 # Função para verificar versão do Python
