@@ -1,6 +1,6 @@
 app:
   name: "PythonSearchApp"
-  version: "1.1.0"
+  version: "1.2.0"
 
 search:
   engines:
@@ -9,7 +9,7 @@ search:
       max_pages: 3
     duckduckgo:
       enabled: true
-      max_pages: 2
+      max_pages: 3
 
 scraping:
   max_emails_per_site: 5

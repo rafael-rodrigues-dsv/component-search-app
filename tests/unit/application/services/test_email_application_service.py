@@ -26,6 +26,7 @@ class TestEmailApplicationService(unittest.TestCase):
         self.mock_user_config = patch('src.application.services.email_application_service.UserConfigService')
         self.mock_user_config_cls = self.mock_user_config.start()
         self.mock_user_config_cls.get_search_engine.return_value = "DUCKDUCKGO"
+        self.mock_user_config_cls.get_browser.return_value = "CHROME"
         self.mock_user_config_cls.get_restart_option.return_value = False
         self.mock_user_config_cls.get_processing_mode.return_value = 10
         self.patches.append(self.mock_user_config)
@@ -39,6 +40,7 @@ class TestEmailApplicationService(unittest.TestCase):
         self.mock_web_driver = patch('src.application.services.email_application_service.WebDriverManager')
         self.mock_web_driver_cls = self.mock_web_driver.start()
         self.mock_driver_instance = Mock()
+        self.mock_driver_instance.driver = Mock()  # Adiciona mock do driver
         self.mock_web_driver_cls.return_value = self.mock_driver_instance
         self.patches.append(self.mock_web_driver)
         
@@ -108,21 +110,24 @@ class TestEmailApplicationService(unittest.TestCase):
         for patch_obj in self.patches:
             patch_obj.stop()
     
-    def test_init_with_duckduckgo_engine(self):
-        """Testa inicialização com motor DuckDuckGo"""
+    def test_init_with_duckduckgo_chrome(self):
+        """Testa inicialização com DuckDuckGo e Chrome"""
         service = EmailApplicationService()
         
         self.assertEqual(service.search_engine, "DUCKDUCKGO")
+        self.assertEqual(service.browser, "CHROME")
         self.mock_duckduckgo_cls.assert_called_once()
         self.assertIsInstance(service.scraper, Mock)
     
-    def test_init_with_google_engine(self):
-        """Testa inicialização com motor Google"""
+    def test_init_with_google_brave(self):
+        """Testa inicialização com Google e Brave"""
         self.mock_user_config_cls.get_search_engine.return_value = "GOOGLE"
+        self.mock_user_config_cls.get_browser.return_value = "BRAVE"
         
         service = EmailApplicationService()
         
         self.assertEqual(service.search_engine, "GOOGLE")
+        self.assertEqual(service.browser, "BRAVE")
         self.mock_google_cls.assert_called_once_with(None)
     
     def test_init_with_restart_option_true(self):
@@ -139,23 +144,25 @@ class TestEmailApplicationService(unittest.TestCase):
         
         self.assertTrue(service.ignore_working_hours)
     
-    def test_setup_scraper_duckduckgo(self):
-        """Testa configuração do scraper DuckDuckGo"""
-        service = EmailApplicationService()
-        service.search_engine = "DUCKDUCKGO"
-        
-        service._setup_scraper()
-        
-        self.mock_duckduckgo_cls.assert_called()
-    
-    def test_setup_scraper_google(self):
-        """Testa configuração do scraper Google"""
+    def test_setup_scraper_google_brave(self):
+        """Testa configuração do scraper Google com Brave"""
         service = EmailApplicationService()
         service.search_engine = "GOOGLE"
+        service.browser = "BRAVE"
         
         service._setup_scraper()
         
         self.mock_google_cls.assert_called_with(None)
+    
+    def test_setup_scraper_duckduckgo_chrome(self):
+        """Testa configuração do scraper DuckDuckGo com Chrome"""
+        service = EmailApplicationService()
+        service.search_engine = "DUCKDUCKGO"
+        service.browser = "CHROME"
+        
+        service._setup_scraper()
+        
+        self.mock_duckduckgo_cls.assert_called()
     
     def test_setup_repositories(self):
         """Testa configuração dos repositórios"""
@@ -213,19 +220,22 @@ class TestEmailApplicationService(unittest.TestCase):
         service.driver_manager.close_driver.assert_called_once()
     
     def test_execute_with_google_engine(self):
-        """Testa execução com motor Google"""
-        self.mock_user_config_cls.get_search_engine.return_value = "GOOGLE"
-        
+        """Testa execução com Google"""
         service = EmailApplicationService()
         service.driver_manager.start_driver.return_value = True
+        
+        # Configura o mock do driver para ser o mesmo objeto
+        mock_driver = Mock()
+        service.driver_manager.driver = mock_driver
         service.scraper = Mock()
+        service.scraper.driver = mock_driver
         
         mock_result = MagicMock()
         mock_result.success = True
         with patch.object(service, 'collect_emails', return_value=mock_result):
             service.execute()
             
-            # Verifica se o driver foi atribuído ao scraper Google
+            # Verifica se o driver foi atribuído ao scraper
             self.assertEqual(service.scraper.driver, service.driver_manager.driver)
     
     def test_collect_emails_success(self):

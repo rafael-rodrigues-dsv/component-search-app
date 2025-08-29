@@ -11,12 +11,28 @@ from ..network.retry_manager import RetryManager
 
 
 class WebDriverManager:
-    """Gerenciador do WebDriver Chrome"""
+    """Gerenciador do WebDriver Chrome/Brave"""
     
-    def __init__(self, driver_path: str = "drivers/chromedriver.exe"):
+    def __init__(self, driver_path: str = "drivers/chromedriver.exe", browser: str = "chrome"):
         self.driver_path = driver_path
+        self.browser = browser
         self.driver = None
         self.wait = None
+    
+    def _get_browser_path(self) -> str:
+        """Obtém caminho do navegador baseado no tipo"""
+        import os
+        
+        if self.browser == "brave":
+            brave_paths = [
+                "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe",
+                "C:/Program Files (x86)/BraveSoftware/Brave-Browser/Application/brave.exe"
+            ]
+            for path in brave_paths:
+                if os.path.exists(path):
+                    return path
+        
+        return None  # Chrome usa caminho padrão
     
     def start_driver(self) -> bool:
         """Inicia o driver Chrome com anti-detecção"""
@@ -76,7 +92,13 @@ class WebDriverManager:
             options.add_argument("--disable-web-security")
             options.add_argument("--allow-running-insecure-content")
             
-            print("[INFO] Executando com navegador visível")
+            # Configurar navegador específico
+            browser_path = self._get_browser_path()
+            if browser_path:
+                options.binary_location = browser_path
+                print(f"[INFO] Executando com {self.browser.title()} Browser visível")
+            else:
+                print("[INFO] Executando com navegador visível")
             
             service = Service(self.driver_path)
             self.driver = webdriver.Chrome(service=service, options=options)

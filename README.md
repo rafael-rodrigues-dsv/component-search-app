@@ -6,7 +6,8 @@ Aplicação Python para coleta de e-mails e telefones de empresas usando Google/
 
 | Funcionalidade | Descrição |
 |----------------|----------|
-| **🔍 Escolha do motor** | Google Chrome ou DuckDuckGo (usuário escolhe) |
+| **🌐 Detecção automática** | Verifica Chrome e Brave instalados automaticamente |
+| **🔍 Escolha do motor** | Google ou DuckDuckGo (usuário escolhe) |
 | **🎯 Busca inteligente** | Termos configuráveis por localização e segmento |
 | **📧 Extração completa** | E-mails, telefones formatados e dados da empresa |
 | **✅ Validação rigorosa** | Filtra e-mails/telefones inválidos automaticamente |
@@ -79,28 +80,31 @@ Aplicação Python para coleta de e-mails e telefones de empresas usando Google/
 
 ### Pré-requisitos
 - Python 3.13.7+ (baixa automaticamente)
-- Google Chrome instalado
+- **Pelo menos um navegador suportado:**
+  - Google Chrome **OU** Brave Browser
 - ChromeDriver (baixa automaticamente)
 
 ### Instalação e Execução
 
 **Windows:**
 ```cmd
-iniciar_coletor.bat
+iniciar_robo_simples.bat
 ```
-[![Executar no Windows](https://img.shields.io/badge/▶️-Executar%20no%20Windows-blue?style=for-the-badge)](iniciar_coletor.bat)
+[![Executar no Windows](https://img.shields.io/badge/▶️-Executar%20no%20Windows-blue?style=for-the-badge)](iniciar_robo_simples.bat)
 
 **Linux/macOS:**
 ```bash
-./iniciar_coletor.sh
+./iniciar_robo_simples.sh
 ```
-[![Executar no Linux/macOS](https://img.shields.io/badge/▶️-Executar%20no%20Linux/macOS-green?style=for-the-badge)](iniciar_coletor.sh)
+[![Executar no Linux/macOS](https://img.shields.io/badge/▶️-Executar%20no%20Linux/macOS-green?style=for-the-badge)](iniciar_robo_simples.sh)
 
 ### Fluxo Interativo
-A aplicação perguntará:
-1. **🔍 Motor de busca**: `1-DuckDuckGo` ou `2-Google Chrome`
-2. **🔄 Reiniciar**: `s-do zero` ou `n-continuar anterior`
-3. **📊 Modo**: `l-lote` ou `c-completo`
+A aplicação:
+1. **🌐 Verifica navegadores**: Detecta automaticamente Chrome e/ou Brave
+2. **🌐 Escolha do navegador**: Seleção automática se apenas um disponível
+3. **🔍 Motor de busca**: `1-DuckDuckGo` ou `2-Google`
+4. **🔄 Reiniciar**: `s-do zero` ou `n-continuar anterior`
+5. **📊 Modo**: `l-lote` ou `c-completo`
 
 ### Configurações
 - **Modo teste**: Edite `IS_TEST_MODE = True` em `config/settings.py`
@@ -120,8 +124,9 @@ A aplicação perguntará:
 | **Pytest** | Framework de testes unitários | ≥7.0.0 |
 | **Pytest-Cov** | Plugin de coverage para pytest | ≥4.0.0 |
 | **Coverage** | Medição de cobertura de código | ≥7.0.0 |
-| **Google Chrome** | Navegador para automação web | Última versão |
-| **ChromeDriver** | Driver para controle do Chrome | Auto-download |
+| **Google Chrome** | Navegador para automação web (opcional) | Última versão |
+| **Brave Browser** | Navegador alternativo baseado em Chromium (opcional) | Última versão |
+| **ChromeDriver** | Driver para controle dos navegadores | Auto-download |
 | **Clean Architecture** | Padrão arquitetural | - |
 | **SOLID Principles** | Princípios de design de software | - |
 | **Type Hints** | Tipagem estática para Python | Built-in |
@@ -132,6 +137,7 @@ A aplicação perguntará:
 ## ⚙️ Configurações
 
 Edite `config/settings.py` para personalizar:
+- **Navegadores**: Detecção automática de Chrome e Brave
 - **Horários**: `START_HOUR = 8`, `END_HOUR = 22`
 - **Limites**: `MAX_EMAILS_PER_SITE = 5`
 - **Modo**: `IS_TEST_MODE = True/False`

@@ -13,7 +13,6 @@ check_python_version() {
         local version=$("$python_cmd" --version 2>&1 | cut -d' ' -f2)
         local major=$(echo "$version" | cut -d'.' -f1)
         local minor=$(echo "$version" | cut -d'.' -f2)
-        local patch=$(echo "$version" | cut -d'.' -f3)
         
         if [[ "$major" -eq 3 && "$minor" -ge 11 ]] || [[ "$major" -gt 3 ]]; then
             echo "[OK] Python $version encontrado via '$python_cmd' - compatível"
@@ -28,10 +27,8 @@ check_python_version() {
 }
 
 # Verificar Python disponível
-if check_python_version "python3"; then
-    :
-elif check_python_version "python"; then
-    :
+if check_python_version "python3" || check_python_version "python"; then
+    echo "[OK] Python compatível encontrado"
 else
     echo "[ERRO] Python 3.11+ não encontrado"
     echo "[INFO] Por favor, instale Python 3.11+ manualmente:"
@@ -60,10 +57,5 @@ fi
 
 echo "[INFO] Executando programa..."
 "$PYTHON_CMD" main.py
-
-if [ $? -ne 0 ]; then
-    echo "[ERRO] Programa falhou"
-    exit 1
-fi
 
 echo "[OK] Execução concluída!"

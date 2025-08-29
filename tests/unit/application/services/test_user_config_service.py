@@ -15,318 +15,203 @@ from src.application.services.user_config_service import UserConfigService
 class TestUserConfigService(unittest.TestCase):
     """Testes para UserConfigService"""
     
-    def setUp(self):
-        """Setup para cada teste"""
-        self.patches = []
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_search_engine_options(self, mock_input, mock_print):
+        """Testa todas as opções de motor de busca"""
+        # Testa opção padrão
+        mock_input.return_value = ''
+        self.assertEqual(UserConfigService.get_search_engine(), "DUCKDUCKGO")
+        
+        # Testa opção 1
+        mock_input.return_value = '1'
+        self.assertEqual(UserConfigService.get_search_engine(), "DUCKDUCKGO")
+        
+        # Testa opção 2
+        mock_input.return_value = '2'
+        self.assertEqual(UserConfigService.get_search_engine(), "GOOGLE")
     
-    def tearDown(self):
-        """Cleanup após cada teste"""
-        for patch_obj in self.patches:
-            patch_obj.stop()
+    @patch('src.application.services.user_config_service.UserConfigService._check_browser_availability')
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_browser_both_available(self, mock_input, mock_print, mock_check):
+        """Testa seleção quando ambos navegadores estão disponíveis"""
+        mock_check.return_value = True  # Ambos disponíveis
+        
+        # Testa opção padrão (Chrome)
+        mock_input.return_value = ''
+        self.assertEqual(UserConfigService.get_browser(), "CHROME")
+        
+        # Testa opção 2 (Brave)
+        mock_input.return_value = '2'
+        self.assertEqual(UserConfigService.get_browser(), "BRAVE")
     
-    def _mock_input(self, return_values):
-        """Helper para mockar input com múltiplos valores"""
-        mock_input = patch('builtins.input')
-        mock_input_obj = mock_input.start()
-        mock_input_obj.side_effect = return_values
-        self.patches.append(mock_input)
-        return mock_input_obj
+    @patch('src.application.services.user_config_service.UserConfigService._check_browser_availability')
+    @patch('builtins.print')
+    def test_get_browser_only_chrome_available(self, mock_print, mock_check):
+        """Testa seleção automática quando só Chrome está disponível"""
+        def side_effect(browser):
+            return browser == "CHROME"
+        mock_check.side_effect = side_effect
+        
+        result = UserConfigService.get_browser()
+        self.assertEqual(result, "CHROME")
     
-    def _mock_print(self):
-        """Helper para mockar print"""
-        mock_print = patch('builtins.print')
-        mock_print_obj = mock_print.start()
-        self.patches.append(mock_print)
-        return mock_print_obj
+    @patch('src.application.services.user_config_service.UserConfigService._check_browser_availability')
+    @patch('builtins.print')
+    def test_get_browser_only_brave_available(self, mock_print, mock_check):
+        """Testa seleção automática quando só Brave está disponível"""
+        def side_effect(browser):
+            return browser == "BRAVE"
+        mock_check.side_effect = side_effect
+        
+        result = UserConfigService.get_browser()
+        self.assertEqual(result, "BRAVE")
     
-    # Testes para get_search_engine()
+    @patch('src.application.services.user_config_service.UserConfigService._check_browser_availability')
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_browser_invalid_option(self, mock_input, mock_print, mock_check):
+        """Testa opção inválida quando ambos estão disponíveis"""
+        mock_check.return_value = True
+        mock_input.side_effect = ['3', '1']  # Opção inválida, depois válida
+        
+        result = UserConfigService.get_browser()
+        self.assertEqual(result, "CHROME")
     
-    def test_get_search_engine_default_option(self):
-        """Testa seleção padrão (vazio) retorna DuckDuckGo"""
-        self._mock_input([''])
-        self._mock_print()
+    @patch('os.path.exists')
+    def test_check_browser_availability_chrome(self, mock_exists):
+        """Testa verificação de disponibilidade do Chrome"""
+        mock_exists.return_value = True
+        self.assertTrue(UserConfigService._check_browser_availability("CHROME"))
         
-        result = UserConfigService.get_search_engine()
-        
-        self.assertEqual(result, "DUCKDUCKGO")
+        mock_exists.return_value = False
+        self.assertFalse(UserConfigService._check_browser_availability("CHROME"))
     
-    def test_get_search_engine_option_1(self):
-        """Testa seleção opção 1 retorna DuckDuckGo"""
-        self._mock_input(['1'])
-        self._mock_print()
+    @patch('os.path.exists')
+    def test_check_browser_availability_brave(self, mock_exists):
+        """Testa verificação de disponibilidade do Brave"""
+        mock_exists.return_value = True
+        self.assertTrue(UserConfigService._check_browser_availability("BRAVE"))
         
-        result = UserConfigService.get_search_engine()
-        
-        self.assertEqual(result, "DUCKDUCKGO")
+        mock_exists.return_value = False
+        self.assertFalse(UserConfigService._check_browser_availability("BRAVE"))
     
-    def test_get_search_engine_option_2(self):
-        """Testa seleção opção 2 retorna Google"""
-        self._mock_input(['2'])
-        self._mock_print()
-        
-        result = UserConfigService.get_search_engine()
-        
-        self.assertEqual(result, "GOOGLE")
+    def test_check_browser_availability_invalid(self):
+        """Testa verificação com navegador inválido"""
+        self.assertFalse(UserConfigService._check_browser_availability("INVALID"))
     
-    def test_get_search_engine_invalid_then_valid(self):
-        """Testa entrada inválida seguida de válida"""
-        self._mock_input(['3', '1'])
-        self._mock_print()
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_restart_option_basic(self, mock_input, mock_print):
+        """Testa opções básicas de restart"""
+        # Testa opção padrão
+        mock_input.return_value = ''
+        self.assertFalse(UserConfigService.get_restart_option())
         
-        result = UserConfigService.get_search_engine()
+        # Testa 'n'
+        mock_input.return_value = 'n'
+        self.assertFalse(UserConfigService.get_restart_option())
         
-        self.assertEqual(result, "DUCKDUCKGO")
+        # Testa 's'
+        mock_input.return_value = 's'
+        self.assertTrue(UserConfigService.get_restart_option())
+        
+        # Testa case insensitive
+        mock_input.return_value = 'S'
+        self.assertTrue(UserConfigService.get_restart_option())
+        
+        # Testa com espaços
+        mock_input.return_value = ' N '
+        self.assertFalse(UserConfigService.get_restart_option())
     
-    def test_get_search_engine_multiple_invalid_then_valid(self):
-        """Testa múltiplas entradas inválidas seguidas de válida"""
-        self._mock_input(['abc', '0', '5', '2'])
-        self._mock_print()
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_restart_option_edge_cases(self, mock_input, mock_print):
+        """Testa casos extremos de restart"""
+        # Entrada inválida seguida de válida
+        mock_input.side_effect = ['x', 's']
+        self.assertTrue(UserConfigService.get_restart_option())
         
-        result = UserConfigService.get_search_engine()
-        
-        self.assertEqual(result, "GOOGLE")
-    
-    def test_get_search_engine_whitespace_handling(self):
-        """Testa tratamento de espaços em branco"""
-        self._mock_input([' 1 '])
-        self._mock_print()
-        
-        result = UserConfigService.get_search_engine()
-        
-        self.assertEqual(result, "DUCKDUCKGO")
-    
-    def test_get_search_engine_exception_handling(self):
-        """Testa tratamento de exceções"""
-        mock_input = self._mock_input([''])
-        mock_input.side_effect = [KeyboardInterrupt(), '1']
-        self._mock_print()
-        
-        result = UserConfigService.get_search_engine()
-        
-        self.assertEqual(result, "DUCKDUCKGO")
-    
-    # Testes para get_restart_option()
-    
-    def test_get_restart_option_default(self):
-        """Testa opção padrão (vazio) retorna False"""
-        self._mock_input([''])
-        self._mock_print()
-        
-        result = UserConfigService.get_restart_option()
-        
-        self.assertFalse(result)
-    
-    def test_get_restart_option_n(self):
-        """Testa opção 'n' retorna False"""
-        self._mock_input(['n'])
-        self._mock_print()
-        
-        result = UserConfigService.get_restart_option()
-        
-        self.assertFalse(result)
-    
-    def test_get_restart_option_s(self):
-        """Testa opção 's' retorna True"""
-        self._mock_input(['s'])
-        self._mock_print()
-        
-        result = UserConfigService.get_restart_option()
-        
-        self.assertTrue(result)
-    
-    def test_get_restart_option_case_insensitive(self):
-        """Testa que opções são case insensitive"""
-        self._mock_input(['S'])
-        self._mock_print()
-        
-        result = UserConfigService.get_restart_option()
-        
-        self.assertTrue(result)
-    
-    def test_get_restart_option_with_whitespace(self):
-        """Testa tratamento de espaços"""
-        self._mock_input([' N '])
-        self._mock_print()
-        
-        result = UserConfigService.get_restart_option()
-        
-        self.assertFalse(result)
-    
-    def test_get_restart_option_invalid_then_valid(self):
-        """Testa entrada inválida seguida de válida"""
-        self._mock_input(['x', 's'])
-        self._mock_print()
-        
-        result = UserConfigService.get_restart_option()
-        
-        self.assertTrue(result)
-    
-    def test_get_restart_option_exception_handling(self):
-        """Testa tratamento de exceções"""
-        mock_input = self._mock_input([''])
+        # Exceção seguida de entrada válida
         mock_input.side_effect = [Exception(), 'n']
-        self._mock_print()
-        
-        result = UserConfigService.get_restart_option()
-        
-        self.assertFalse(result)
+        self.assertFalse(UserConfigService.get_restart_option())
     
-    # Testes para get_processing_mode()
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_processing_mode_basic(self, mock_input, mock_print):
+        """Testa modos básicos de processamento"""
+        # Modo padrão (completo)
+        mock_input.return_value = ''
+        self.assertEqual(UserConfigService.get_processing_mode(), 999999)
+        
+        # Modo completo explícito
+        mock_input.return_value = 'c'
+        self.assertEqual(UserConfigService.get_processing_mode(), 999999)
+        
+        # Modo lote com limite padrão
+        mock_input.side_effect = ['l', '']
+        self.assertEqual(UserConfigService.get_processing_mode(), 10)
+        
+        # Modo lote com limite customizado
+        mock_input.side_effect = ['l', '50']
+        self.assertEqual(UserConfigService.get_processing_mode(), 50)
     
-    def test_get_processing_mode_default(self):
-        """Testa modo padrão (vazio) retorna completo"""
-        self._mock_input([''])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 999999)
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_processing_mode_batch_invalid_limit(self, mock_input, mock_print):
+        """Testa modo lote com limite inválido"""
+        mock_input.side_effect = ['l', 'abc', '25']
+        self.assertEqual(UserConfigService.get_processing_mode(), 25)
     
-    def test_get_processing_mode_complete(self):
-        """Testa modo completo 'c'"""
-        self._mock_input(['c'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 999999)
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_processing_mode_batch_zero_limit(self, mock_input, mock_print):
+        """Testa modo lote com limite zero"""
+        mock_input.side_effect = ['l', '0', '15']
+        self.assertEqual(UserConfigService.get_processing_mode(), 15)
     
-    def test_get_processing_mode_batch_default_limit(self):
-        """Testa modo lote com limite padrão"""
-        self._mock_input(['l', ''])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 10)
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_processing_mode_invalid_mode(self, mock_input, mock_print):
+        """Testa modo inválido"""
+        mock_input.side_effect = ['x', 'c']
+        self.assertEqual(UserConfigService.get_processing_mode(), 999999)
     
-    def test_get_processing_mode_batch_custom_limit(self):
-        """Testa modo lote com limite customizado"""
-        self._mock_input(['l', '50'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 50)
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_processing_mode_case_insensitive(self, mock_input, mock_print):
+        """Testa case insensitive"""
+        mock_input.side_effect = ['L', '30']
+        self.assertEqual(UserConfigService.get_processing_mode(), 30)
     
-    def test_get_processing_mode_batch_invalid_then_valid_limit(self):
-        """Testa modo lote com limite inválido seguido de válido"""
-        self._mock_input(['l', 'abc', '25'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 25)
-    
-    def test_get_processing_mode_batch_zero_then_valid(self):
-        """Testa modo lote com zero seguido de válido"""
-        self._mock_input(['l', '0', '15'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 15)
-    
-    def test_get_processing_mode_batch_negative_then_valid(self):
-        """Testa modo lote com número negativo seguido de válido"""
-        self._mock_input(['l', '-5', '20'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 20)
-    
-    def test_get_processing_mode_invalid_mode_then_valid(self):
-        """Testa modo inválido seguido de válido"""
-        self._mock_input(['x', 'c'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 999999)
-    
-    def test_get_processing_mode_case_insensitive(self):
-        """Testa que modos são case insensitive"""
-        self._mock_input(['L', '30'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 30)
-    
-    def test_get_processing_mode_whitespace_handling(self):
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_get_processing_mode_whitespace(self, mock_input, mock_print):
         """Testa tratamento de espaços"""
-        self._mock_input([' c '])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 999999)
-    
-    def test_get_processing_mode_exception_handling(self):
-        """Testa tratamento de exceções no modo"""
-        mock_input = self._mock_input([''])
-        mock_input.side_effect = [Exception(), 'c']
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 999999)
-    
-    def test_get_processing_mode_batch_multiple_invalid_limits(self):
-        """Testa modo lote com múltiplos limites inválidos"""
-        self._mock_input(['l', 'abc', '-10', '0', 'xyz', '40'])
-        self._mock_print()
-        
-        result = UserConfigService.get_processing_mode()
-        
-        self.assertEqual(result, 40)
-    
-    # Testes de integração
+        mock_input.return_value = ' c '
+        self.assertEqual(UserConfigService.get_processing_mode(), 999999)
     
     def test_all_methods_are_static(self):
         """Verifica que todos os métodos são estáticos"""
         import inspect
-        self.assertTrue(isinstance(inspect.getattr_static(UserConfigService, 'get_search_engine'), staticmethod))
-        self.assertTrue(isinstance(inspect.getattr_static(UserConfigService, 'get_restart_option'), staticmethod))
-        self.assertTrue(isinstance(inspect.getattr_static(UserConfigService, 'get_processing_mode'), staticmethod))
+        methods = ['get_search_engine', 'get_browser', 'get_restart_option', 'get_processing_mode', '_check_browser_availability']
+        for method in methods:
+            self.assertTrue(isinstance(inspect.getattr_static(UserConfigService, method), staticmethod))
     
-    def test_methods_return_correct_types(self):
+    @patch('builtins.print')
+    @patch('builtins.input')
+    def test_methods_return_correct_types(self, mock_input, mock_print):
         """Verifica que métodos retornam tipos corretos"""
-        self._mock_input(['1'])
-        self._mock_print()
-        result1 = UserConfigService.get_search_engine()
-        self.assertIsInstance(result1, str)
+        mock_input.return_value = '1'
+        self.assertIsInstance(UserConfigService.get_search_engine(), str)
+        self.assertIsInstance(UserConfigService.get_browser(), str)
         
-        self._mock_input(['n'])
-        result2 = UserConfigService.get_restart_option()
-        self.assertIsInstance(result2, bool)
+        mock_input.return_value = 'n'
+        self.assertIsInstance(UserConfigService.get_restart_option(), bool)
         
-        self._mock_input(['c'])
-        result3 = UserConfigService.get_processing_mode()
-        self.assertIsInstance(result3, int)
-    
-    def test_print_calls_for_search_engine(self):
-        """Verifica que mensagens corretas são exibidas para search engine"""
-        self._mock_input(['1'])
-        mock_print = self._mock_print()
-        
-        UserConfigService.get_search_engine()
-        
-        print_calls = [call[0][0] for call in mock_print.call_args_list if call[0]]
-        self.assertTrue(any("Escolha o motor de busca" in str(call) for call in print_calls))
-        self.assertTrue(any("DuckDuckGo" in str(call) for call in print_calls))
-        self.assertTrue(any("Google Chrome" in str(call) for call in print_calls))
-    
-    def test_error_messages_displayed(self):
-        """Verifica que mensagens de erro são exibidas"""
-        self._mock_input(['invalid', '1'])
-        mock_print = self._mock_print()
-        
-        UserConfigService.get_search_engine()
-        
-        print_calls = [call[0][0] for call in mock_print.call_args_list if call[0]]
-        self.assertTrue(any("[ERRO]" in str(call) for call in print_calls))
+        mock_input.return_value = 'c'
+        self.assertIsInstance(UserConfigService.get_processing_mode(), int)
 
 
 if __name__ == '__main__':

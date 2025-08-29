@@ -41,6 +41,7 @@ class EmailApplicationService(EmailCollectorInterface):
         self.performance_tracker = PerformanceTracker() if self.config.performance_tracking_enabled else None
         
         # Configurações do usuário
+        self.browser: str = UserConfigService.get_browser()
         self.search_engine: str = UserConfigService.get_search_engine()
         
         if UserConfigService.get_restart_option():
@@ -59,11 +60,20 @@ class EmailApplicationService(EmailCollectorInterface):
     
     def _setup_scraper(self) -> ScraperProtocol:
         """Configura scraper baseado na escolha do usuário"""
+        # Configurar navegador
+        if self.browser == "BRAVE":
+            self.driver_manager.browser = "brave"
+            browser_name = "Brave"
+        else:
+            self.driver_manager.browser = "chrome"
+            browser_name = "Chrome"
+        
+        # Configurar motor de busca
         if self.search_engine == "GOOGLE":
-            self.logger.info("Usando motor de busca: Google Chrome", engine="Google")
+            self.logger.info(f"Usando Google com {browser_name}", engine="Google", browser=browser_name)
             return GoogleScraper(None)
         else:
-            self.logger.info("Usando motor de busca: DuckDuckGo", engine="DuckDuckGo")
+            self.logger.info(f"Usando DuckDuckGo com {browser_name}", engine="DuckDuckGo", browser=browser_name)
             return DuckDuckGoScraper(self.driver_manager)
     
     def _setup_repositories(self) -> None:
