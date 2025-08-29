@@ -190,11 +190,12 @@ A aplicação gera:
 
 ## 📄 Licença
 
-**MIT License with Commercial Use Restriction**
+**Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**
 
-- ✅ **Uso comercial permitido**: Você pode usar este software em projetos comerciais
-- ❌ **Venda proibida**: Não é permitido vender ou cobrar pelo acesso ao software
-- ✅ **Modificação livre**: Você pode modificar o código conforme necessário
-- ✅ **Distribuição livre**: Você pode distribuir o software gratuitamente
+- ✅ **Compartilhamento livre**: Copie e redistribua em qualquer formato
+- ✅ **Adaptação permitida**: Modifique, transforme e crie derivações
+- ✅ **Atribuição obrigatória**: Dê crédito ao autor original
+- ❌ **Uso comercial proibido**: Não pode ser usado para fins comerciais
+- 🛡️ **Proteção contra patentes**: Publicado como arte anterior
 
 Veja o arquivo [LICENSE](LICENSE) para detalhes completos.

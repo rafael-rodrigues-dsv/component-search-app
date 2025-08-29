@@ -1,57 +1,77 @@
-MIT License with Commercial Use Restriction / Licença MIT com Restrição de Uso Comercial
+Creative Commons Attribution-NonCommercial 4.0 International License
+Licença Creative Commons Atribuição-NãoComercial 4.0 Internacional
 
 Copyright (c) 2024 PythonSearchApp
 
 === ENGLISH ===
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and to permit 
-persons to whom the Software is furnished to do so, subject to the following 
-conditions:
+This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 
+International License. To view a copy of this license, visit 
+http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to 
+Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You are free to:
+- Share — copy and redistribute the material in any medium or format
+- Adapt — remix, transform, and build upon the material
 
-COMMERCIAL USE RESTRICTION:
-- Commercial use of this software is PERMITTED
-- Sale, resale, or commercial distribution of this software as a standalone 
-  product is PROHIBITED
-- You may use this software in commercial projects and environments
-- You may not sell this software or charge fees for access to this software
+Under the following terms:
+- Attribution — You must give appropriate credit, provide a link to the license, 
+  and indicate if changes were made. You may do so in any reasonable manner, 
+  but not in any way that suggests the licensor endorses you or your use.
+- NonCommercial — You may not use the material for commercial purposes.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+No additional restrictions — You may not apply legal terms or technological 
+measures that legally restrict others from doing anything the license permits.
+
+Notices:
+You do not have to comply with the license for elements of the material in 
+the public domain or where your use is permitted by an applicable exception 
+or limitation.
+
+No warranties are given. The license may not give you all of the permissions 
+necessary for your intended use. For example, other rights such as publicity, 
+privacy, or moral rights may limit how you use the material.
 
 === PORTUGUÊS ===
 
-É concedida permissão, gratuitamente, a qualquer pessoa que obtenha uma cópia
-deste software e arquivos de documentação associados (o "Software"), para lidar
-com o Software sem restrição, incluindo, sem limitação, os direitos de usar,
-copiar, modificar, mesclar, publicar, distribuir, sublicenciar e/ou vender
-cópias do Software, e permitir que as pessoas a quem o Software é fornecido
-o façam, sujeito às seguintes condições:
+Esta obra está licenciada sob a Licença Creative Commons Atribuição-NãoComercial 
+4.0 Internacional. Para visualizar uma cópia desta licença, visite 
+http://creativecommons.org/licenses/by-nc/4.0/ ou envie uma carta para 
+Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-O aviso de copyright acima e este aviso de permissão devem ser incluídos em
-todas as cópias ou partes substanciais do Software.
+Você tem o direito de:
+- Compartilhar — copiar e redistribuir o material em qualquer suporte ou formato
+- Adaptar — remixar, transformar, e criar a partir do material
 
-RESTRIÇÃO DE USO COMERCIAL:
-- O uso comercial deste software é PERMITIDO
-- A venda, revenda ou distribuição comercial deste software como produto
-  independente é PROIBIDA
-- Você pode usar este software em projetos e ambientes comerciais
-- Você não pode vender este software ou cobrar taxas pelo acesso a este software
+De acordo com os termos seguintes:
+- Atribuição — Você deve dar o crédito apropriado, prover um link para a licença 
+  e indicar se mudanças foram feitas. Você deve fazê-lo em qualquer circunstância 
+  razoável, mas de nenhuma maneira que sugira que o licenciante apoia você ou o 
+  seu uso.
+- NãoComercial — Você não pode usar o material para fins comerciais.
 
-O SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER TIPO, EXPRESSA OU
-IMPLÍCITA, INCLUINDO, MAS NÃO SE LIMITANDO ÀS GARANTIAS DE COMERCIALIZAÇÃO,
-ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO E NÃO VIOLAÇÃO. EM NENHUM CASO OS AUTORES
-OU DETENTORES DOS DIREITOS AUTORAIS SERÃO RESPONSÁVEIS POR QUALQUER REIVINDICAÇÃO,
-DANOS OU OUTRAS RESPONSABILIDADES, SEJA EM AÇÃO DE CONTRATO, DELITO OU DE OUTRA
-FORMA, DECORRENTES DE, FORA DE OU EM CONEXÃO COM O SOFTWARE OU O USO OU OUTRAS
-NEGOCIAÇÕES NO SOFTWARE.
+Sem restrições adicionais — Você não pode aplicar termos jurídicos ou medidas 
+de caráter tecnológico que restrinjam legalmente outros de fazerem algo que a 
+licença permita.
+
+Avisos:
+Você não tem de cumprir com os termos da licença relativamente a elementos do 
+material que estejam no domínio público ou cuja utilização seja permitida por 
+uma exceção ou limitação que seja aplicável.
+
+Não são dadas quaisquer garantias. A licença pode não lhe dar todas as 
+autorizações necessárias para o uso pretendido. Por exemplo, outros direitos, 
+como direitos de imagem, de privacidade ou direitos morais, podem limitar o 
+uso do material.
+
+PATENT PROTECTION NOTICE / AVISO DE PROTEÇÃO DE PATENTE:
+
+This software and its associated documentation, algorithms, and methodologies 
+are published as prior art. Any attempt to patent the processes, methods, or 
+algorithms contained herein after the publication date of this work may be 
+subject to invalidation based on this prior art publication.
+
+Este software e sua documentação associada, algoritmos e metodologias são 
+publicados como arte anterior. Qualquer tentativa de patentear os processos, 
+métodos ou algoritmos aqui contidos após a data de publicação desta obra pode 
+estar sujeita à invalidação com base nesta publicação de arte anterior.
