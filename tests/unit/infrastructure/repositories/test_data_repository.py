@@ -80,6 +80,8 @@ class TestExcelRepository(unittest.TestCase):
         """Setup para cada teste"""
         self.temp_dir = tempfile.mkdtemp()
         self.excel_path = os.path.join(self.temp_dir, "test.xlsx")
+        self.visited_path = os.path.join(self.temp_dir, "visited.json")
+        self.emails_path = os.path.join(self.temp_dir, "emails.json")
     
     def tearDown(self):
         """Cleanup após cada teste"""
@@ -138,6 +140,46 @@ class TestExcelRepository(unittest.TestCase):
         # Não deve chamar load_workbook
         repo.save_company(company)
         mock_load_workbook.assert_not_called()
+    
+    def test_load_json_exception(self):
+        """Testa tratamento de exceção no _load_json"""
+        repo = JsonRepository(self.visited_path, self.emails_path)
+        
+        # Cria arquivo com JSON inválido
+        with open(self.visited_path, "w") as f:
+            f.write("invalid json")
+        
+        result = repo._load_json(self.visited_path)
+        self.assertIsNone(result)
+    
+    @patch('src.infrastructure.repositories.data_repository.load_workbook')
+    @patch('os.path.exists')
+    def test_save_company_exception(self, mock_exists, mock_load_workbook):
+        """Testa tratamento de exceção no save_company"""
+        mock_exists.return_value = True
+        mock_load_workbook.side_effect = Exception("Load error")
+        
+        repo = ExcelRepository(self.excel_path)
+        
+        company = CompanyModel(
+            name="Test Company",
+            emails="test@example.com;",
+            domain="example.com",
+            url="https://example.com"
+        )
+        
+        # Não deve lançar exceção
+        repo.save_company(company)
+    
+    @patch('os.makedirs')
+    @patch('os.path.exists')
+    def test_ensure_output_dir_creation_error(self, mock_exists, mock_makedirs):
+        """Testa tratamento de erro na criação do diretório"""
+        mock_exists.return_value = False
+        mock_makedirs.side_effect = Exception("Permission denied")
+        
+        # Não deve lançar exceção
+        ExcelRepository(self.excel_path)
 
 
 if __name__ == '__main__':

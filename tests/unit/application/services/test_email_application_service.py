@@ -408,6 +408,57 @@ class TestEmailApplicationService(unittest.TestCase):
                 
                 # Verifica se tentou ir para próxima página
                 service.scraper.go_to_next_page.assert_called()
+    
+    def test_collect_emails_search_failure(self):
+        """Testa coleta quando busca falha"""
+        service = EmailApplicationService()
+        service.scraper = Mock()
+        service.scraper.search.return_value = False
+        
+        terms = [SearchTermModel("test", "SP", "elevadores", 1)]
+        result = service.collect_emails(terms)
+        
+        self.assertTrue(result)  # Deve continuar mesmo com falha
+    
+    def test_process_term_results_no_go_to_next_page_method(self):
+        """Testa processamento quando scraper não tem go_to_next_page"""
+        service = EmailApplicationService()
+        service.top_results_total = 10
+        service.visited_domains = {}
+        service.scraper = Mock()
+        service.scraper.get_result_links.return_value = ["http://example.com"]
+        
+        # Remove o método go_to_next_page
+        del service.scraper.go_to_next_page
+        
+        mock_company = CompanyModel(
+            name="Test",
+            emails="test@example.com;",
+            domain="example.com",
+            url="http://example.com",
+            phone=""
+        )
+        service.scraper.extract_company_data.return_value = mock_company
+        
+        with patch.object(service, '_save_company_if_valid', return_value=True):
+            with patch.object(service, '_save_progress'):
+                term = SearchTermModel("test", "SP", "elevadores", 2)
+                result = service._process_term_results(term, 100, 0)
+                
+                # Não deve lançar exceção
+                self.assertEqual(result, 1)
+    
+    def test_collect_emails_complete_mode(self):
+        """Testa coleta em modo completo (> 1000)"""
+        service = EmailApplicationService()
+        service.top_results_total = 999999  # Modo completo
+        
+        terms = [SearchTermModel("test", "SP", "elevadores", 1)]
+        
+        with patch.object(service, '_process_term_results', return_value=1):
+            result = service.collect_emails(terms)
+            
+            self.assertTrue(result)
 
 
 if __name__ == '__main__':
