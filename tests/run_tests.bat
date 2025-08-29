@@ -28,25 +28,27 @@ if errorlevel 1 (
 
 echo.
 echo Executando testes com cobertura...
-%PYTHON_CMD% -m pytest unit/application/ --cov=../src/application --cov-report=html --cov-report=term-missing -v
+%PYTHON_CMD% -m pytest . --cov=../src --cov-report=html --cov-report=term-missing --cov-report=xml --cov-config=.coveragerc -v
 
 if errorlevel 1 (
     echo.
     echo Tentando com unittest...
-    %PYTHON_CMD% -m unittest unit.application.test_email_application_service -v
+    %PYTHON_CMD% -m unittest discover unit/ -v
     goto :end
 )
 
 echo.
 echo ========================================
-echo  RELATORIO DE COBERTURA GERADO
+echo  RELATORIOS DE COBERTURA GERADOS
 echo ========================================
+echo HTML: reports\htmlcov\index.html
+echo XML:  reports\coverage.xml
+echo.
 
-if exist htmlcov\index.html (
-    echo Relatorio HTML: htmlcov\index.html
-    echo Abrir relatorio? (s/n)
+if exist reports\htmlcov\index.html (
+    echo Abrir relatorio HTML? (s/n)
     set /p choice="Escolha: "
-    if /i "%choice%"=="s" start htmlcov\index.html
+    if /i "%choice%"=="s" start reports\htmlcov\index.html
 ) else (
     echo Relatorio nao foi gerado
 )

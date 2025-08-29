@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import SCRAPER_DELAYS
-from ..web_driver import WebDriverManager
+from ..drivers.web_driver import WebDriverManager
 from ...domain.services.email_domain_service import EmailValidationService
 from ...domain.models.company_model import CompanyModel
 

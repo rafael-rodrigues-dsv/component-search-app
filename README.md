@@ -32,16 +32,15 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
 │       ├── email_application_service.py  # Orquestração principal
 │       └── user_config_service.py    # Configuração do usuário
 ├── 🟡 src/infrastructure/            # CAMADA DE INFRAESTRUTURA
-│   ├── drivers/                      # Gerenciamento de drivers
-│   │   └── chromedriver_manager.py   # Download automático ChromeDriver
+│   ├── drivers/                      # Gerenciamento de WebDriver
+│   │   └── web_driver.py             # WebDriverManager com anti-detecção
 │   ├── storage/                      # Gerenciamento de arquivos
-│   │   └── data_manager.py           # Limpeza de dados
+│   │   └── data_storage.py           # Limpeza de dados
 │   ├── repositories/                 # Persistência
 │   │   └── data_repository.py        # JSON e Excel
-│   ├── scrapers/                     # Web scraping
-│   │   ├── duckduckgo_scraper.py     # Scraper DuckDuckGo
-│   │   └── google_scraper.py         # Scraper Google
-│   └── web_driver.py                 # Selenium WebDriver
+│   └── scrapers/                     # Web scraping
+│       ├── duckduckgo_scraper.py     # Scraper DuckDuckGo
+│       └── google_scraper.py         # Scraper Google
 ├── ⚙️ config/
 │   └── settings.py                   # Configurações centralizadas
 ├── 💾 data/                          # Dados de controle
@@ -63,11 +62,10 @@ Aplicação Python especializada em coleta de e-mails e telefones de empresas de
 - **UserConfigService**: Gerencia configurações do usuário
 
 ### 🟡 Camada de Infraestrutura
-- **ChromeDriverManager**: Download automático do ChromeDriver
-- **DataManager**: Limpeza e gerenciamento de arquivos
+- **WebDriverManager**: Controle do navegador Chrome com anti-detecção
+- **DataStorage**: Limpeza e gerenciamento de arquivos
 - **GoogleScraper/DuckDuckGoScraper**: Extração de dados
 - **JsonRepository/ExcelRepository**: Persistência de dados
-- **WebDriverManager**: Controle do navegador Chrome
 
 ## 🚀 Como Executar
 
@@ -202,71 +200,70 @@ O robô gera:
 ### Estrutura de Testes
 ```
 📁 tests/
-├── 📁 unit/                          # Testes unitários
+├── 📁 unit/                          # Testes unitários (116 testes)
 │   ├── 📁 application/services/      # Testes dos serviços de aplicação
 │   ├── 📁 domain/                    # Testes da camada de domínio
 │   │   ├── 📁 models/                # Testes dos modelos
 │   │   ├── 📁 factories/             # Testes das fábricas
 │   │   └── 📁 services/              # Testes dos serviços de domínio
 │   └── 📁 infrastructure/            # Testes da camada de infraestrutura
-├── 📁 integration/                   # Testes de integração
+│       ├── 📁 repositories/          # Testes de persistência
+│       ├── 📁 storage/               # Testes de armazenamento
+│       └── 📁 scrapers/              # Testes de web scraping
+├── 📁 reports/                       # 📊 Relatórios de cobertura
+│   ├── 📁 htmlcov/                   # Relatório HTML interativo
+│   ├── .coverage                     # Dados de cobertura
+│   └── coverage.xml                  # Relatório XML (CI/CD)
 ├── 📁 fixtures/                      # Dados de exemplo
 ├── 📁 utils/                         # Utilitários de teste
 ├── conftest.py                       # Configuração global pytest
 ├── pytest.ini                       # Configuração pytest
 ├── requirements-test.txt             # Dependências de teste
 ├── .coveragerc                       # Configuração cobertura
-├── run_tests.bat                     # Executar testes
-└── run_coverage.bat                  # Relatório completo
+└── run_tests.bat                     # Executar testes + cobertura
 ```
 
 ### Executar Testes
 
-#### **Testes básicos:**
+#### **Testes com cobertura completa:**
 ```cmd
 cd tests
 run_tests.bat
 ```
 
-#### **Cobertura completa:**
-```cmd
-cd tests
-run_coverage.bat
-```
-
 #### **Comandos manuais:**
 ```cmd
 cd tests
-python -m pytest . --cov=../src --cov-report=html -v
+python -m pytest . --cov=../src --cov-report=html --cov-report=xml --cov-config=.coveragerc -v
 ```
 
 ### Relatórios de Cobertura
 
 #### **Localização:**
-- **HTML**: `tests/htmlcov/index.html` (navegação interativa)
-- **XML**: `tests/coverage.xml` (integração CI/CD)
+- **HTML**: `tests/reports/htmlcov/index.html` (navegação interativa)
+- **XML**: `tests/reports/coverage.xml` (integração CI/CD)
+- **Dados**: `tests/reports/.coverage` (dados brutos)
 - **Terminal**: exibido durante execução
 
-#### **Interpretação:**
-- **Verde**: linhas cobertas pelos testes
-- **Vermelho**: linhas não cobertas
-- **Percentual**: % de cobertura por arquivo
-- **Missing**: números das linhas não testadas
+#### **Cobertura Atual (47%):**
+- **100%**: user_config_service.py, company_model.py, search_term_model.py, data_storage.py
+- **96%**: email_application_service.py (5 linhas não testadas)
+- **88%**: data_repository.py (9 linhas não testadas)
+- **50%**: search_term_factory.py (12 linhas não testadas)
+- **22%**: email_domain_service.py (71 linhas não testadas)
+- **17%**: web_driver.py (50 linhas não testadas)
+- **16%**: duckduckgo_scraper.py (113 linhas não testadas)
+- **11%**: google_scraper.py (128 linhas não testadas)
 
-#### **Exemplo de saída:**
-```
-Name                                   Stmts   Miss  Cover   Missing
-------------------------------------------------------------------
-src/application/email_application_service.py  95      5    95%   45-47, 89
-------------------------------------------------------------------
-TOTAL                                         95      5    95%
-```
+#### **Arquivos ignorados:**
+- Todos os `__init__.py` (apenas imports)
+- `__version__.py` (apenas constantes)
 
 ### Adicionar Novos Testes
 
 #### **Teste unitário de domínio:**
 ```python
-# tests/unit/domain/test_email_service.py
+# tests/unit/domain/services/test_email_domain_service.py
 class TestEmailValidationService(unittest.TestCase):
     def test_valid_email(self):
         service = EmailValidationService()
@@ -275,7 +272,7 @@ class TestEmailValidationService(unittest.TestCase):
 
 #### **Teste de infraestrutura:**
 ```python
-# tests/unit/infrastructure/test_scrapers.py
+# tests/unit/infrastructure/scrapers/test_scrapers.py
 class TestGoogleScraper(unittest.TestCase):
     def test_search_success(self):
         scraper = GoogleScraper(mock_driver)
@@ -283,13 +280,13 @@ class TestGoogleScraper(unittest.TestCase):
         self.assertTrue(result)
 ```
 
-#### **Teste de integração:**
+#### **Teste de drivers:**
 ```python
-# tests/integration/test_full_flow.py
-class TestFullFlow(unittest.TestCase):
-    def test_complete_email_collection(self):
-        # Teste do fluxo completo
-        pass
+# tests/unit/infrastructure/drivers/test_web_driver.py
+class TestWebDriverManager(unittest.TestCase):
+    def test_driver_initialization(self):
+        manager = WebDriverManager()
+        self.assertIsNotNone(manager)
 ```
 
 ## 🔧 Extensibilidade
@@ -298,17 +295,17 @@ class TestFullFlow(unittest.TestCase):
 1. Crie scraper em `infrastructure/scrapers/`
 2. Implemente métodos: `search()`, `get_result_links()`, `extract_company_data()`
 3. Adicione opção em `UserConfigService`
-4. **Crie testes** em `tests/unit/infrastructure/`
+4. **Crie testes** em `tests/unit/infrastructure/scrapers/`
 
 ### Adicionar nova validação:
-1. Estenda `EmailValidationService` em `domain/email_service.py`
+1. Estenda `EmailValidationService` em `domain/services/email_domain_service.py`
 2. Adicione regras específicas conforme necessário
-3. **Crie testes** em `tests/unit/domain/`
+3. **Crie testes** em `tests/unit/domain/services/`
 
 ### Personalizar saída:
 1. Modifique `ExcelRepository` em `infrastructure/repositories/`
 2. Ajuste formato e colunas conforme necessário
-3. **Crie testes** em `tests/unit/infrastructure/`
+3. **Crie testes** em `tests/unit/infrastructure/repositories/`
 
 ## 📝 Logs
 
@@ -338,8 +335,10 @@ class TestFullFlow(unittest.TestCase):
 ## 📊 Qualidade e Testes
 
 ### Cobertura de Código
-- **EmailApplicationService**: 95%+ de cobertura
-- **Testes unitários**: Todas as camadas (Domain, Application, Infrastructure)
+- **116 testes unitários** com 100% de sucesso
+- **47% cobertura total** (731 linhas de código)
+- **EmailApplicationService**: 96% de cobertura
+- **Testes organizados** por camadas (Domain, Application, Infrastructure)
 - **Mocks completos**: Dependências externas isoladas
 - **Fixtures reutilizáveis**: Dados de exemplo padronizados
 
@@ -347,16 +346,16 @@ class TestFullFlow(unittest.TestCase):
 - **pytest**: Framework de testes moderno
 - **coverage**: Análise de cobertura de código
 - **unittest.mock**: Isolamento de dependências
-- **Relatórios HTML**: Visualização interativa da cobertura
+- **Relatórios organizados**: HTML, XML e terminal em `tests/reports/`
 
 ### Execução de Testes
 ```cmd
-# Testes rápidos
+# Testes completos com cobertura
 cd tests && run_tests.bat
 
-# Cobertura completa
-cd tests && run_coverage.bat
-
 # Comando manual
-python -m pytest tests/ --cov=src --cov-report=html -v
+cd tests && python -m pytest . --cov=../src --cov-report=html --cov-report=xml --cov-config=.coveragerc -v
+
+# Ver relatório
+tests/reports/htmlcov/index.html
 ```

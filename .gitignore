@@ -158,6 +158,7 @@ cython_debug/
 #  project, it is usually recommended to include the gitignore entries for the project
 #  and the IDE.
 .idea/
+workspace.xml
 
 # Arquivos específicos do projeto
 # Dados de runtime

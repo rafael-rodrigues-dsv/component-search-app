@@ -17,7 +17,7 @@ from ...infrastructure.repositories.data_repository import JsonRepository, Excel
 from ...infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ...infrastructure.scrapers.google_scraper import GoogleScraper
 from ...infrastructure.storage.data_storage import DataStorage
-from ...infrastructure.web_driver import WebDriverManager
+from ...infrastructure.drivers.web_driver import WebDriverManager
 
 
 class EmailApplicationService(EmailCollectorInterface):

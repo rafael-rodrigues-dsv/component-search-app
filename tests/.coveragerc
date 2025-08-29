@@ -1,5 +1,7 @@
 [run]
 source = src/
+include = src/*
+data_file = reports/.coverage
 omit = 
     */tests/*
     */venv/*
@@ -7,6 +9,9 @@ omit =
     */__pycache__/*
     */migrations/*
     setup.py
+    */__init__.py
+    */__version__.py
+    */conftest.py
 
 [report]
 exclude_lines =
@@ -18,5 +23,8 @@ exclude_lines =
     if TYPE_CHECKING:
 
 [html]
-directory = htmlcov
+directory = reports/htmlcov
 title = PythonSearchApp Coverage Report
+
+[xml]
+output = reports/coverage.xml
