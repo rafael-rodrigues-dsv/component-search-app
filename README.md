@@ -328,16 +328,16 @@ class TestWebDriverManager(unittest.TestCase):
 - ✅ **Horário de funcionamento** respeitado
 - ✅ **Semantic Versioning** com controle centralizado
 - ✅ **pyproject.toml** moderno para gerenciamento de dependências
-- ✅ **Testes unitários** com cobertura completa
+- ✅ **99% cobertura de testes** com 204 testes unitários
 - ✅ **Relatórios de cobertura** HTML e XML
 - ✅ **Estrutura de testes** organizada por camadas
+- ✅ **Licença comercial** com restrições de venda
 
 ## 📊 Qualidade e Testes
 
 ### Cobertura de Código
-- **116 testes unitários** com 100% de sucesso
-- **47% cobertura total** (731 linhas de código)
-- **EmailApplicationService**: 96% de cobertura
+- **204 testes unitários** com 100% de sucesso
+- **99% cobertura total** (722/731 linhas de código)
 - **Testes organizados** por camadas (Domain, Application, Infrastructure)
 - **Mocks completos**: Dependências externas isoladas
 - **Fixtures reutilizáveis**: Dados de exemplo padronizados
@@ -359,3 +359,14 @@ cd tests && python -m pytest . --cov=../src --cov-report=html --cov-report=xml -
 # Ver relatório
 tests/reports/htmlcov/index.html
 ```
+
+## 📄 Licença
+
+**MIT License with Commercial Use Restriction**
+
+- ✅ **Uso comercial permitido**: Você pode usar este software em projetos comerciais
+- ❌ **Venda proibida**: Não é permitido vender ou cobrar pelo acesso ao software
+- ✅ **Modificação livre**: Você pode modificar o código conforme necessário
+- ✅ **Distribuição livre**: Você pode distribuir o software gratuitamente
+
+Veja o arquivo [LICENSE](LICENSE) para detalhes completos.
