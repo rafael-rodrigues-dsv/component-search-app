@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..
 
 from src.domain.services.email_domain_service import (
     EmailValidationService, 
-    WorkingHoursService,
     EmailCollectorInterface
 )
 
@@ -181,34 +180,7 @@ class TestEmailValidationService(unittest.TestCase):
         self.assertEqual(result, "invalid-url")
 
 
-class TestWorkingHoursService(unittest.TestCase):
-    """Testes para WorkingHoursService"""
-    
-    def setUp(self):
-        self.service = WorkingHoursService(8, 22)
-    
-    @patch('src.domain.services.email_domain_service.datetime')
-    def test_is_working_hours_true(self, mock_datetime):
-        """Testa horário de trabalho válido"""
-        mock_datetime.now.return_value.hour = 10
-        self.assertTrue(self.service.is_working_time())
-    
-    @patch('src.domain.services.email_domain_service.datetime')
-    def test_is_working_hours_false(self, mock_datetime):
-        """Testa horário fora do trabalho"""
-        mock_datetime.now.return_value.hour = 23
-        self.assertFalse(self.service.is_working_time())
-    
-    @patch('src.domain.services.email_domain_service.datetime')
-    def test_is_working_hours_boundary(self, mock_datetime):
-        """Testa horários limite"""
-        # Hora 8 (início)
-        mock_datetime.now.return_value.hour = 8
-        self.assertTrue(self.service.is_working_time())
-        
-        # Hora 22 (fim) - deve ser False pois é < 22
-        mock_datetime.now.return_value.hour = 22
-        self.assertFalse(self.service.is_working_time())
+
 
 
 class TestEmailCollectorInterface(unittest.TestCase):

@@ -7,7 +7,10 @@ import sys
 import os
 
 # Adiciona o diretório raiz ao path para imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.dirname(__file__))
 
 from src.application.services.email_application_service import EmailApplicationService
 from src.domain.models.search_term_model import SearchTermModel
@@ -70,13 +73,7 @@ class TestEmailApplicationService(unittest.TestCase):
         self.mock_excel_repo_cls.return_value = self.mock_excel_instance
         self.patches.append(self.mock_excel_repo)
         
-        # Mock Services
-        self.mock_working_hours = patch('src.application.services.email_application_service.WorkingHoursService')
-        self.mock_working_hours_cls = self.mock_working_hours.start()
-        self.mock_working_hours_instance = Mock()
-        self.mock_working_hours_instance.is_working_time.return_value = True
-        self.mock_working_hours_cls.return_value = self.mock_working_hours_instance
-        self.patches.append(self.mock_working_hours)
+
         
         self.mock_validation = patch('src.application.services.email_application_service.EmailValidationService')
         self.mock_validation_cls = self.mock_validation.start()
@@ -138,11 +135,7 @@ class TestEmailApplicationService(unittest.TestCase):
         
         self.mock_data_storage_cls.clear_all_data.assert_called_once()
     
-    def test_init_with_ignore_working_hours(self):
-        """Testa inicialização ignorando horário de trabalho"""
-        service = EmailApplicationService(ignore_working_hours=True)
-        
-        self.assertTrue(service.ignore_working_hours)
+
     
     def test_setup_scraper_google_brave(self):
         """Testa configuração do scraper Google com Brave"""
@@ -177,10 +170,8 @@ class TestEmailApplicationService(unittest.TestCase):
         """Testa configuração dos serviços"""
         service = EmailApplicationService()
         
-        service._setup_services(ignore_working_hours=True)
+        service._setup_services()
         
-        self.assertTrue(service.ignore_working_hours)
-        self.mock_working_hours_cls.assert_called()
         self.mock_validation_cls.assert_called()
     
     def test_execute_success(self):
@@ -250,26 +241,7 @@ class TestEmailApplicationService(unittest.TestCase):
             
             self.assertTrue(result.success)
     
-    def test_collect_emails_with_working_hours_check(self):
-        """Testa coleta respeitando horário de trabalho"""
-        service = EmailApplicationService()
-        service.ignore_working_hours = False
-        service.working_hours.is_working_time.return_value = False
-        service.top_results_total = 10
-        
-        terms = [SearchTermModel("test", "SP", "elevadores", 1)]
-        
-        # Mock para simular que após primeira verificação está no horário
-        def side_effect():
-            service.working_hours.is_working_time.return_value = True
-            return True
-        
-        service.working_hours.is_working_time.side_effect = [False, True]
-        
-        with patch.object(service, '_process_term_results', return_value=1):
-            result = service.collect_emails(terms)
-            
-            self.assertTrue(result)
+
     
     def test_process_term_results_success(self):
         """Testa processamento de resultados de termo"""
@@ -437,14 +409,7 @@ class TestEmailApplicationService(unittest.TestCase):
         self.assertEqual(stats.terms_failed, 0)
         self.assertGreater(stats.start_time, 0)
     
-    def test_wait_for_working_hours_ignored(self):
-        """Testa que não espera quando ignore_working_hours=True"""
-        service = EmailApplicationService(ignore_working_hours=True)
-        
-        # Não deve fazer nada quando ignore_working_hours=True
-        service._wait_for_working_hours()
-        # Se chegou aqui sem travar, o teste passou
-        self.assertTrue(True)
+
     
     def test_execute_search_for_term_success(self):
         """Testa execução de busca para termo com sucesso"""

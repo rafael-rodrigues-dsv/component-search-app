@@ -162,16 +162,6 @@ class EmailValidationService:
         return sanitized_url
 
 
-class WorkingHoursService:
-    """Serviço de horário de trabalho"""
-    
-    def __init__(self, start_hour: int, end_hour: int):
-        self.start_hour = start_hour
-        self.end_hour = end_hour
-    
-    def is_working_time(self) -> bool:
-        """Verifica se está no horário de trabalho"""
-        current_hour = datetime.now().hour
-        return self.start_hour <= current_hour < self.end_hour
+
 
 

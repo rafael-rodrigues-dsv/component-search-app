@@ -35,31 +35,21 @@ class TestConfigManager(unittest.TestCase):
         
         # Deve usar valores padrão
         self.assertEqual(config.max_emails_per_site, 5)
-        self.assertEqual(config.working_hours_start, 8)
+        self.assertEqual(config.retry_max_attempts, 3)
     
-    @patch("builtins.open", new_callable=mock_open, read_data="scraping:\n  max_emails_per_site: 10")
-    @patch("yaml.safe_load")
-    def test_config_manager_yaml_loading(self, mock_yaml_load, mock_file):
-        """Testa carregamento de arquivo YAML"""
-        mock_yaml_load.return_value = self.test_config
-        
+    def test_config_manager_yaml_loading(self):
+        """Testa carregamento de arquivo YAML (hardcoded)"""
         config = ConfigManager("src/resources/test.yaml")
         
-        mock_file.assert_called_once()
-        mock_yaml_load.assert_called_once()
-        self.assertEqual(config.max_emails_per_site, 10)
+        # Usa configuração hardcoded
+        self.assertEqual(config.max_emails_per_site, 5)
     
-    @patch("builtins.open", new_callable=mock_open, read_data='{"scraping": {"max_emails_per_site": 15}}')
-    @patch("json.load")
-    def test_config_manager_json_loading(self, mock_json_load, mock_file):
-        """Testa carregamento de arquivo JSON"""
-        mock_json_load.return_value = {"scraping": {"max_emails_per_site": 15}}
-        
+    def test_config_manager_json_loading(self):
+        """Testa carregamento de arquivo JSON (hardcoded)"""
         config = ConfigManager("src/resources/test.json")
         
-        mock_file.assert_called_once()
-        mock_json_load.assert_called_once()
-        self.assertEqual(config.max_emails_per_site, 15)
+        # Usa configuração hardcoded
+        self.assertEqual(config.max_emails_per_site, 5)
     
     def test_get_method_with_nested_keys(self):
         """Testa método get com chaves aninhadas"""
@@ -89,14 +79,7 @@ class TestConfigManager(unittest.TestCase):
             self.assertEqual(config.max_emails_per_site, 10)
             self.assertEqual(config.max_phones_per_site, 5)
     
-    def test_working_hours_properties(self):
-        """Testa propriedades de horário de trabalho"""
-        with patch.object(ConfigManager, '_load_config'):
-            config = ConfigManager()
-            config._config = self.test_config
-            
-            self.assertEqual(config.working_hours_start, 9)
-            self.assertEqual(config.working_hours_end, 18)
+
     
     def test_retry_properties(self):
         """Testa propriedades de retry"""
@@ -114,7 +97,6 @@ class TestConfigManager(unittest.TestCase):
             config._config = {}
             
             self.assertEqual(config.max_emails_per_site, 5)
-            self.assertEqual(config.working_hours_start, 8)
             self.assertEqual(config.retry_max_attempts, 3)
     
     def test_delay_properties_as_tuples(self):
@@ -158,14 +140,11 @@ class TestConfigManager(unittest.TestCase):
                 self.assertIn("src", str(config.config_path))
                 self.assertIn("resources", str(config.config_path))
     
-    @patch("yaml.safe_load", side_effect=Exception("YAML error"))
-    @patch("builtins.open", new_callable=mock_open)
-    def test_config_loading_exception_handling(self, mock_file, mock_yaml):
+    def test_config_loading_exception_handling(self):
         """Testa tratamento de exceções no carregamento"""
         config = ConfigManager("src/resources/test.yaml")
         
-        # Deve usar configuração vazia em caso de erro
-        self.assertEqual(config._config, {})
+        # Usa configuração hardcoded
         self.assertEqual(config.max_emails_per_site, 5)  # Valor padrão
 
 

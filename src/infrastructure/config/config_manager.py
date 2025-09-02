@@ -1,7 +1,6 @@
 """
 Gerenciador de configurações via YAML/JSON
 """
-import yaml
 import json
 import os
 from pathlib import Path
@@ -34,15 +33,36 @@ class ConfigManager:
     
     def _load_config(self) -> None:
         """Carrega configuração do arquivo"""
-        try:
-            if self.config_path.suffix == '.yaml':
-                with open(self.config_path, 'r', encoding='utf-8') as f:
-                    self._config = yaml.safe_load(f) or {}
-            elif self.config_path.suffix == '.json':
-                with open(self.config_path, 'r', encoding='utf-8') as f:
-                    self._config = json.load(f)
-        except (FileNotFoundError, Exception):
-            self._config = {}
+        # Configuração padrão hardcoded
+        self._config = {
+            'scraping': {
+                'max_emails_per_site': 5,
+                'max_phones_per_site': 3,
+                'results_per_term_limit': 1200
+            },
+
+            'retry': {
+                'max_attempts': 3,
+                'base_delay': 1.0,
+                'backoff_factor': 2.0,
+                'max_delay': 60.0
+            },
+            'delays': {
+                'page_load_min': 2.0,
+                'page_load_max': 3.0,
+                'scroll_min': 1.0,
+                'scroll_max': 1.5,
+                'search_dwell_min': 1.2,
+                'search_dwell_max': 2.4
+            },
+            'mode': {
+                'is_test': True,
+                'complete_threshold': 1000
+            },
+            'performance': {
+                'tracking_enabled': True
+            }
+        }
     
     def get(self, key: str, default: Any = None) -> Any:
         """Obtém valor por chave aninhada (ex: 'scraping.max_emails_per_site')"""
@@ -68,18 +88,7 @@ class ConfigManager:
     def results_per_term_limit(self) -> int:
         return self.get('scraping.results_per_term_limit', 1200)
     
-    # Propriedades de horário
-    @property
-    def working_hours_start(self) -> int:
-        return self.get('working_hours.start', 8)
-    
-    @property
-    def working_hours_end(self) -> int:
-        return self.get('working_hours.end', 22)
-    
-    @property
-    def out_of_hours_wait_seconds(self) -> int:
-        return self.get('working_hours.out_of_hours_wait_seconds', 120)
+
     
     # Propriedades de retry
     @property

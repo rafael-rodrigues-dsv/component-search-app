@@ -6,13 +6,12 @@ import time
 from typing import List, Dict, Set, Optional, Union
 
 from config.settings import (
-    START_HOUR, END_HOUR, OUT_OF_HOURS_WAIT_SECONDS, VISITED_JSON, 
-    SEEN_EMAILS_JSON, OUTPUT_XLSX, BLACKLIST_HOSTS, MAX_EMAILS_PER_SITE,
+    VISITED_JSON, SEEN_EMAILS_JSON, OUTPUT_XLSX, BLACKLIST_HOSTS, MAX_EMAILS_PER_SITE,
     RESULTS_PER_TERM_LIMIT, SEARCH_DWELL, COMPLETE_MODE_THRESHOLD
 )
 from .user_config_service import UserConfigService
 from ...domain.services.email_domain_service import (
-    EmailCollectorInterface, WorkingHoursService, EmailValidationService
+    EmailCollectorInterface, EmailValidationService
 )
 from ...domain.factories.search_term_factory import SearchTermFactory
 from ...domain.models.search_term_model import SearchTermModel
@@ -34,7 +33,7 @@ from ...infrastructure.config.config_manager import ConfigManager
 class EmailApplicationService(EmailCollectorInterface):
     """Serviço de aplicação do PythonSearchApp coletor de e-mails"""
     
-    def __init__(self, ignore_working_hours: bool = False) -> None:
+    def __init__(self) -> None:
         # Logger estruturado e métricas
         self.logger = StructuredLogger("email_collector")
         self.config = ConfigManager()
@@ -51,7 +50,7 @@ class EmailApplicationService(EmailCollectorInterface):
         self.driver_manager: WebDriverManager = WebDriverManager()
         self.scraper: ScraperProtocol = self._setup_scraper()
         self._setup_repositories()
-        self._setup_services(ignore_working_hours)
+        self._setup_services()
         
         # Configuração final
         self.visited_domains: Dict[str, bool] = self.json_repo.load_visited_domains()
@@ -81,10 +80,8 @@ class EmailApplicationService(EmailCollectorInterface):
         self.json_repo: JsonRepository = JsonRepository(VISITED_JSON, SEEN_EMAILS_JSON)
         self.excel_repo: ExcelRepository = ExcelRepository(OUTPUT_XLSX)
     
-    def _setup_services(self, ignore_working_hours: bool) -> None:
+    def _setup_services(self) -> None:
         """Configura serviços de domínio"""
-        self.working_hours: WorkingHoursService = WorkingHoursService(START_HOUR, END_HOUR)
-        self.ignore_working_hours: bool = ignore_working_hours
         self.validation_service: EmailValidationService = EmailValidationService()
     
     def execute(self) -> bool:
@@ -114,8 +111,6 @@ class EmailApplicationService(EmailCollectorInterface):
                         mode="completo" if self.top_results_total > COMPLETE_MODE_THRESHOLD else "lote")
         
         for i, term in enumerate(terms, 1):
-            self._wait_for_working_hours()
-            
             if not self._execute_search_for_term(term, i, len(terms)):
                 continue
             
@@ -133,15 +128,7 @@ class EmailApplicationService(EmailCollectorInterface):
             
         return CollectionStatsModel(start_time=time.time())
     
-    def _wait_for_working_hours(self) -> None:
-        """Aguarda horário de trabalho se necessário"""
-        if not self.ignore_working_hours:
-            while not self.working_hours.is_working_time():
-                self.logger.warning("Fora do horário de trabalho", 
-                                  start_hour=START_HOUR, 
-                                  end_hour=END_HOUR,
-                                  wait_seconds=OUT_OF_HOURS_WAIT_SECONDS)
-                time.sleep(OUT_OF_HOURS_WAIT_SECONDS)
+
     
     def _execute_search_for_term(self, term: SearchTermModel, current: int, total: int) -> bool:
         """Executa busca para um termo específico"""

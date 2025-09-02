@@ -15,10 +15,7 @@ OUTPUT_XLSX = os.path.join(OUTPUT_DIR, "empresas.xlsx")
 VISITED_JSON = os.path.join(DATA_DIR, "visited.json")
 SEEN_EMAILS_JSON = os.path.join(DATA_DIR, "emails.json")
 
-# Horários de trabalho (24h) - via configuração
-START_HOUR = config.working_hours_start
-END_HOUR = config.working_hours_end
-OUT_OF_HOURS_WAIT_SECONDS = config.out_of_hours_wait_seconds
+# Horários removidos - aplicação funciona 24h
 
 # Coleta - via configuração
 MAX_EMAILS_PER_SITE = config.max_emails_per_site

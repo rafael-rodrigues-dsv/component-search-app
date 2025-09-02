@@ -51,41 +51,8 @@ def main():
     else:
         print(f"[OK] Navegadores disponíveis: {', '.join(browsers)}")
     
-    # Verificar horário de funcionamento
-    from src.domain.services.email_domain_service import WorkingHoursService
-    working_hours = WorkingHoursService(8, 22)
-    
-    ignore_working_hours = False
-    
-    # Só pergunta se estiver fora do horário
-    if not working_hours.is_working_time():
-        from config.settings import OUT_OF_HOURS_WAIT_SECONDS
-        import time
-        
-        # Primeira vez pergunta, depois só informa
-        if not hasattr(main, '_asked_once'):
-            response = input("[INFO] Fora do horário padrão (8:00–22:00). Executar mesmo assim? (S/N): ").strip().upper()
-            if response == 'S':
-                ignore_working_hours = True
-            else:
-                main._asked_once = True
-                print("[INFO] Fora do horário padrão (8:00–22:00)")
-                print()
-                for i in range(OUT_OF_HOURS_WAIT_SECONDS, 0, -1):
-                    print(f"\r[INFO] Próxima verificação em: {i}s", end="", flush=True)
-                    time.sleep(1)
-                print()
-                return main()
-        else:
-            print("[INFO] Fora do horário padrão (8:00–22:00)")
-            print()
-            for i in range(OUT_OF_HOURS_WAIT_SECONDS, 0, -1):
-                print(f"\r[INFO] Próxima verificação em: {i}s", end="", flush=True)
-                time.sleep(1)
-            print()
-            return main()
-    
-    collector_service = EmailApplicationService(ignore_working_hours)
+    # Aplicação funciona 24h - sem limitação de horário
+    collector_service = EmailApplicationService()
     
     try:
         success = collector_service.execute()
