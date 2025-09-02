@@ -40,7 +40,8 @@ BASE_BAIRROS = [
 
 # Cidades interior
 CIDADES_INTERIOR = [
-    "Campinas", "Guarulhos", "Santo André", "São Bernardo do Campo", "São Caetano do Sul",
+    "Campinas", "Guarulhos", "Santo André,0"
+                             ",,,,,,,", "São Bernardo do Campo", "São Caetano do Sul",
     "Osasco", "Barueri", "Carapicuíba", "Mogi das Cruzes", "Suzano", "Jundiaí", "Sorocaba",
     "Ribeirão Preto", "Bauru", "São José dos Campos", "Taubaté", "Santos", "Praia Grande",
     "Americana", "Piracicaba"
