@@ -21,15 +21,15 @@ class TestUserConfigService(unittest.TestCase):
         """Testa todas as opções de motor de busca"""
         # Testa opção padrão
         mock_input.return_value = ''
-        self.assertEqual(UserConfigService.get_search_engine(), "DUCKDUCKGO")
+        self.assertEqual(UserConfigService.get_search_engine(), "GOOGLE")
         
         # Testa opção 1
         mock_input.return_value = '1'
-        self.assertEqual(UserConfigService.get_search_engine(), "DUCKDUCKGO")
+        self.assertEqual(UserConfigService.get_search_engine(), "GOOGLE")
         
         # Testa opção 2
         mock_input.return_value = '2'
-        self.assertEqual(UserConfigService.get_search_engine(), "GOOGLE")
+        self.assertEqual(UserConfigService.get_search_engine(), "DUCKDUCKGO")
     
     @patch('src.application.services.user_config_service.UserConfigService._check_browser_availability')
     @patch('builtins.print')
@@ -101,41 +101,9 @@ class TestUserConfigService(unittest.TestCase):
         """Testa verificação com navegador inválido"""
         self.assertFalse(UserConfigService._check_browser_availability("INVALID"))
     
-    @patch('builtins.print')
-    @patch('builtins.input')
-    def test_get_restart_option_basic(self, mock_input, mock_print):
-        """Testa opções básicas de restart"""
-        # Testa opção padrão
-        mock_input.return_value = ''
-        self.assertFalse(UserConfigService.get_restart_option())
-        
-        # Testa 'n'
-        mock_input.return_value = 'n'
-        self.assertFalse(UserConfigService.get_restart_option())
-        
-        # Testa 's'
-        mock_input.return_value = 's'
-        self.assertTrue(UserConfigService.get_restart_option())
-        
-        # Testa case insensitive
-        mock_input.return_value = 'S'
-        self.assertTrue(UserConfigService.get_restart_option())
-        
-        # Testa com espaços
-        mock_input.return_value = ' N '
-        self.assertFalse(UserConfigService.get_restart_option())
+    # Teste removido - get_restart_option não existe mais
     
-    @patch('builtins.print')
-    @patch('builtins.input')
-    def test_get_restart_option_edge_cases(self, mock_input, mock_print):
-        """Testa casos extremos de restart"""
-        # Entrada inválida seguida de válida
-        mock_input.side_effect = ['x', 's']
-        self.assertTrue(UserConfigService.get_restart_option())
-        
-        # Exceção seguida de entrada válida
-        mock_input.side_effect = [Exception(), 'n']
-        self.assertFalse(UserConfigService.get_restart_option())
+    # Teste removido - get_restart_option não existe mais
     
     @patch('builtins.print')
     @patch('builtins.input')
@@ -195,7 +163,7 @@ class TestUserConfigService(unittest.TestCase):
     def test_all_methods_are_static(self):
         """Verifica que todos os métodos são estáticos"""
         import inspect
-        methods = ['get_search_engine', 'get_browser', 'get_restart_option', 'get_processing_mode', '_check_browser_availability']
+        methods = ['get_search_engine', 'get_browser', 'get_processing_mode', '_check_browser_availability']
         for method in methods:
             self.assertTrue(isinstance(inspect.getattr_static(UserConfigService, method), staticmethod))
     
@@ -206,9 +174,6 @@ class TestUserConfigService(unittest.TestCase):
         mock_input.return_value = '1'
         self.assertIsInstance(UserConfigService.get_search_engine(), str)
         self.assertIsInstance(UserConfigService.get_browser(), str)
-        
-        mock_input.return_value = 'n'
-        self.assertIsInstance(UserConfigService.get_restart_option(), bool)
         
         mock_input.return_value = 'c'
         self.assertIsInstance(UserConfigService.get_processing_mode(), int)

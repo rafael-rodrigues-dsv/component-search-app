@@ -66,33 +66,20 @@ class UserConfigService:
         while True:
             try:
                 print("\n🔍 Escolha o motor de busca:")
-                print("1. DuckDuckGo")
-                print("2. Google")
+                print("1. Google")
+                print("2. DuckDuckGo")
                 option = input("Digite sua opção (1/2 - padrão: 1): ").strip()
                 
                 if not option or option == '1':
-                    return "DUCKDUCKGO"
-                elif option == '2':
                     return "GOOGLE"
+                elif option == '2':
+                    return "DUCKDUCKGO"
                 else:
-                    print("[ERRO] Digite '1' para DuckDuckGo ou '2' para Google")
+                    print("[ERRO] Digite '1' para Google ou '2' para DuckDuckGo")
             except:
                 print("[ERRO] Entrada inválida")
     
-    @staticmethod
-    def get_restart_option() -> bool:
-        """Obtém se deve reiniciar do zero"""
-        while True:
-            try:
-                option = input("\n🔄 Reiniciar busca do zero? (s/n - padrão: n): ").lower().strip()
-                if not option or option == 'n':
-                    return False
-                elif option == 's':
-                    return True
-                else:
-                    print("[ERRO] Digite 's' para reiniciar ou 'n' para continuar")
-            except:
-                print("[ERRO] Entrada inválida")
+
     
     @staticmethod
     def get_processing_mode() -> int:

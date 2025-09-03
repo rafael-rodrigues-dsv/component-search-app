@@ -9,42 +9,33 @@ echo "  EXECUTANDO TESTES COM COBERTURA"
 echo "========================================"
 echo
 
-# Função para verificar Python
-check_python() {
-    local python_cmd=$1
-    if command -v "$python_cmd" &> /dev/null; then
-        if $python_cmd -c "import pytest, coverage" &> /dev/null; then
-            echo "[OK] $python_cmd com pytest e coverage encontrado"
-            PYTHON_CMD=$python_cmd
-            return 0
-        fi
-    fi
-    return 1
-}
+# Detectar Python disponível
+echo "Verificando Python..."
+if command -v python3 &> /dev/null; then
+    echo "[OK] Python3 encontrado"
+    PYTHON_CMD=python3
+elif command -v python &> /dev/null; then
+    echo "[OK] Python encontrado"
+    PYTHON_CMD=python
+else
+    echo "ERRO: Python não encontrado"
+    exit 1
+fi
 
 # Verificar dependências
 echo "Verificando dependências..."
-if check_python "python3"; then
-    :
-elif check_python "python"; then
-    :
-else
+if ! $PYTHON_CMD -c "import pytest, coverage" &> /dev/null; then
     echo "Instalando pytest e coverage..."
-    if command -v python3 &> /dev/null; then
-        python3 -m pip install -r requirements-test.txt
-        PYTHON_CMD=python3
-    elif command -v python &> /dev/null; then
-        python -m pip install -r requirements-test.txt
-        PYTHON_CMD=python
-    else
-        echo "ERRO: Python não encontrado"
+    $PYTHON_CMD -m pip install pytest pytest-cov coverage
+    if [ $? -ne 0 ]; then
+        echo "ERRO: Não foi possível instalar dependências"
         exit 1
     fi
 fi
 
 echo
 echo "Executando testes com cobertura..."
-$PYTHON_CMD -m pytest . --cov=../src --cov-report=html --cov-report=term-missing --cov-report=xml --cov-config=.coveragerc -v
+$PYTHON_CMD -m pytest unit/ --cov=../src --cov-report=html:reports/htmlcov --cov-report=term-missing --cov-report=xml:reports/coverage.xml -v
 
 if [ $? -ne 0 ]; then
     echo

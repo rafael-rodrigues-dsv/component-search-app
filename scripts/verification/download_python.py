@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script para baixar e instalar Python 3.13.7
+Script para baixar e instalar Python 3.13.8
 """
 import os
 import subprocess
@@ -12,13 +12,13 @@ import requests
 
 def baixar_python():
     """Baixa o instalador do Python 3.13.7"""
-    url = "https://www.python.org/ftp/python/3.13.7/python-3.13.7-amd64.exe"
+    url = "https://www.python.org/ftp/python/3.13.8/python-3.13.8-amd64.exe"
     drivers_dir = Path("drivers")
     drivers_dir.mkdir(exist_ok=True)
     
     installer_path = drivers_dir / "python-installer.exe"
     
-    print("📥 Baixando Python 3.13.7...")
+    print("📥 Baixando Python 3.13.8...")
     print(f"🔗 URL: {url}")
     
     try:
@@ -46,7 +46,7 @@ def baixar_python():
 
 def instalar_python(installer_path):
     """Instala o Python usando o instalador baixado"""
-    print("\n🔧 Instalando Python 3.13.7...")
+    print("\n🔧 Instalando Python 3.13.8...")
     
     try:
         # Instalar silenciosamente com PATH
@@ -61,7 +61,7 @@ def instalar_python(installer_path):
         
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         
-        print("✅ Python 3.13.7 instalado com sucesso!")
+        print("✅ Python 3.13.8 instalado com sucesso!")
         print("📝 PATH atualizado automaticamente")
         return True
         
@@ -78,7 +78,7 @@ def limpar_installer(installer_path):
         pass
 
 if __name__ == "__main__":
-    print("🚀 Instalador Automático Python 3.13.7")
+    print("🚀 Instalador Automático Python 3.13.8")
     print("=" * 50)
     
     # Baixar Python

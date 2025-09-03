@@ -6,10 +6,11 @@ import time
 from typing import List, Dict, Set, Optional, Union
 
 from config.settings import (
-    VISITED_JSON, SEEN_EMAILS_JSON, OUTPUT_XLSX, BLACKLIST_HOSTS, MAX_EMAILS_PER_SITE,
+    BLACKLIST_HOSTS, MAX_EMAILS_PER_SITE,
     RESULTS_PER_TERM_LIMIT, SEARCH_DWELL, COMPLETE_MODE_THRESHOLD
 )
 from .user_config_service import UserConfigService
+from .database_service import DatabaseService
 from ...domain.services.email_domain_service import (
     EmailCollectorInterface, EmailValidationService
 )
@@ -43,18 +44,15 @@ class EmailApplicationService(EmailCollectorInterface):
         self.browser: str = UserConfigService.get_browser()
         self.search_engine: str = UserConfigService.get_search_engine()
         
-        if UserConfigService.get_restart_option():
-            DataStorage.clear_all_data()
+        # Serviço de banco de dados
+        self.db_service = DatabaseService()
         
         # Inicialização de componentes
         self.driver_manager: WebDriverManager = WebDriverManager()
         self.scraper: ScraperProtocol = self._setup_scraper()
-        self._setup_repositories()
         self._setup_services()
         
         # Configuração final
-        self.visited_domains: Dict[str, bool] = self.json_repo.load_visited_domains()
-        self.seen_emails: Set[str] = self.json_repo.load_seen_emails()
         self.top_results_total: int = UserConfigService.get_processing_mode()
     
     def _setup_scraper(self) -> ScraperProtocol:
@@ -75,11 +73,6 @@ class EmailApplicationService(EmailCollectorInterface):
             self.logger.info(f"Usando DuckDuckGo com {browser_name}", engine="DuckDuckGo", browser=browser_name)
             return DuckDuckGoScraper(self.driver_manager)
     
-    def _setup_repositories(self) -> None:
-        """Configura repositórios de dados"""
-        self.json_repo: JsonRepository = JsonRepository(VISITED_JSON, SEEN_EMAILS_JSON)
-        self.excel_repo: ExcelRepository = ExcelRepository(OUTPUT_XLSX)
-    
     def _setup_services(self) -> None:
         """Configura serviços de domínio"""
         self.validation_service: EmailValidationService = EmailValidationService()
@@ -94,14 +87,21 @@ class EmailApplicationService(EmailCollectorInterface):
             if self.search_engine == "GOOGLE":
                 self.scraper.driver = self.driver_manager.driver
             
-            terms = SearchTermFactory.create_search_terms()
-            result = self.collect_emails(terms)
+            # Obter termos do banco
+            terms_data = self.db_service.get_search_terms()
+            if not terms_data:
+                self.logger.error("Nenhum termo de busca encontrado")
+                return False
+            
+            # Converter para SearchTermModel
+            terms = [SearchTermModel(query=t['termo'], location='São Paulo', category='elevadores', pages=3) for t in terms_data]
+            result = self.collect_emails(terms, terms_data)
             return result.success
             
         finally:
             self.driver_manager.close_driver()
     
-    def collect_emails(self, terms: List[SearchTermModel]) -> CollectionResultModel:
+    def collect_emails(self, terms: List[SearchTermModel], terms_data: List[Dict]) -> CollectionResultModel:
         """Coleta e-mails usando termos de busca"""
         start_time = time.time()
         stats = self._initialize_collection_stats(terms)
@@ -110,12 +110,16 @@ class EmailApplicationService(EmailCollectorInterface):
                         terms_count=len(terms), 
                         mode="completo" if self.top_results_total > COMPLETE_MODE_THRESHOLD else "lote")
         
-        for i, term in enumerate(terms, 1):
+        for i, (term, term_data) in enumerate(zip(terms, terms_data), 1):
             if not self._execute_search_for_term(term, i, len(terms)):
+                self.db_service.update_term_status(term_data['id'], 'ERRO')
                 continue
             
-            term_result = self._process_single_term(term, stats, i, len(terms))
+            term_result = self._process_single_term(term, term_data, stats, i, len(terms))
             stats.update(term_result)
+            
+            # Atualizar status do termo no banco
+            self.db_service.update_term_status(term_data['id'], 'CONCLUIDO')
         
         return self._finalize_collection(stats, start_time)
     
@@ -149,9 +153,9 @@ class EmailApplicationService(EmailCollectorInterface):
             return False
         return True
     
-    def _process_single_term(self, term: SearchTermModel, stats: CollectionStatsModel, current: int, total: int) -> TermResultModel:
+    def _process_single_term(self, term: SearchTermModel, term_data: Dict, stats: CollectionStatsModel, current: int, total: int) -> TermResultModel:
         """Processa um único termo e retorna resultado"""
-        term_saved = self._process_term_results(term, stats.total_expected if hasattr(stats, 'total_expected') else 1000, stats.total_processed)
+        term_saved = self._process_term_results(term, term_data, stats.total_expected if hasattr(stats, 'total_expected') else 1000, stats.total_processed)
         
         self.logger.info("Termo concluído", 
                         term=self.logger._sanitize_input(term.query), 
@@ -189,7 +193,7 @@ class EmailApplicationService(EmailCollectorInterface):
             message=f"Coleta concluída com {stats.total_saved} empresas salvas"
         )
     
-    def _process_term_results(self, term: SearchTermModel, total_expected: int, global_processed: int) -> int:
+    def _process_term_results(self, term: SearchTermModel, term_data: Dict, total_expected: int, global_processed: int) -> int:
         """Processa resultados de um termo específico"""
         term_saved = 0
         results_processed = 0
@@ -210,11 +214,11 @@ class EmailApplicationService(EmailCollectorInterface):
                 global_processed += 1
                 domain = self.validation_service.extract_domain_from_url(link)
                 
-                if self.visited_domains.get(domain):
+                # Verificar se domínio já foi visitado (banco)
+                if self.db_service.is_domain_visited(domain):
                     self.logger.debug("Site já visitado", domain=self.logger._sanitize_input(domain))
                     continue
                 
-                self.visited_domains[domain] = True
                 self.logger.info("Acessando site", 
                                domain=self.logger._sanitize_input(domain), 
                                progress=f"{global_processed}/{total_expected}")
@@ -227,10 +231,9 @@ class EmailApplicationService(EmailCollectorInterface):
                 
                 company.search_term = term.query
                 
-                if self._save_company_if_valid(company, domain):
+                if self._save_company_to_database(company, domain, term_data['id']):
                     term_saved += 1
                 
-                self._save_progress()
                 time.sleep(random.uniform(*SEARCH_DWELL))
             
             # Próxima página
@@ -242,32 +245,46 @@ class EmailApplicationService(EmailCollectorInterface):
         
         return term_saved
     
-    def _save_company_if_valid(self, company: CompanyModel, domain: str) -> bool:
-        """Salva empresa se tiver e-mails válidos e novos"""
+    def _save_company_to_database(self, company: CompanyModel, domain: str, termo_id: int) -> bool:
+        """Salva empresa no banco Access"""
         if not company.emails or not company.emails.strip():
             self.logger.debug("Sem e-mail válido", domain=self.logger._sanitize_input(domain))
             return False
         
         email_list = [e.strip() for e in company.emails.split(';') if e.strip()]
-        new_emails = [e for e in email_list if e not in self.seen_emails]
+        new_emails = [e for e in email_list if not self.db_service.is_email_collected(e)]
         
-        if not new_emails:
-            self.logger.debug("E-mails já coletados", domain=self.logger._sanitize_input(domain))
+        if not new_emails and not company.phone:
+            self.logger.debug("Nenhum dado novo", domain=self.logger._sanitize_input(domain))
             return False
         
-        company.emails = ';'.join(new_emails) + ';'
-        self.excel_repo.save_company(company)
-        self.logger.info("Empresa salva", 
-                        domain=self.logger._sanitize_input(domain), 
-                        emails_count=len(new_emails),
-                        file=OUTPUT_XLSX)
+        # Processar telefones
+        telefones_data = []
+        if company.phone:
+            phone_list = [p.strip() for p in company.phone.split(';') if p.strip()]
+            for phone in phone_list:
+                telefones_data.append({
+                    'original': phone,
+                    'formatted': phone,  # Simplificado por agora
+                    'ddd': phone[:2] if len(phone) >= 10 else '',
+                    'tipo': 'CELULAR' if len(phone) == 11 else 'FIXO'
+                })
         
-        for email in new_emails:
-            self.seen_emails.add(email)
+        # Salvar no banco
+        success = self.db_service.save_company_data(
+            termo_id=termo_id,
+            site_url=company.url,
+            domain=domain,
+            motor_busca=self.search_engine,
+            emails=new_emails,
+            telefones=telefones_data,
+            nome_empresa=getattr(company, 'name', None)
+        )
         
-        return True
-    
-    def _save_progress(self):
-        """Salva progresso atual"""
-        self.json_repo.save_visited_domains(self.visited_domains)
-        self.json_repo.save_seen_emails(self.seen_emails)
+        if success:
+            self.logger.info("Empresa salva no banco", 
+                            domain=self.logger._sanitize_input(domain), 
+                            emails_count=len(new_emails),
+                            phones_count=len(telefones_data))
+        
+        return success

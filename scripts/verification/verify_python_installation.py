@@ -29,7 +29,12 @@ def verificar_versao_python():
 
 def verificar_dependencias():
     """Verifica se as dependências estão instaladas"""
-    dependencias = ['selenium', 'openpyxl', 'tldextract', 'requests']
+    dependencias = ['selenium', 'openpyxl', 'tldextract', 'requests', 'pyodbc', 'pyyaml']
+    
+    # Adicionar pywin32 apenas no Windows
+    import platform
+    if platform.system() == 'Windows':
+        dependencias.append('win32com.client')
     
     print("[INFO] Verificando dependências...")
     
@@ -52,12 +57,26 @@ def instalar_dependencias():
         subprocess.run([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'], 
                       check=True, capture_output=True)
         
-        subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', 
-                       'selenium', 'openpyxl', 'tldextract', 'requests', 'et-xmlfile'], 
-                      check=True, capture_output=True)
-        
-        print("[OK] Dependências instaladas com sucesso")
-        return True
+        # Tentar instalar usando pyproject.toml primeiro
+        try:
+            subprocess.run([sys.executable, '-m', 'pip', 'install', '-e', '.'], 
+                          check=True, capture_output=True)
+            print("[OK] Dependências instaladas via pyproject.toml")
+            return True
+        except subprocess.CalledProcessError:
+            print("[AVISO] Falha no pyproject.toml, instalando individualmente...")
+            
+            # Instalar individualmente se pyproject.toml falhar
+            deps = ['selenium>=4.0.0', 'openpyxl>=3.0.0', 'tldextract>=3.0.0', 
+                   'requests>=2.25.0', 'pyyaml>=6.0', 'pyodbc>=4.0.0']
+            
+            for dep in deps:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', dep], 
+                              check=True, capture_output=True)
+            
+            print("[OK] Dependências instaladas individualmente")
+            return True
+            
     except subprocess.CalledProcessError as e:
         print(f"[ERRO] Falha na instalação: {e}")
         return False

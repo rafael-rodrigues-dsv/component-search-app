@@ -5,30 +5,38 @@ echo  EXECUTANDO TESTES COM COBERTURA
 echo ========================================
 echo.
 
-REM Instala dependencias se necessario
+REM Detectar Python disponivel
+echo Verificando Python...
+py --version >nul 2>&1 && (
+    echo [OK] Python encontrado via 'py'
+    set PYTHON_CMD=py
+    goto :check_deps
+)
+python --version >nul 2>&1 && (
+    echo [OK] Python encontrado via 'python'
+    set PYTHON_CMD=python
+    goto :check_deps
+)
+echo ERRO: Python nao encontrado
+pause
+exit /b 1
+
+:check_deps
 echo Verificando dependencias...
-python -c "import pytest, coverage" >nul 2>&1
+%PYTHON_CMD% -c "import pytest, coverage" >nul 2>&1
 if errorlevel 1 (
     echo Instalando pytest e coverage...
-    python -m pip install -r requirements-test.txt
+    %PYTHON_CMD% -m pip install pytest pytest-cov coverage
     if errorlevel 1 (
-        py -m pip install -r requirements-test.txt
-        if errorlevel 1 (
-            echo ERRO: Nao foi possivel instalar dependencias
-            pause
-            exit /b 1
-        )
-        set PYTHON_CMD=py
-    ) else (
-        set PYTHON_CMD=python
+        echo ERRO: Nao foi possivel instalar dependencias
+        pause
+        exit /b 1
     )
-) else (
-    set PYTHON_CMD=python
 )
 
 echo.
 echo Executando testes com cobertura...
-%PYTHON_CMD% -m pytest . --cov=../src --cov-report=html --cov-report=term-missing --cov-report=xml --cov-config=.coveragerc -v
+%PYTHON_CMD% -m pytest unit/ --cov=../src --cov-report=html:reports/htmlcov --cov-report=term-missing --cov-report=xml:reports/coverage.xml -v
 
 if errorlevel 1 (
     echo.

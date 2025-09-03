@@ -68,13 +68,13 @@ REM Tentar usar Python existente para baixar e instalar
 echo [INFO] Testando se Python funciona para instalacao...
 python --version >nul 2>nul && (
   echo [INFO] Usando Python existente para instalacao...
-  python scripts\baixar_python.py
+  python scripts\verification\download_python.py
   echo [INFO] Reinicie o script para usar o novo Python.
   pause & exit /b 0
 )
 py --version >nul 2>nul && (
   echo [INFO] Usando py existente para instalacao...
-  py scripts\baixar_python.py
+  py scripts\verification\download_python.py
   echo [INFO] Reinicie o script para usar o novo Python.
   pause & exit /b 0
 )
@@ -118,14 +118,14 @@ for %%i in ("!PYTHON_EXE!") do set PYTHON_DIR=%%~dpi
 echo [INFO] Diretorio Python: !PYTHON_DIR!
 
 echo [INFO] Verificando e instalando dependencias...
-%PYTHON_CMD% scripts\verificar_instalacao_python.py || (
+%PYTHON_CMD% scripts\verification\verify_python_installation.py || (
   echo [ERRO] Falha na verificacao das dependencias
   pause
   exit /b 1
 )
 
 echo [INFO] Verificando ChromeDriver...
-%PYTHON_CMD% scripts\verificar_chromedriver.py || (
+%PYTHON_CMD% scripts\verification\verify_chromedriver.py || (
   echo [ERRO] ChromeDriver nao disponivel
   pause
   exit /b 1

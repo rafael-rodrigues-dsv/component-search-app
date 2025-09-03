@@ -68,7 +68,7 @@ Aplicação Python para coleta de e-mails e telefones de empresas usando Google/
 │   └── emails.json                   # E-mails coletados
 ├── 📊 output/                        # Arquivos de saída (ignorado no Git)
 │   └── empresas.xlsx                 # Planilha Excel
-├── 🧪 tests/                         # Testes unitários (99% coverage)
+├── 🧪 tests/                         # Testes unitários (93% coverage)
 │   ├── unit/                         # Testes por camada
 │   ├── reports/                      # Relatórios de coverage
 │   └── run_tests.bat                # Script de execução de testes
@@ -80,23 +80,43 @@ Aplicação Python para coleta de e-mails e telefones de empresas usando Google/
 
 ### Pré-requisitos
 - Python 3.13.7+ (baixa automaticamente)
+- **Microsoft Access** (para banco de dados)
 - **Pelo menos um navegador suportado:**
   - Google Chrome **OU** Brave Browser
 - ChromeDriver (baixa automaticamente)
 
 ### Instalação e Execução
 
-**Windows:**
+**1️⃣ Primeiro: Criar Banco Access**
+```cmd
+scripts\setup\create_database.bat (Windows)
+scripts/setup/create_database.sh (Linux/macOS)
+```
+[![Criar Banco](https://img.shields.io/badge/🗄️-Criar%20Banco%20Access-orange?style=for-the-badge)](scripts/setup/create_database.bat)
+
+**2️⃣ Carregar Dados Completos (Opcional)**
+```cmd
+python scripts\database\load_initial_data.py
+```
+
+**3️⃣ Executar Robô**
 ```cmd
 iniciar_robo_simples.bat
 ```
-[![Executar no Windows](https://img.shields.io/badge/▶️-Executar%20no%20Windows-blue?style=for-the-badge)](iniciar_robo_simples.bat)
+[![Executar Robô](https://img.shields.io/badge/▶️-Executar%20Robô-blue?style=for-the-badge)](iniciar_robo_simples.bat)
 
-**Linux/macOS:**
-```bash
-./iniciar_robo_simples.sh
+### 🛠️ Scripts Utilitários
+
+```cmd
+# Ver estatísticas
+python scripts\utils\show_stats.py
+
+# Exportar Excel
+python scripts\utils\export_excel.py
+
+# Reset dados
+python scripts\utils\reset_data.py
 ```
-[![Executar no Linux/macOS](https://img.shields.io/badge/▶️-Executar%20no%20Linux/macOS-green?style=for-the-badge)](iniciar_robo_simples.sh)
 
 ### Fluxo Interativo
 A aplicação:
@@ -116,6 +136,8 @@ A aplicação:
 | Tecnologia | Descrição | Versão |
 |------------|-----------|--------|
 | **Python** | Linguagem de programação principal | 3.13.7+ |
+| **PyODBC** | Conector para Microsoft Access | ≥4.0.0 |
+| **Microsoft Access** | Sistema de banco de dados | 2016+ |
 | **Selenium** | Automação de navegadores web | ≥4.0.0 |
 | **OpenPyXL** | Manipulação de arquivos Excel (.xlsx) | ≥3.0.0 |
 | **TLDExtract** | Extração e processamento de domínios | ≥3.0.0 |
@@ -147,10 +169,20 @@ Edite `config/settings.py` para personalizar:
 ## 📊 Saída
 
 A aplicação gera:
-- **output/empresas.xlsx**: Planilha com `SITE | EMAIL | TELEFONE`
-- **data/visited.json**: Controle de domínios já visitados
-- **data/emails.json**: Controle de e-mails já coletados
+- **data/pythonsearch.accdb**: Banco Access com dados estruturados
+- **output/empresas.xlsx**: Planilha com `SITE | EMAIL | TELEFONE` (gerada automaticamente)
 - **Logs detalhados**: Progresso em tempo real
+
+### 🗄️ **Banco Access (Principal)**
+- Dados normalizados em 8 tabelas
+- Controle completo de status e histórico
+- Consultas avançadas e relatórios
+- Auditoria e logs detalhados
+
+### 📋 **Excel (Compatibilidade)**
+- Formato atual mantido para usuário final
+- Gerado automaticamente do banco
+- Para copiar/colar onde quiser
 
 ### Formato dos Dados
 - **E-mails**: `email1@domain.com;email2@domain.com;`
