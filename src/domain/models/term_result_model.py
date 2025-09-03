@@ -13,7 +13,7 @@ class TermResultModel:
     success: bool
     term_query: str
     errors: List[str] = None
-    
+
     def __post_init__(self):
         if self.errors is None:
             self.errors = []

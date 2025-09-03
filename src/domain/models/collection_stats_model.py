@@ -13,7 +13,7 @@ class CollectionStatsModel:
     terms_completed: int = 0
     terms_failed: int = 0
     start_time: float = 0.0
-    
+
     def update(self, term_result: TermResultModel) -> None:
         """Atualiza estatísticas com resultado de um termo"""
         self.total_saved += term_result.saved_count

@@ -99,7 +99,7 @@
 ## 🔗 Relacionamentos
 
 - **TB_TERMOS_BUSCA** ← 1:N → **TB_EMPRESAS**
-- **TB_EMPRESAS** ← 1:N → **TB_EMAILS**  
+- **TB_EMPRESAS** ← 1:N → **TB_EMAILS**
 - **TB_EMPRESAS** ← 1:N → **TB_TELEFONES**
 - **TB_BASE_BUSCA** ← 1:N → **TB_TERMOS_BUSCA**
 - **TB_ZONAS** ← 1:N → **TB_TERMOS_BUSCA**
@@ -109,32 +109,38 @@
 ## 📋 Descrição das Tabelas
 
 ### 🏢 **TB_EMPRESAS** (Principal)
+
 - Armazena dados das empresas coletadas
 - Substitui a planilha Excel atual
 - Controla status de coleta e tentativas
 
-### 📧 **TB_EMAILS** 
+### 📧 **TB_EMAILS**
+
 - E-mails coletados por empresa
 - Validação e origem da coleta
 - Substitui `emails.json`
 
 ### 📞 **TB_TELEFONES**
-- Telefones coletados por empresa  
+
+- Telefones coletados por empresa
 - Formatação e validação automática
 - Tipos: fixo, celular, WhatsApp
 
 ### 🔍 **TB_TERMOS_BUSCA**
+
 - Termos gerados dinamicamente
 - Combina base + localização
 - Status de processamento
 
 ### 📍 **Tabelas de Localização**
+
 - **TB_ZONAS**: Zonas de SP
-- **TB_BAIRROS**: Bairros de SP  
+- **TB_BAIRROS**: Bairros de SP
 - **TB_CIDADES**: Cidades do interior
 - **TB_BASE_BUSCA**: Termos base de busca
 
 ### 📊 **TB_LOG_PROCESSAMENTO**
+
 - Logs estruturados da execução
 - Rastreabilidade completa
 - Debug e auditoria
@@ -146,23 +152,26 @@
 ✅ **Flexibilidade**: Fácil adição de novos termos/localizações  
 ✅ **Performance**: Consultas otimizadas com índices  
 ✅ **Integridade**: Relacionamentos com chaves estrangeiras  
-✅ **Auditoria**: Logs detalhados de todas as operações  
+✅ **Auditoria**: Logs detalhados de todas as operações
 
 ## 📊 **Saída Dupla: Access + Excel**
 
 ### 🗄️ **Banco Access** (Principal)
+
 - Dados estruturados e normalizados
 - Controle completo de status e histórico
 - Consultas avançadas e relatórios
 - Auditoria e logs detalhados
 
 ### 📋 **Planilha Excel** (Compatibilidade)
+
 - **Formato atual mantido**: `SITE | EMAIL | TELEFONE`
 - **Gerada automaticamente** do banco Access
 - **Para o usuário final**: Copiar/colar onde quiser
 - **Mesmo formato**: `email1@domain.com;email2@domain.com;`
 
 ### 🔄 **Fluxo de Dados**
+
 ```
 🔍 Scraping → 🗄️ Access (estruturado) → 📋 Excel (compatibilidade)
 ```
@@ -171,7 +180,7 @@
 ✅ **Melhor controle**: Banco normalizado para o sistema  
 ✅ **Compatibilidade**: Excel para usuário final  
 ✅ **Flexibilidade**: Usuário pode exportar como quiser  
-✅ **Histórico**: Tudo rastreado no Access  
+✅ **Histórico**: Tudo rastreado no Access
 
 ## 🔧 Próximos Passos
 

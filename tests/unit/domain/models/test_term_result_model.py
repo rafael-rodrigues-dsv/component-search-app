@@ -13,7 +13,7 @@ from src.domain.models.term_result_model import TermResultModel
 
 class TestTermResultModel(unittest.TestCase):
     """Testes para TermResultModel"""
-    
+
     def test_term_result_creation_with_defaults(self):
         """Testa criação com valores padrão"""
         result = TermResultModel(
@@ -22,13 +22,13 @@ class TestTermResultModel(unittest.TestCase):
             success=True,
             term_query="elevadores SP"
         )
-        
+
         self.assertEqual(result.saved_count, 5)
         self.assertEqual(result.processed_count, 10)
         self.assertTrue(result.success)
         self.assertEqual(result.term_query, "elevadores SP")
         self.assertEqual(result.errors, [])
-    
+
     def test_term_result_creation_with_errors(self):
         """Testa criação com lista de erros"""
         errors = ["Erro 1", "Erro 2"]
@@ -39,13 +39,13 @@ class TestTermResultModel(unittest.TestCase):
             term_query="elevadores RJ",
             errors=errors
         )
-        
+
         self.assertEqual(result.saved_count, 0)
         self.assertEqual(result.processed_count, 5)
         self.assertFalse(result.success)
         self.assertEqual(result.term_query, "elevadores RJ")
         self.assertEqual(result.errors, errors)
-    
+
     def test_term_result_post_init_none_errors(self):
         """Testa __post_init__ quando errors é None"""
         result = TermResultModel(
@@ -55,9 +55,9 @@ class TestTermResultModel(unittest.TestCase):
             term_query="manutenção elevadores",
             errors=None
         )
-        
+
         self.assertEqual(result.errors, [])
-    
+
     def test_term_result_success_scenario(self):
         """Testa cenário de sucesso"""
         result = TermResultModel(
@@ -66,13 +66,13 @@ class TestTermResultModel(unittest.TestCase):
             success=True,
             term_query="instalação elevadores"
         )
-        
+
         self.assertGreater(result.saved_count, 0)
         self.assertGreaterEqual(result.processed_count, result.saved_count)
         self.assertTrue(result.success)
         self.assertIsInstance(result.term_query, str)
         self.assertIsInstance(result.errors, list)
-    
+
     def test_term_result_failure_scenario(self):
         """Testa cenário de falha"""
         result = TermResultModel(
@@ -82,7 +82,7 @@ class TestTermResultModel(unittest.TestCase):
             term_query="termo inválido",
             errors=["Busca falhou", "Timeout"]
         )
-        
+
         self.assertEqual(result.saved_count, 0)
         self.assertEqual(result.processed_count, 0)
         self.assertFalse(result.success)

@@ -3,19 +3,23 @@
 ## 📋 Organização
 
 ### 🗄️ **database/** - Scripts de Banco de Dados
+
 - `create_db_simple.py` - Criador automático do banco Access
 - `load_initial_data.py` - Carregador de dados completos do settings.py
 
 ### ⚙️ **setup/** - Scripts de Configuração
+
 - `criar_banco.bat` - Automatização completa da criação do banco
 - `instalar_dependencias.bat` - Instala todas as dependências Python
 
 ### 🔧 **utils/** - Utilitários
+
 - `export_excel.py` - Exporta dados do banco para Excel
 - `reset_data.py` - Reset dos dados coletados (mantém configurações)
 - `show_stats.py` - Mostra estatísticas detalhadas do banco
 
 ### ✅ **verification/** - Verificação de Instalação
+
 - `verificar_instalacao_python.py` - Verifica Python e dependências
 - `verificar_instalacao_chrome.py` - Verifica Chrome e WebDriver
 - `verificar_instalacao_brave.py` - Verifica Brave e WebDriver
@@ -25,6 +29,7 @@
 ## 🚀 Como Usar
 
 ### **Primeira Configuração**
+
 ```cmd
 # 0. Instalar dependências (se necessário)
 scripts\setup\instalar_dependencias.bat
@@ -37,6 +42,7 @@ python scripts\database\load_initial_data.py
 ```
 
 ### **Verificação de Instalação**
+
 ```cmd
 # Verificar Python
 python scripts\verification\verificar_instalacao_python.py
@@ -52,6 +58,7 @@ python scripts\verification\verificar_chromedriver.py
 ```
 
 ### **Utilitários Durante o Uso**
+
 ```cmd
 # Ver estatísticas
 python scripts\utils\show_stats.py

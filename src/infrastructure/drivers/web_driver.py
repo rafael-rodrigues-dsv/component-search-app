@@ -12,17 +12,17 @@ from ..network.retry_manager import RetryManager
 
 class WebDriverManager:
     """Gerenciador do WebDriver Chrome/Brave"""
-    
+
     def __init__(self, driver_path: str = "drivers/chromedriver.exe", browser: str = "chrome"):
         self.driver_path = driver_path
         self.browser = browser
         self.driver = None
         self.wait = None
-    
+
     def _get_browser_path(self) -> str:
         """Obtém caminho do navegador baseado no tipo"""
         import os
-        
+
         if self.browser == "brave":
             brave_paths = [
                 "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe",
@@ -31,19 +31,19 @@ class WebDriverManager:
             for path in brave_paths:
                 if os.path.exists(path):
                     return path
-        
+
         return None  # Chrome usa caminho padrão
-    
+
     def start_driver(self) -> bool:
         """Inicia o driver Chrome com anti-detecção"""
         try:
             options = Options()
-            
+
             # Anti-detecção avançada
             options.add_argument("--disable-blink-features=AutomationControlled")
             options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
             options.add_experimental_option('useAutomationExtension', False)
-            
+
             # Stealth avançado
             options.add_argument("--disable-extensions-file-access-check")
             options.add_argument("--disable-extensions-http-throttling")
@@ -52,7 +52,7 @@ class WebDriverManager:
             options.add_argument("--disable-backgrounding-occluded-windows")
             options.add_argument("--disable-features=TranslateUI")
             options.add_argument("--disable-component-extensions-with-background-pages")
-            
+
             # User-Agent rotativo
             user_agents = [
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -63,12 +63,12 @@ class WebDriverManager:
             import random
             selected_ua = random.choice(user_agents)
             options.add_argument(f"--user-agent={selected_ua}")
-            
+
             # Configurações de janela com resoluções comuns
             resolutions = [(1920, 1080), (1366, 768), (1536, 864), (1440, 900), (1280, 720)]
             width, height = random.choice(resolutions)
             options.add_argument(f"--window-size={width},{height}")
-            
+
             # Preferências para parecer mais humano
             prefs = {
                 "profile.default_content_setting_values": {
@@ -80,7 +80,7 @@ class WebDriverManager:
                 }
             }
             options.add_experimental_option("prefs", prefs)
-            
+
             # Outras configurações
             options.add_argument("--disable-notifications")
             options.add_argument("--disable-popup-blocking")
@@ -91,7 +91,7 @@ class WebDriverManager:
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--disable-web-security")
             options.add_argument("--allow-running-insecure-content")
-            
+
             # Configurar navegador específico
             browser_path = self._get_browser_path()
             if browser_path:
@@ -99,10 +99,10 @@ class WebDriverManager:
                 print(f"[INFO] Executando com {self.browser.title()} Browser visível")
             else:
                 print("[INFO] Executando com navegador visível")
-            
+
             service = Service(self.driver_path)
             self.driver = webdriver.Chrome(service=service, options=options)
-            
+
             # Script stealth completo
             stealth_script = """
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -112,13 +112,13 @@ class WebDriverManager:
             Object.defineProperty(navigator, 'permissions', {get: () => ({query: () => Promise.resolve({state: 'granted'})})});
             """
             self.driver.execute_script(stealth_script)
-            
+
             self.wait = WebDriverWait(self.driver, 10)
-            
+
             return True
         except WebDriverException:
             return False
-    
+
     @RetryManager.with_retry(max_attempts=3, base_delay=1.5, exceptions=(WebDriverException,))
     def navigate_to(self, url: str) -> bool:
         """Navega para URL"""
@@ -127,7 +127,7 @@ class WebDriverManager:
             return True
         except WebDriverException:
             return False
-    
+
     def close_driver(self):
         """Fecha o driver"""
         if self.driver:

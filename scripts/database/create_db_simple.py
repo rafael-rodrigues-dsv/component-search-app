@@ -4,23 +4,24 @@ Criador simples do banco Access - Funciona garantido
 import os
 from pathlib import Path
 
+
 def create_simple_db(auto_mode=False):
     """Cria banco Access de forma simples e funcional"""
-    
+
     # Caminhos - ajustado para scripts/database
     base_dir = Path(__file__).parent.parent.parent
     data_dir = base_dir / "data"
     db_path = data_dir / "pythonsearch.accdb"
-    
+
     data_dir.mkdir(exist_ok=True)
-    
+
     if db_path.exists():
         if not auto_mode:
             response = input(f"Banco existe. Recriar? (s/N): ")
             if response.lower() != 's':
                 return
         db_path.unlink()
-    
+
     try:
         try:
             import win32com.client
@@ -28,13 +29,13 @@ def create_simple_db(auto_mode=False):
             print("❌ ERRO: pywin32 não encontrado")
             print("💡 SOLUÇÃO: Execute 'pip install pywin32' e tente novamente")
             return False
-        
+
         print("🔨 Criando banco Access...")
         access = win32com.client.Dispatch("Access.Application")
         access.NewCurrentDatabase(str(db_path))
-        
+
         print("📋 Criando tabelas...")
-        
+
         # Tabelas básicas sem complexidade
         sqls = [
             "CREATE TABLE TB_ZONAS (ID_ZONA COUNTER PRIMARY KEY, NOME_ZONA TEXT(50), UF TEXT(2), ATIVO BIT, DATA_CRIACAO DATE)",
@@ -47,7 +48,7 @@ def create_simple_db(auto_mode=False):
             "CREATE TABLE TB_TELEFONES (ID_TELEFONE COUNTER PRIMARY KEY, ID_EMPRESA LONG, TELEFONE TEXT(20), TELEFONE_FORMATADO TEXT(20), DDD TEXT(2), TIPO_TELEFONE TEXT(10), VALIDADO BIT, DATA_COLETA DATE)",
             "CREATE TABLE TB_PLANILHA (ID_PLANILHA COUNTER PRIMARY KEY, SITE TEXT(255), EMAIL MEMO, TELEFONE MEMO, DATA_ATUALIZACAO DATE)"
         ]
-        
+
         for i, sql in enumerate(sqls, 1):
             try:
                 access.DoCmd.RunSQL(sql)
@@ -55,11 +56,11 @@ def create_simple_db(auto_mode=False):
                 print(f"✅ {i}/9 - {table}")
             except Exception as e:
                 print(f"⚠️ {i}/8 - {str(e)[:50]}")
-        
+
         print("📋 Carregando dados...")
-        
+
         print("📋 Carregando dados básicos...")
-        
+
         # Dados básicos mínimos
         dados = [
             "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona norte', 'SP', -1, Date())",
@@ -67,33 +68,34 @@ def create_simple_db(auto_mode=False):
             "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona leste', 'SP', -1, Date())",
             "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona oeste', 'SP', -1, Date())",
             "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona central', 'SP', -1, Date())",
-            
+
             "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES ('Moema', 'SP', -1, Date())",
             "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES ('Vila Mariana', 'SP', -1, Date())",
             "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES ('Pinheiros', 'SP', -1, Date())",
-            
+
             "INSERT INTO TB_CIDADES (NOME_CIDADE, UF, ATIVO, DATA_CRIACAO) VALUES ('Campinas', 'SP', -1, Date())",
             "INSERT INTO TB_CIDADES (NOME_CIDADE, UF, ATIVO, DATA_CRIACAO) VALUES ('Guarulhos', 'SP', -1, Date())",
-            
+
             "INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO) VALUES ('empresa de elevadores', 'elevadores', -1, Date())",
             "INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO) VALUES ('manutenção de elevadores', 'elevadores', -1, Date())"
         ]
-        
+
         for sql in dados:
             try:
                 access.DoCmd.RunSQL(sql)
             except:
                 pass
-        
+
         access.Quit()
-        
+
         print("\n🎉 BANCO CRIADO COM SUCESSO!")
         print(f"📍 {db_path}")
         print(f"✅ 9 tabelas criadas")
         print("✅ Dados básicos carregados (5 zonas, 3 bairros, 2 cidades, 2 termos)")
-        
+
     except Exception as e:
         print(f"❌ ERRO: {e}")
+
 
 if __name__ == "__main__":
     create_simple_db()

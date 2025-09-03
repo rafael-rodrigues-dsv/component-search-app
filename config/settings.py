@@ -40,7 +40,7 @@ BASE_BAIRROS = [
 
 # Cidades interior
 CIDADES_INTERIOR = [
-    "Campinas", "Guarulhos", "Santo André","São Bernardo do Campo", "São Caetano do Sul",
+    "Campinas", "Guarulhos", "Santo André", "São Bernardo do Campo", "São Caetano do Sul",
     "Osasco", "Barueri", "Carapicuíba", "Mogi das Cruzes", "Suzano", "Jundiaí", "Sorocaba",
     "Ribeirão Preto", "Bauru", "São José dos Campos", "Taubaté", "Santos", "Praia Grande",
     "Americana", "Piracicaba"
@@ -50,7 +50,6 @@ BASE_BUSCA = [
     "empresa de elevadores", "manutenção de elevadores", "instalação de elevadores",
     "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
 ]
-
 
 # Termos para testes
 BASE_TESTES = [
@@ -65,8 +64,6 @@ UF_BASE = "SP"
 CIDADE_BASE = "São Paulo"
 CATEGORIA_BASE = "elevadores"
 
-
-
 # Delays rápidos - via configuração
 SCRAPER_DELAYS = {
     "page_load": config.page_load_delay,
@@ -79,38 +76,38 @@ BLACKLIST_HOSTS = [
     "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "x.com", "twitter.com",
     "tiktok.com", "pinterest.com", "snapchat.com", "whatsapp.com", "telegram.org",
     "discord.com", "reddit.com", "tumblr.com", "flickr.com", "vimeo.com",
-    
+
     # Portais de notícias
     "uol.com.br", "globo.com", "folha.uol.com.br", "estadao.com.br", "g1.globo.com",
     "r7.com", "band.uol.com.br", "sbt.com.br", "cnn.com.br", "bbc.com",
     "terra.com.br", "ig.com.br", "msn.com", "yahoo.com", "bol.uol.com.br",
     "exame.com", "valor.com.br", "infomoney.com.br", "istoedinheiro.com.br",
     "cartacapital.com.br", "veja.abril.com.br", "epoca.globo.com", "noticias",
-    
+
     # Blogs e plataformas de conteúdo
     "medium.com", "wordpress.com", "blogspot.com", "blogger.com", "wix.com",
     "squarespace.com", "weebly.com", "ghost.org", "substack.com",
-    
+
     # Marketplaces e classificados
     "mercadolivre.com", "olx.com", "enjoei.com.br", "webmotors.com.br",
     "imovelweb.com.br", "zapimoveis.com.br", "vivareal.com.br", "booking.com",
     "airbnb.com", "trivago.com", "decolar.com", "submarino.com.br", "americanas.com",
-    
+
     # Mapas e navegação
     "maps.google", "goo.gl", "waze.com", "openstreetmap.org", "here.com",
-    
+
     # Sites governamentais e institucionais
     "gov.br", "prefeitura", "camara", "senado", "tse.jus.br", "receita.fazenda.gov.br",
-    
+
     # Documentos e arquivos
     "docplayer", "issuu.com", "scribd.com", "slideshare.net", "pdf", "academia.edu",
-    
+
     # Enciclopédias e referências
     "wikipedia.org", "wikimedia.org", "britannica.com", "dicionario",
-    
+
     # Reclamações e avaliações
     "reclameaqui.com.br", "consumidor.gov.br", "procon", "trustpilot.com",
-    
+
     # Outros sites não comerciais
     "coteibem.sindiconet.com.br", "sindiconet.com.br", "condominio", "sindico",
     "forum", "faq", "suporte", "help", "support", "wiki", "manual"

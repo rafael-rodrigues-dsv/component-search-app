@@ -3,6 +3,7 @@ Entidade Company - Representa uma empresa coletada
 """
 from dataclasses import dataclass
 
+
 @dataclass
 class CompanyModel:
     """Entidade Empresa"""

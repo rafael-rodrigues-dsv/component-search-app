@@ -2,11 +2,13 @@
 
 ## 📋 Visão Geral
 
-O PythonSearchApp segue os princípios da **Clean Architecture** com separação clara de responsabilidades em camadas bem definidas.
+O PythonSearchApp segue os princípios da **Clean Architecture** com separação clara de responsabilidades em camadas bem
+definidas.
 
 ## 🔵 Camadas da Arquitetura
 
 ### 1. **Domain Layer** (Domínio)
+
 ```
 src/domain/
 ├── models/           # Entidades e modelos de dados
@@ -16,12 +18,14 @@ src/domain/
 ```
 
 **Responsabilidades:**
+
 - Regras de negócio centrais
 - Validações de domínio
 - Modelos de dados puros
 - Interfaces para infraestrutura
 
 ### 2. **Application Layer** (Aplicação)
+
 ```
 src/application/
 └── services/         # Orquestração e casos de uso
@@ -31,12 +35,14 @@ src/application/
 ```
 
 **Responsabilidades:**
+
 - Orquestração de casos de uso
 - Coordenação entre camadas
 - Lógica de aplicação específica
 - Gerenciamento de transações
 
 ### 3. **Infrastructure Layer** (Infraestrutura)
+
 ```
 src/infrastructure/
 ├── config/           # Gerenciamento de configuração
@@ -50,6 +56,7 @@ src/infrastructure/
 ```
 
 **Responsabilidades:**
+
 - Acesso a dados externos
 - Integração com APIs
 - Persistência de dados
@@ -58,6 +65,7 @@ src/infrastructure/
 ## 🗄️ Arquitetura de Dados
 
 ### **Banco Access (Principal)**
+
 ```
 TB_ZONAS ←─┐
 TB_BAIRROS ←─┼─→ TB_TERMOS_BUSCA ←─→ TB_EMPRESAS ←─┬─→ TB_EMAILS
@@ -66,6 +74,7 @@ TB_BASE_BUSCA ←─┘
 ```
 
 ### **Fluxo de Dados**
+
 1. **Configuração** → Tabelas base (zonas, bairros, cidades, termos)
 2. **Geração** → Combinação automática de termos de busca
 3. **Processamento** → Scraping e coleta de dados
@@ -75,12 +84,14 @@ TB_BASE_BUSCA ←─┘
 ## 🔄 Fluxo de Execução
 
 ### **1. Inicialização**
+
 ```python
 main.py → DatabaseService.initialize_search_terms()
        → EmailApplicationService()
 ```
 
 ### **2. Processamento**
+
 ```python
 EmailApplicationService.execute()
 ├── Obter termos do banco
@@ -96,6 +107,7 @@ EmailApplicationService.execute()
 ```
 
 ### **3. Finalização**
+
 ```python
 DatabaseService.export_to_excel()
 DatabaseService.get_statistics()
@@ -104,26 +116,31 @@ DatabaseService.get_statistics()
 ## 🎯 Padrões Utilizados
 
 ### **Repository Pattern**
+
 - `AccessRepository` - Acesso ao banco Access
 - Abstração da persistência de dados
 - Facilita testes e manutenção
 
 ### **Service Layer Pattern**
+
 - `DatabaseService` - Lógica de banco de dados
 - `EmailApplicationService` - Orquestração principal
 - Separação de responsabilidades
 
 ### **Factory Pattern**
+
 - `SearchTermFactory` - Criação de termos de busca
 - Encapsula lógica de criação complexa
 
 ### **Strategy Pattern**
+
 - `ScraperProtocol` - Interface para scrapers
 - `GoogleScraper` / `DuckDuckGoScraper` - Implementações
 
 ## 🔧 Configuração e Extensibilidade
 
 ### **Configuração Centralizada**
+
 ```yaml
 # src/resources/application.yaml
 app:
@@ -139,6 +156,7 @@ search:
 ```
 
 ### **Pontos de Extensão**
+
 1. **Novos Scrapers** - Implementar `ScraperProtocol`
 2. **Novos Repositórios** - Criar novos repositórios de dados
 3. **Novas Validações** - Estender `EmailValidationService`
@@ -147,21 +165,25 @@ search:
 ## 📊 Benefícios da Arquitetura
 
 ### **Testabilidade**
+
 - Camadas isoladas e testáveis
 - Mocks e stubs fáceis de implementar
 - Cobertura de testes alta (99%+)
 
 ### **Manutenibilidade**
+
 - Responsabilidades bem definidas
 - Baixo acoplamento entre camadas
 - Código limpo e organizado
 
 ### **Extensibilidade**
+
 - Fácil adição de novos recursos
 - Padrões consistentes
 - Interfaces bem definidas
 
 ### **Performance**
+
 - Banco de dados normalizado
 - Índices otimizados
 - Métricas de performance integradas
@@ -169,6 +191,7 @@ search:
 ## 🚀 Evolução Futura
 
 ### **Possíveis Melhorias**
+
 1. **API REST** - Exposição via API
 2. **Interface Web** - Dashboard de monitoramento
 3. **Processamento Paralelo** - Múltiplas threads

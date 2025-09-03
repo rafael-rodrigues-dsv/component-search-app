@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 # Configurações globais de teste
 import pytest
 
+
 @pytest.fixture(scope="session")
 def test_config():
     """Configuração global para testes"""
