@@ -29,15 +29,18 @@ class AccessRepository:
             cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE DOMINIO = ?", domain)
             return cursor.fetchone()[0] > 0
 
-    def save_empresa(self, termo_id: int, site_url: str, domain: str, motor_busca: str) -> int:
+    def save_empresa(self, termo_id: int, site_url: str, domain: str, motor_busca: str, 
+                    endereco: str = None, latitude: float = None, longitude: float = None, 
+                    distancia_km: float = None) -> int:
         """Salva empresa encontrada"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO TB_EMPRESAS (ID_TERMO, SITE_URL, DOMINIO, STATUS_COLETA, 
-                                       DATA_PRIMEIRA_VISITA, TENTATIVAS_COLETA, MOTOR_BUSCA)
-                VALUES (?, ?, ?, 'PENDENTE', Date(), 0, ?)
-            """, termo_id, site_url, domain, motor_busca)
+                                       DATA_PRIMEIRA_VISITA, TENTATIVAS_COLETA, MOTOR_BUSCA,
+                                       ENDERECO, LATITUDE, LONGITUDE, DISTANCIA_KM)
+                VALUES (?, ?, ?, 'PENDENTE', Date(), 0, ?, ?, ?, ?, ?)
+            """, termo_id, site_url, domain, motor_busca, endereco, latitude, longitude, distancia_km)
             conn.commit()
 
             # Retorna ID da empresa criada
@@ -199,7 +202,8 @@ class AccessRepository:
 
     # ===== PLANILHA =====
 
-    def save_to_final_sheet(self, site_url: str, emails_str: str, telefones_str: str):
+    def save_to_final_sheet(self, site_url: str, emails_str: str, telefones_str: str, 
+                           endereco: str = None, distancia_km: float = None):
         """Salva/atualiza registro na tabela planilha"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -212,15 +216,15 @@ class AccessRepository:
                 # Atualizar
                 cursor.execute("""
                     UPDATE TB_PLANILHA 
-                    SET EMAIL = ?, TELEFONE = ?, DATA_ATUALIZACAO = Date()
+                    SET EMAIL = ?, TELEFONE = ?, ENDERECO = ?, DISTANCIA_KM = ?, DATA_ATUALIZACAO = Date()
                     WHERE SITE = ?
-                """, emails_str, telefones_str, site_url)
+                """, emails_str, telefones_str, endereco, distancia_km, site_url)
             else:
                 # Inserir novo
                 cursor.execute("""
-                    INSERT INTO TB_PLANILHA (SITE, EMAIL, TELEFONE, DATA_ATUALIZACAO)
-                    VALUES (?, ?, ?, Date())
-                """, site_url, emails_str, telefones_str)
+                    INSERT INTO TB_PLANILHA (SITE, EMAIL, TELEFONE, ENDERECO, DISTANCIA_KM, DATA_ATUALIZACAO)
+                    VALUES (?, ?, ?, ?, ?, Date())
+                """, site_url, emails_str, telefones_str, endereco, distancia_km)
 
             conn.commit()
 
@@ -231,9 +235,9 @@ class AccessRepository:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT SITE, EMAIL, TELEFONE
+                SELECT SITE, EMAIL, TELEFONE, ENDERECO, DISTANCIA_KM
                 FROM TB_PLANILHA
-                ORDER BY SITE
+                ORDER BY DISTANCIA_KM, SITE
             """)
 
             import openpyxl
@@ -245,13 +249,17 @@ class AccessRepository:
             ws['A1'] = 'SITE'
             ws['B1'] = 'EMAIL'
             ws['C1'] = 'TELEFONE'
+            ws['D1'] = 'ENDERECO'
+            ws['E1'] = 'DISTANCIA_KM'
 
             # Dados
             row = 2
-            for site, emails, telefones in cursor.fetchall():
+            for site, emails, telefones, endereco, distancia in cursor.fetchall():
                 ws[f'A{row}'] = site
                 ws[f'B{row}'] = emails or ''
                 ws[f'C{row}'] = telefones or ''
+                ws[f'D{row}'] = endereco or ''
+                ws[f'E{row}'] = distancia or ''
                 row += 1
 
             wb.save(excel_path)

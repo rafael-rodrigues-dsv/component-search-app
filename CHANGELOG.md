@@ -1,63 +1,100 @@
-# 📋 CHANGELOG
+# Changelog
 
-## [2.0.0] - 2024-12-19
+Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
-### 🔄 BREAKING CHANGES
+## [2.1.0] - 2024-12-19
 
-- **Migração completa de JSON para Microsoft Access**: Sistema de armazenamento totalmente reformulado
-- **Nova arquitetura de banco de dados**: 8 tabelas normalizadas substituindo arquivos JSON
-- **Criação automática de banco**: Sistema detecta e cria banco automaticamente na inicialização
+### ✨ Adicionado
+- **Geolocalização Automática**: Sistema completo de extração de endereços e cálculo de distâncias
+- **GeolocationService**: Novo serviço para geocodificação usando APIs gratuitas (Nominatim + ViaCEP)
+- **Extração Seletiva de Endereços**: 
+  - Cenário ideal: Endereço completo com rua, número, bairro (±10-50m precisão)
+  - Cenário parcial: Cidade/bairro extraído do HTML (±2-5km precisão)
+  - Sem fallback: Só geocodifica endereços reais encontrados no site
+- **Cálculo de Distâncias**: Fórmula de Haversine para calcular distância em km do ponto de referência
+- **Novas Colunas no Banco**:
+  - TB_EMPRESAS: `ENDERECO`, `LATITUDE`, `LONGITUDE`, `DISTANCIA_KM`
+  - TB_PLANILHA: `ENDERECO`, `DISTANCIA_KM`
+- **Excel Ordenado por Proximidade**: Planilha agora inclui endereço e distância, ordenada por proximidade
+- **Configuração de CEP de Referência**: Configurável via `application.yaml`
+- **Testes Completos**: 19 novos testes para funcionalidades de geolocalização
 
-### ✨ NEW FEATURES
+### 🔧 Modificado
+- **CompanyModel**: Adicionado campo `html_content` para captura de HTML das páginas
+- **Scrapers**: DuckDuckGo e Google agora capturam HTML content para extração de endereços
+- **AccessRepository**: Métodos atualizados para suportar dados de geolocalização
+- **DatabaseService**: Integração com GeolocationService para processamento em tempo real
+- **Excel Export**: Agora inclui colunas ENDERECO e DISTANCIA_KM, ordenado por proximidade
+- **Estrutura do Projeto**: Novo diretório `src/infrastructure/services/`
 
-- **DatabaseService**: Nova camada de serviço para operações de banco de dados
-- **AccessRepository**: Repositório completo para Microsoft Access com 100% de cobertura de testes
-- **Criação automática de estrutura**: Scripts para criar banco com dados básicos ou completos
-- **Export automático para Excel**: Geração automática de planilha a partir do banco
-- **Scripts multiplataforma**: Versões .bat (Windows) e .sh (Linux/macOS) para todos os utilitários
+### 📋 Detalhes Técnicos
+- **APIs Utilizadas**: 
+  - Nominatim (OpenStreetMap) - Geocodificação gratuita
+  - ViaCEP - Consulta de CEPs brasileiros
+- **Rate Limiting**: Implementado para APIs externas (1 segundo entre requests)
+- **Geocodificação Seletiva**: Só processa endereços reais extraídos do HTML, eliminando geocodificações desnecessárias
+- **Validação**: Coordenadas e distâncias validadas antes do armazenamento
+- **Performance**: Processamento otimizado - só geocodifica quando há endereço real, reduzindo chamadas de API
 
-### 🏗️ ARCHITECTURE
+### 🧪 Testes
+- **Cobertura Atualizada**: 95% de cobertura de código
+- **Novos Testes**:
+  - `test_geolocation_service.py`: 9 testes para GeolocationService
+  - `test_scrapers_geolocation.py`: 4 testes para integração com scrapers
+  - Testes atualizados para AccessRepository, DatabaseService e CompanyModel
+- **Compatibilidade**: Todos os testes existentes continuam passando
 
-- **Clean Architecture mantida**: Separação clara entre domínio, aplicação e infraestrutura
-- **Eliminação de dependência JSON**: Remoção completa dos arquivos visited.json e emails.json
-- **Padronização de nomes**: Scripts renomeados de português para inglês
+### 🗂️ Estrutura de Dados
+```
+TB_EMPRESAS:
+- ENDERECO (TEXT): Endereço completo extraído
+- LATITUDE (DOUBLE): Coordenada de latitude
+- LONGITUDE (DOUBLE): Coordenada de longitude  
+- DISTANCIA_KM (DOUBLE): Distância em km do ponto de referência
 
-### 🧪 TESTING
+TB_PLANILHA:
+- ENDERECO (TEXT): Endereço da empresa
+- DISTANCIA_KM (DOUBLE): Distância em km
+```
 
-- **Cobertura de testes**: Aumentada de 81% para 93% (261 testes passando)
-- **Novos testes de integração**: Cobertura completa das funcionalidades de banco de dados
-- **Testes de repositório**: 100% de cobertura para AccessRepository
-
-### 🔧 IMPROVEMENTS
-
-- **Performance**: Operações de banco mais eficientes que JSON
-- **Confiabilidade**: Transações ACID e controle de integridade
-- **Auditoria**: Logs detalhados de todas as operações
-- **Multiplataforma**: Suporte completo para Windows, Linux e macOS
-
-### 🐛 BUG FIXES
-
-- **Correção de paths**: Atualizadas todas as referências para novos nomes de arquivos
-- **Dependências**: pyodbc adicionado corretamente ao pyproject.toml
-- **Scripts de inicialização**: Paths corrigidos para scripts de verificação
-
-### 📚 DOCUMENTATION
-
-- **README atualizado**: Documentação completa da nova arquitetura
-- **Instruções de migração**: Guia para transição da versão 1.x
-- **Scripts de setup**: Documentação dos novos utilitários
+### 📊 Formato Excel Atualizado
+```
+SITE | EMAIL | TELEFONE | ENDERECO | DISTANCIA_KM
+```
+- Ordenado por proximidade (menor distância primeiro)
+- Endereços formatados e limpos
+- Distâncias em quilômetros com 2 casas decimais
 
 ---
 
-## [1.0.0] - 2024-12-18
+## [2.0.0] - 2024-12-15
 
-### ✨ INITIAL RELEASE
-
-- **Sistema de coleta**: Extração de e-mails e telefones via Google/DuckDuckGo
+### ✨ Adicionado
 - **Clean Architecture**: Implementação completa com separação de camadas
-- **Armazenamento JSON**: Sistema de persistência baseado em arquivos JSON
-- **Validação rigorosa**: Filtros para e-mails e telefones inválidos
-- **Controle de duplicatas**: Evita revisitar sites já processados
-- **Modo teste/produção**: Configurações flexíveis para desenvolvimento
-- **Suporte multiplataforma**: Windows, Linux e macOS
-- **Cobertura de testes**: 81% de cobertura com testes unitários
+- **Banco Access**: Substituição completa do sistema JSON por banco Access
+- **9 Tabelas Normalizadas**: Estrutura robusta para dados empresariais
+- **Sistema de Termos**: Geração automática de 336+ termos de busca
+- **Controle de Status**: Rastreamento completo do processamento
+- **Validação Avançada**: Sistema robusto de validação de e-mails e telefones
+
+### 🔧 Modificado
+- **Arquitetura Completa**: Migração para Clean Architecture
+- **Persistência**: JSON → Microsoft Access
+- **Performance**: Otimizações significativas de velocidade
+- **Logs Estruturados**: Sistema de logging contextual
+
+### 🗑️ Removido
+- **Sistema JSON**: Arquivos visited.json e emails.json
+- **Dependências Legadas**: Limpeza de código antigo
+
+---
+
+## [1.x.x] - Versões Anteriores
+
+### Funcionalidades Base
+- Scraping básico com Selenium
+- Suporte a Google e DuckDuckGo  
+- Extração de e-mails e telefones
+- Exportação para Excel
+- Sistema de blacklist
+- Controle de horário de funcionamento

@@ -45,11 +45,27 @@ class DatabaseService:
 
     def save_company_data(self, termo_id: int, site_url: str, domain: str,
                           motor_busca: str, emails: list, telefones: list,
-                          nome_empresa: str = None) -> bool:
+                          nome_empresa: str = None, html_content: str = None, 
+                          termo_busca: str = None) -> bool:
         """Salva dados completos da empresa"""
         try:
+            # Extrair e geocodificar endereço - só se encontrar endereço real
+            endereco, latitude, longitude, distancia_km = None, None, None, None
+            if html_content:
+                from src.infrastructure.services.geolocation_service import GeolocationService
+                geo_service = GeolocationService()
+                endereco = geo_service.extrair_endereco_do_html(html_content, termo_busca or '')
+                if endereco:  # Só geocodifica se encontrou endereço real no HTML
+                    self.logger.info(f"[GEO] Endereço encontrado: {endereco}")
+                    endereco, latitude, longitude, distancia_km = geo_service.calcular_distancia_do_endereco(endereco)
+                    if latitude and longitude:
+                        self.logger.info(f"[GEO] Geocodificado: {latitude}, {longitude} - {distancia_km}km")
+                else:
+                    self.logger.debug("[GEO] Nenhum endereço encontrado no HTML - pulando geolocalização")
+            
             # Salvar empresa
-            empresa_id = self.repository.save_empresa(termo_id, site_url, domain, motor_busca)
+            empresa_id = self.repository.save_empresa(termo_id, site_url, domain, motor_busca, 
+                                                    endereco, latitude, longitude, distancia_km)
 
             # Salvar e-mails se houver
             if emails:
@@ -68,7 +84,7 @@ class DatabaseService:
             if emails or telefones:
                 emails_str = ';'.join(emails) + ';' if emails else ''
                 telefones_str = ';'.join([t['formatted'] for t in telefones]) + ';' if telefones else ''
-                self.repository.save_to_final_sheet(site_url, emails_str, telefones_str)
+                self.repository.save_to_final_sheet(site_url, emails_str, telefones_str, endereco, distancia_km)
 
             return True
 

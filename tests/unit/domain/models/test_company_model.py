@@ -30,6 +30,7 @@ class TestCompanyModel(unittest.TestCase):
         self.assertEqual(company.search_term, "")
         self.assertEqual(company.address, "")
         self.assertEqual(company.phone, "")
+        self.assertEqual(company.html_content, "")
 
     def test_company_model_creation_with_all_fields(self):
         """Testa criação com todos os campos"""
@@ -40,7 +41,8 @@ class TestCompanyModel(unittest.TestCase):
             url="https://empresa.com",
             search_term="elevador manutenção São Paulo",
             address="Rua Teste, 123 - São Paulo/SP",
-            phone="(11) 99999-8888;(11) 3333-4444;"
+            phone="(11) 99999-8888;(11) 3333-4444;",
+            html_content="<html><body>Content</body></html>"
         )
 
         self.assertEqual(company.name, "Empresa Completa")
@@ -50,6 +52,7 @@ class TestCompanyModel(unittest.TestCase):
         self.assertEqual(company.search_term, "elevador manutenção São Paulo")
         self.assertEqual(company.address, "Rua Teste, 123 - São Paulo/SP")
         self.assertEqual(company.phone, "(11) 99999-8888;(11) 3333-4444;")
+        self.assertEqual(company.html_content, "<html><body>Content</body></html>")
 
     def test_company_model_default_values(self):
         """Testa valores padrão dos campos opcionais"""
@@ -124,6 +127,7 @@ class TestCompanyModel(unittest.TestCase):
         self.assertEqual(field_types['search_term'], str)
         self.assertEqual(field_types['address'], str)
         self.assertEqual(field_types['phone'], str)
+        self.assertEqual(field_types['html_content'], str)
 
     def test_company_model_equality(self):
         """Testa igualdade entre instâncias"""

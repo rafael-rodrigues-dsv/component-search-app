@@ -1,6 +1,6 @@
 app:
   name: "PythonSearchApp"
-  version: "1.3.0"
+  version: "2.1.0"
 
 search:
   engines:
@@ -24,12 +24,6 @@ retry:
   backoff_factor: 2.0
   max_delay: 60.0
 
-working_hours:
-  start: 8
-  end: 22
-  enabled: true
-  out_of_hours_wait_seconds: 120
-
 performance:
   tracking_enabled: true
   metrics_retention_hours: 24
@@ -45,3 +39,7 @@ delays:
 mode:
   is_test: true
   complete_threshold: 1000
+
+geolocation:
+  reference_cep: "01310-100"  # CEP de referência para cálculo de distâncias
+  enabled: true

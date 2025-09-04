@@ -32,15 +32,14 @@ class ConfigManager:
         return resolved_path
 
     def _load_config(self) -> None:
-        """Carrega configuração do arquivo"""
-        # Configuração padrão hardcoded
-        self._config = {
+        """Carrega configuração do arquivo YAML"""
+        # Configuração padrão como fallback
+        default_config = {
             'scraping': {
                 'max_emails_per_site': 5,
                 'max_phones_per_site': 3,
                 'results_per_term_limit': 1200
             },
-
             'retry': {
                 'max_attempts': 3,
                 'base_delay': 1.0,
@@ -56,13 +55,28 @@ class ConfigManager:
                 'search_dwell_max': 2.4
             },
             'mode': {
-                'is_test': True,
+                'is_test': False,
                 'complete_threshold': 1000
             },
             'performance': {
                 'tracking_enabled': True
             }
         }
+        
+        # Tentar carregar do arquivo YAML
+        try:
+            if self.config_path.exists():
+                import yaml
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    file_config = yaml.safe_load(f)
+                    if file_config:
+                        self._config = file_config
+                        return
+        except Exception as e:
+            print(f"Erro ao carregar YAML: {e}")
+        
+        # Usar configuração padrão se falhar
+        self._config = default_config
 
     def get(self, key: str, default: Any = None) -> Any:
         """Obtém valor por chave aninhada (ex: 'scraping.max_emails_per_site')"""

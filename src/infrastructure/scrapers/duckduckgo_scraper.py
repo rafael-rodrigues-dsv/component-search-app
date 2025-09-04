@@ -125,6 +125,9 @@ class DuckDuckGoScraper:
             self.driver_manager.driver.execute_script("window.scrollBy(0, 2000);")
             time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
 
+            # Capturar HTML content para geolocalização
+            html_content = self.driver_manager.driver.page_source
+            
             email_list = self._extract_emails_fast()[:max_emails]
             emails_string = self.validation_service.validate_and_join_emails(email_list)
             phone_list = self._extract_phones_fast()[:3]  # Máximo 3 telefones
@@ -133,10 +136,10 @@ class DuckDuckGoScraper:
             domain = self.validation_service.extract_domain_from_url(url)
 
             return CompanyModel(name=name, emails=emails_string, domain=domain, url=url, address="",
-                                phone=phones_string)
+                                phone=phones_string, html_content=html_content)
 
         except Exception:
-            return CompanyModel(name="", emails="", domain="", url=url)
+            return CompanyModel(name="", emails="", domain="", url=url, html_content="")
         finally:
             try:
                 if len(self.driver_manager.driver.window_handles) > 1:

@@ -281,7 +281,9 @@ class EmailApplicationService(EmailCollectorInterface):
             motor_busca=self.search_engine,
             emails=new_emails,
             telefones=telefones_data,
-            nome_empresa=getattr(company, 'name', None)
+            nome_empresa=getattr(company, 'name', None),
+            html_content=getattr(company, 'html_content', None),
+            termo_busca=company.search_term
         )
 
         if success:

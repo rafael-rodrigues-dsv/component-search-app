@@ -26,6 +26,9 @@ RESULTS_PER_TERM_LIMIT = config.results_per_term_limit
 COMPLETE_MODE_THRESHOLD = config.complete_mode_threshold
 MAX_PHONES_PER_SITE = config.max_phones_per_site
 
+# Geolocalização
+REFERENCE_CEP = "01310-100"  # CEP de referência para cálculo de distâncias (Av. Paulista)
+
 # Zonas SP
 BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
 
@@ -55,9 +58,6 @@ BASE_BUSCA = [
 BASE_TESTES = [
     "empresa de elevadores", "manutenção de elevadores"
 ]
-
-# Alias para compatibilidade
-BASE_BUSCA_TESTES = BASE_TESTES
 
 # Configurações de busca
 UF_BASE = "SP"

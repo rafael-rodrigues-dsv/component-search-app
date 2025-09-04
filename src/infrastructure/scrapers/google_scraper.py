@@ -165,8 +165,11 @@ class GoogleScraper:
             self.driver.execute_script("window.scrollBy(0, 2000);")
             time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
 
+            # Capturar HTML content para geolocalização
+            html_content = self.driver.page_source
+            
             # Extração rápida de e-mails
-            page_source = self.driver.page_source
+            page_source = html_content
 
             import re
 
@@ -211,7 +214,8 @@ class GoogleScraper:
                 domain=url.split('/')[2] if '/' in url else url,
                 url=url,
                 address="",
-                phone=phones_string
+                phone=phones_string,
+                html_content=html_content
             )
 
         except Exception as e:
@@ -222,7 +226,8 @@ class GoogleScraper:
                 domain=url.split('/')[2] if '/' in url else url,
                 url=url,
                 address="",
-                phone=""
+                phone="",
+                html_content=""
             )
         finally:
             # Fecha aba atual e volta para aba de resultados (igual ao DuckDuckGo)

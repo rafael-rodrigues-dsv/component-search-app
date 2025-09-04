@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ROBO 2 – COLETOR DE E-MAILS (ELEVADORES primeiro)
-Ponto de entrada principal do robô
+Python Search App - Coletor de E-mails e Contatos
+Ponto de entrada principal da aplicação
 """
 import sys
 from src.__version__ import __version__
@@ -107,8 +107,8 @@ def _handle_reset_option(db_service) -> bool:
 
 
 def main():
-    """Função principal do robô"""
-    print(f"[INFO] Iniciando ROBO 2 - COLETOR DE E-MAILS (ELEVADORES) v{__version__}")
+    """Função principal da aplicação"""
+    print(f"[INFO] Iniciando Python Search App - Coletor de E-mails e Contatos v{__version__}")
 
     # Verificar se pelo menos um navegador está disponível
     chrome_available = _check_browser_availability("CHROME")
@@ -185,7 +185,7 @@ def main():
                 print(f"[INFO] Telefones coletados: {stats['telefones_total']}")
 
         if success:
-            print("[OK] Robô executado com sucesso")
+            print("[OK] Aplicação executada com sucesso")
             print("[INFO] Encerrando em:")
             import time
             for i in range(3, 0, -1):
@@ -194,12 +194,12 @@ def main():
             print("[INFO] Finalizando...")
             return 0
         else:
-            print("[ERRO] Falha na execução do robô")
+            print("[ERRO] Falha na execução da aplicação")
             input("Pressione Enter para sair...")
             return 1
 
     except KeyboardInterrupt:
-        print("\n[INFO] Robô interrompido pelo usuário")
+        print("\n[INFO] Aplicação interrompida pelo usuário")
         return 0
 
     except Exception as e:

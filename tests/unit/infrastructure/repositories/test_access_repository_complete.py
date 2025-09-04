@@ -127,8 +127,8 @@ class TestAccessRepositoryComplete:
         """Testa exportação para Excel"""
         conn, cursor = mock_connection
         cursor.fetchall.return_value = [
-            ('http://test.com', 'test@example.com;', '(11) 99999-9999;'),
-            ('http://test2.com', 'test2@example.com;', '(11) 88888-8888;')
+            ('http://test.com', 'test@example.com;', '(11) 99999-9999;', 'Rua Test, 123', 5.2),
+            ('http://test2.com', 'test2@example.com;', '(11) 88888-8888;', 'Rua Test2, 456', 10.5)
         ]
 
         with patch.object(repository, '_get_connection', return_value=conn):

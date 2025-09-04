@@ -14,3 +14,4 @@ class CompanyModel:
     search_term: str = ""
     address: str = ""
     phone: str = ""
+    html_content: str = ""
