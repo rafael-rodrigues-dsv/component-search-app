@@ -35,53 +35,78 @@ class WebDriverManager:
         return None  # Chrome usa caminho padrão
 
     def start_driver(self) -> bool:
-        """Inicia o driver Chrome com anti-detecção"""
+        """Inicia o driver Chrome com anti-detecção avançada"""
         try:
             options = Options()
+            import random
+            import time
 
-            # Anti-detecção avançada
+            # === ANTI-DETECÇÃO CRÍTICA ===
             options.add_argument("--disable-blink-features=AutomationControlled")
             options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
             options.add_experimental_option('useAutomationExtension', False)
-
-            # Stealth avançado
-            options.add_argument("--disable-extensions-file-access-check")
-            options.add_argument("--disable-extensions-http-throttling")
-            options.add_argument("--disable-ipc-flooding-protection")
-            options.add_argument("--disable-renderer-backgrounding")
-            options.add_argument("--disable-backgrounding-occluded-windows")
-            options.add_argument("--disable-features=TranslateUI")
-            options.add_argument("--disable-component-extensions-with-background-pages")
-
-            # User-Agent rotativo
-            user_agents = [
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            
+            # Novos argumentos anti-detecção
+            options.add_argument("--disable-features=VizDisplayCompositor")
+            options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
+            options.add_argument("--disable-default-apps")
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-plugins")
+            options.add_argument("--disable-plugins-discovery")
+            options.add_argument("--disable-preconnect")
+            options.add_argument("--disable-sync")
+            options.add_argument("--disable-translate")
+            
+            # Headers mais realistas
+            options.add_argument("--accept-lang=pt-BR,pt;q=0.9,en;q=0.8")
+            options.add_argument("--accept-encoding=gzip, deflate, br")
+            
+            # === USER-AGENT MAIS REALISTA ===
+            realistic_uas = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
             ]
-            import random
-            selected_ua = random.choice(user_agents)
+            selected_ua = random.choice(realistic_uas)
             options.add_argument(f"--user-agent={selected_ua}")
 
-            # Configurações de janela com resoluções comuns
-            resolutions = [(1920, 1080), (1366, 768), (1536, 864), (1440, 900), (1280, 720)]
-            width, height = random.choice(resolutions)
+            # === RESOLUÇÃO E VIEWPORT REALISTAS ===
+            common_resolutions = [
+                (1920, 1080), (1366, 768), (1536, 864), (1440, 900), 
+                (1280, 720), (1600, 900), (1024, 768)
+            ]
+            width, height = random.choice(common_resolutions)
             options.add_argument(f"--window-size={width},{height}")
+            
+            # Posição aleatória da janela
+            x_pos = random.randint(0, 100)
+            y_pos = random.randint(0, 100)
+            options.add_argument(f"--window-position={x_pos},{y_pos}")
 
-            # Preferências para parecer mais humano
+            # === PREFERÊNCIAS REALISTAS ===
             prefs = {
                 "profile.default_content_setting_values": {
                     "notifications": 2,
-                    "geolocation": 2,
+                    "geolocation": 1,  # Permitir geolocalização
+                    "media_stream": 2,
                 },
                 "profile.managed_default_content_settings": {
                     "images": 1
-                }
+                },
+                "profile.default_content_settings": {
+                    "popups": 0
+                },
+                # Simular histórico de navegação
+                "profile.content_settings.exceptions.automatic_downloads": {
+                    "[*.]google.com,*": {"setting": 1}
+                },
+                # Idioma
+                "intl.accept_languages": "pt-BR,pt,en-US,en"
             }
             options.add_experimental_option("prefs", prefs)
 
-            # Outras configurações
+            # === CONFIGURAÇÕES DE PERFORMANCE ===
             options.add_argument("--disable-notifications")
             options.add_argument("--disable-popup-blocking")
             options.add_argument("--disable-gpu")
@@ -91,6 +116,18 @@ class WebDriverManager:
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--disable-web-security")
             options.add_argument("--allow-running-insecure-content")
+            
+            # === PROXY ROTATION (se disponível) ===
+            try:
+                from ..network.proxy_manager import ProxyManager
+                proxy_manager = ProxyManager()
+                working_proxies = proxy_manager.get_working_proxies()
+                if working_proxies:
+                    proxy = random.choice(working_proxies)
+                    options.add_argument(f"--proxy-server=http://{proxy}")
+                    print(f"[INFO] Usando proxy: {proxy}")
+            except Exception as e:
+                print(f"[DEBUG] Proxy não disponível: {str(e)[:30]}")
 
             # Configurar navegador específico
             browser_path = self._get_browser_path()
@@ -103,15 +140,73 @@ class WebDriverManager:
             service = Service(self.driver_path)
             self.driver = webdriver.Chrome(service=service, options=options)
 
-            # Script stealth completo
+            # === SCRIPT STEALTH AVANÇADO ===
             stealth_script = """
+            // Remove webdriver property
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-            Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt', 'en']});
-            window.chrome = {runtime: {}};
-            Object.defineProperty(navigator, 'permissions', {get: () => ({query: () => Promise.resolve({state: 'granted'})})});
+            
+            // Mock plugins realistas
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => {
+                    return [
+                        {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
+                        {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
+                        {name: 'Native Client', filename: 'internal-nacl-plugin'}
+                    ];
+                }
+            });
+            
+            // Languages realistas
+            Object.defineProperty(navigator, 'languages', {get: () => ['pt-BR', 'pt', 'en-US', 'en']});
+            
+            // Chrome runtime
+            window.chrome = {
+                runtime: {
+                    onConnect: undefined,
+                    onMessage: undefined
+                }
+            };
+            
+            // Permissions API
+            Object.defineProperty(navigator, 'permissions', {
+                get: () => ({
+                    query: () => Promise.resolve({state: 'granted'})
+                })
+            });
+            
+            // Hardware concurrency realista
+            Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 4});
+            
+            // Device memory
+            Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
+            
+            // Connection
+            Object.defineProperty(navigator, 'connection', {
+                get: () => ({
+                    effectiveType: '4g',
+                    rtt: 50,
+                    downlink: 10
+                })
+            });
+            
+            // Remove automation indicators
+            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+            delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
             """
             self.driver.execute_script(stealth_script)
+            
+            # Simular comportamento humano inicial
+            time.sleep(random.uniform(1.0, 3.0))
+            
+            # Movimento de mouse aleatório
+            try:
+                from selenium.webdriver.common.action_chains import ActionChains
+                actions = ActionChains(self.driver)
+                actions.move_by_offset(random.randint(10, 100), random.randint(10, 100))
+                actions.perform()
+            except Exception:
+                pass
 
             self.wait = WebDriverWait(self.driver, 10)
 

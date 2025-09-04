@@ -14,6 +14,7 @@ from selenium.common.exceptions import WebDriverException, TimeoutException
 from config.settings import SCRAPER_DELAYS, MAX_PHONES_PER_SITE
 from ...domain.services.email_domain_service import EmailValidationService
 from ..network.retry_manager import RetryManager
+from ..network.human_behavior import HumanBehaviorSimulator
 
 # Constantes para scraping
 MAX_SCROLL_PIXELS = 1500
@@ -32,25 +33,80 @@ class GoogleScraper:
         self.driver = driver
         self.base_url = "https://www.google.com"
         self.validation_service = EmailValidationService()
+        self.human_behavior = HumanBehaviorSimulator()
+        self.searches_count = 0
 
     @RetryManager.with_retry(max_attempts=3, base_delay=2.0, exceptions=(WebDriverException, TimeoutException))
     def search(self, term, max_results=50):
-        """Executa busca no Google de forma rápida"""
+        """Executa busca no Google simulando comportamento humano"""
         try:
-            # Busca direta sem delays longos
-            import urllib.parse
-            encoded_term = urllib.parse.quote_plus(term)
-            search_url = f"https://www.google.com/search?q={encoded_term}&hl=pt-BR&gl=BR"
-
-            self.driver.get(search_url)
-            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
-
-            # Verifica se carregou
+            # === NAVEGAÇÃO HUMANA ===
+            # 1. Primeiro vai para Google.com (como humano faria)
+            self.driver.get("https://www.google.com")
+            time.sleep(random.uniform(2.0, 4.0))
+            
+            # 2. Simula movimento de mouse
             try:
-                WebDriverWait(self.driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.g, div.tF2Cxc"))
+                from selenium.webdriver.common.action_chains import ActionChains
+                actions = ActionChains(self.driver)
+                actions.move_by_offset(random.randint(100, 300), random.randint(100, 200))
+                actions.perform()
+                time.sleep(random.uniform(0.5, 1.5))
+            except Exception:
+                pass
+            
+            # 3. Procura campo de busca e digita como humano
+            try:
+                search_box = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.NAME, "q"))
                 )
-                return True  # Sucesso na busca
+                
+                # Clica no campo
+                search_box.click()
+                time.sleep(random.uniform(0.3, 0.8))
+                
+                # Digitação humana (letra por letra com delays)
+                for char in term:
+                    search_box.send_keys(char)
+                    time.sleep(self.human_behavior.typing_delay())
+                
+                time.sleep(random.uniform(0.5, 1.2))
+                
+                # Pressiona Enter
+                from selenium.webdriver.common.keys import Keys
+                search_box.send_keys(Keys.RETURN)
+                
+            except Exception as e:
+                print(f"    [DEBUG] Erro na busca interativa, usando URL direta: {str(e)[:30]}")
+                # Fallback para método direto
+                import urllib.parse
+                encoded_term = urllib.parse.quote_plus(term)
+                search_url = f"https://www.google.com/search?q={encoded_term}&hl=pt-BR&gl=BR"
+                self.driver.get(search_url)
+            
+            # Simula tempo de leitura dos resultados
+            self.human_behavior.random_delay(2.0, 4.0)
+            
+            # Incrementa contador de buscas
+            self.searches_count += 1
+            
+            # Verifica se precisa de pausa de sessão
+            if self.human_behavior.session_break_needed(self.searches_count):
+                self.human_behavior.take_session_break()
+
+            # Verifica se carregou resultados
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.g, div.tF2Cxc, #search"))
+                )
+                
+                # Verifica se não é CAPTCHA
+                if "captcha" in self.driver.page_source.lower() or "unusual traffic" in self.driver.page_source.lower():
+                    print("    [AVISO] CAPTCHA detectado! Tentando fallback...")
+                    return self._fallback_search_simple(term)
+                
+                return True
+                
             except Exception as e:
                 print(f"    [DEBUG] Timeout na busca, tentando fallback: {str(e)[:30]}")
                 return self._fallback_search_simple(term)
@@ -74,9 +130,12 @@ class GoogleScraper:
         """Retorna links dos resultados da página atual"""
         urls = []
 
-        # Scroll para carregar mais resultados
-        self.driver.execute_script(f"window.scrollBy(0, {MAX_SCROLL_PIXELS});")
-        time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+        # Scroll humano para carregar mais resultados
+        self.human_behavior.scroll_behavior(self.driver)
+        
+        # Movimento de mouse ocasional
+        if random.random() < 0.3:  # 30% chance
+            self.human_behavior.mouse_movement(self.driver)
 
         selectors = [
             "div.g a[href]:not([href*='google.com'])",
@@ -159,11 +218,17 @@ class GoogleScraper:
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
 
-            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+            # Simula tempo de leitura da página
+            page_title = self.driver.title or ""
+            reading_time = self.human_behavior.reading_delay(len(page_title))
+            time.sleep(min(reading_time, 3.0))  # Máximo 3s
 
-            # Scroll rápido para carregar conteúdo
-            self.driver.execute_script("window.scrollBy(0, 2000);")
-            time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            # Scroll humano para carregar conteúdo
+            self.human_behavior.scroll_behavior(self.driver)
+            
+            # Movimento de mouse ocasional
+            if random.random() < 0.4:  # 40% chance
+                self.human_behavior.mouse_movement(self.driver)
 
             # Capturar HTML content para geolocalização
             html_content = self.driver.page_source
