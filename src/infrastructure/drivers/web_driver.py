@@ -45,7 +45,7 @@ class WebDriverManager:
             options.add_argument("--disable-blink-features=AutomationControlled")
             options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
             options.add_experimental_option('useAutomationExtension', False)
-            
+
             # Novos argumentos anti-detecção
             options.add_argument("--disable-features=VizDisplayCompositor")
             options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
@@ -56,11 +56,11 @@ class WebDriverManager:
             options.add_argument("--disable-preconnect")
             options.add_argument("--disable-sync")
             options.add_argument("--disable-translate")
-            
+
             # Headers mais realistas
             options.add_argument("--accept-lang=pt-BR,pt;q=0.9,en;q=0.8")
             options.add_argument("--accept-encoding=gzip, deflate, br")
-            
+
             # === USER-AGENT MAIS REALISTA ===
             realistic_uas = [
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
@@ -73,12 +73,12 @@ class WebDriverManager:
 
             # === RESOLUÇÃO E VIEWPORT REALISTAS ===
             common_resolutions = [
-                (1920, 1080), (1366, 768), (1536, 864), (1440, 900), 
+                (1920, 1080), (1366, 768), (1536, 864), (1440, 900),
                 (1280, 720), (1600, 900), (1024, 768)
             ]
             width, height = random.choice(common_resolutions)
             options.add_argument(f"--window-size={width},{height}")
-            
+
             # Posição aleatória da janela
             x_pos = random.randint(0, 100)
             y_pos = random.randint(0, 100)
@@ -116,7 +116,7 @@ class WebDriverManager:
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--disable-web-security")
             options.add_argument("--allow-running-insecure-content")
-            
+
             # === PROXY ROTATION (se disponível) ===
             try:
                 from ..network.proxy_manager import ProxyManager
@@ -195,10 +195,10 @@ class WebDriverManager:
             delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
             """
             self.driver.execute_script(stealth_script)
-            
+
             # Simular comportamento humano inicial
             time.sleep(random.uniform(1.0, 3.0))
-            
+
             # Movimento de mouse aleatório
             try:
                 from selenium.webdriver.common.action_chains import ActionChains

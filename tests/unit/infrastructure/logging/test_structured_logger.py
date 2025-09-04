@@ -1,12 +1,10 @@
 """
 Testes unitários para StructuredLogger
 """
-import unittest
 import logging
-import sys
 import os
-from io import StringIO
-from unittest.mock import patch, MagicMock
+import sys
+import unittest
 
 # Adiciona o diretório raiz ao path para imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))

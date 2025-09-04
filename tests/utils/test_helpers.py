@@ -1,8 +1,8 @@
 """
 Utilitários para testes
 """
-from unittest.mock import Mock, patch
-from typing import List, Dict, Any
+from typing import List, Any
+from unittest.mock import Mock
 
 
 class MockHelper:

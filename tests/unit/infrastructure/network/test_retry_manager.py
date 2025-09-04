@@ -1,12 +1,11 @@
 """
 Testes unitários para RetryManager
 """
-import unittest
 import time
-from unittest.mock import patch
+import unittest
 
-from src.infrastructure.network.retry_manager import RetryManager
 from src.domain.models.retry_config_model import RetryConfigModel
+from src.infrastructure.network.retry_manager import RetryManager
 
 
 class TestRetryManager(unittest.TestCase):

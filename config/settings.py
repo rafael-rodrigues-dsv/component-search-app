@@ -2,6 +2,7 @@
 Configurações do PythonSearchApp - coletor de e-mails
 """
 import os
+
 from src.infrastructure.config.config_manager import ConfigManager
 
 # Inicializa gerenciador de configuração
@@ -26,8 +27,8 @@ RESULTS_PER_TERM_LIMIT = config.results_per_term_limit
 COMPLETE_MODE_THRESHOLD = config.complete_mode_threshold
 MAX_PHONES_PER_SITE = config.max_phones_per_site
 
-# Geolocalização
-REFERENCE_CEP = "04766-080"  # CEP de referência para cálculo de distâncias (Av. Paulista)
+# Geolocalização - via ConfigManager
+REFERENCE_CEP = config.reference_cep
 
 # Zonas SP
 BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
@@ -66,6 +67,7 @@ CATEGORIA_BASE = "elevadores"
 
 # Delays padrão (DuckDuckGo) - importado de delay_config
 from src.infrastructure.config.delay_config import get_scraper_delays
+
 SCRAPER_DELAYS = get_scraper_delays()
 
 # Blacklist

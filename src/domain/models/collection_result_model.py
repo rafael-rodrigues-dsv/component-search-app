@@ -2,6 +2,7 @@
 Modelo para resultado final da coleta
 """
 from dataclasses import dataclass
+
 from .collection_stats_model import CollectionStatsModel
 
 

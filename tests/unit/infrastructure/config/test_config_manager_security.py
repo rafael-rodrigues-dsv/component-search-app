@@ -1,8 +1,10 @@
 """
 Testes de segurança para ConfigManager
 """
-import pytest
 from pathlib import Path
+
+import pytest
+
 from src.infrastructure.config.config_manager import ConfigManager
 
 

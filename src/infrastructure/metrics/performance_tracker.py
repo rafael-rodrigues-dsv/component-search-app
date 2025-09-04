@@ -2,8 +2,8 @@
 Rastreador de métricas de performance
 """
 import time
-from typing import Dict, List, Optional
 from contextlib import contextmanager
+from typing import Dict, List, Optional
 
 from src.domain.models.performance_metric_model import PerformanceMetricModel
 

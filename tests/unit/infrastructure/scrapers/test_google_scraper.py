@@ -1,10 +1,10 @@
 """
 Testes otimizados para GoogleScraper - Versão Rápida
 """
+import os
+import sys
 import unittest
 from unittest.mock import patch, MagicMock
-import sys
-import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
@@ -40,11 +40,11 @@ class TestGoogleScraperFast(unittest.TestCase):
         # Mock search box for human navigation
         mock_search_box = MagicMock()
         mock_wait.return_value.until.return_value = mock_search_box
-        
+
         # Search success with human behavior
         self.mock_driver.page_source = "normal search results"
         self.assertTrue(self.scraper.search("test"))
-        
+
         # Verify human behavior was called
         self.scraper.human_behavior.typing_delay.assert_called()
         self.scraper.human_behavior.random_delay.assert_called()
@@ -58,14 +58,14 @@ class TestGoogleScraperFast(unittest.TestCase):
         mock_link = MagicMock()
         mock_link.get_attribute.return_value = "https://example.com"
         self.mock_driver.find_elements.return_value = [mock_link]
-        
+
         # Mock human behavior for scroll and mouse
         self.scraper.human_behavior.scroll_behavior = MagicMock()
         self.scraper.human_behavior.mouse_movement = MagicMock()
-        
+
         links = self.scraper.get_result_links(["blacklist.com"])
         self.assertIn("https://example.com", links)
-        
+
         # Verify human behavior was called
         self.scraper.human_behavior.scroll_behavior.assert_called_with(self.mock_driver)
 
@@ -80,7 +80,7 @@ class TestGoogleScraperFast(unittest.TestCase):
         self.mock_driver.page_source = "Contact: test@example.com (11) 99999-8888"
         self.mock_driver.title = "Test Company"
         self.mock_driver.window_handles = ["tab1", "tab2"]
-        
+
         # Mock human behavior methods
         self.scraper.human_behavior.reading_delay.return_value = 0.1
         self.scraper.human_behavior.scroll_behavior = MagicMock()
@@ -90,7 +90,7 @@ class TestGoogleScraperFast(unittest.TestCase):
         result = self.scraper.extract_company_data("https://example.com", 5)
         self.assertIsInstance(result, CompanyModel)
         self.assertEqual(result.url, "https://example.com")
-        
+
         # Verify human behavior was used
         self.scraper.human_behavior.scroll_behavior.assert_called()
         self.scraper.human_behavior.reading_delay.assert_called()
@@ -139,13 +139,13 @@ class TestGoogleScraperFast(unittest.TestCase):
         mock_wait.return_value.until.return_value = mock_search_box
         result = self.scraper.search("test")
         self.assertTrue(result)  # Should use fallback
-        
+
         # Test session break behavior
         self.scraper.human_behavior.session_break_needed.return_value = True
         self.scraper.human_behavior.take_session_break = MagicMock()
         self.scraper.search("test")
         self.scraper.human_behavior.take_session_break.assert_called()
-        
+
         # Test fallback search failure
         self.mock_driver.get.side_effect = Exception("Driver error")
         result = self.scraper._fallback_search_simple("test")
@@ -173,17 +173,17 @@ class TestGoogleScraperFast(unittest.TestCase):
         type(self.mock_driver).title = PropertyMock(side_effect=Exception("Title error"))
         self.mock_driver.page_source = "test"
         self.mock_driver.window_handles = ["tab1", "tab2"]
-        
+
         # Reset human behavior mocks
         self.scraper.human_behavior.reading_delay.return_value = 0.1
         self.scraper.human_behavior.scroll_behavior = MagicMock()
         self.scraper.human_behavior.mouse_movement = MagicMock()
-        
+
         result = self.scraper.extract_company_data("https://example.com", 5)
         # Com título com exceção, name fica vazio e domain é extraído da URL
         self.assertEqual(result.name, "")
         self.assertEqual(result.domain, "example.com")
-        
+
         # Test interactive search failure fallback
         mock_wait.return_value.until.side_effect = Exception("Search box not found")
         self.mock_driver.page_source = "normal page"

@@ -6,17 +6,17 @@ import re
 import time
 from typing import List
 
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import WebDriverException, TimeoutException
 
 from src.infrastructure.config.delay_config import get_scraper_delays
 from ..drivers.web_driver import WebDriverManager
-from ...domain.services.email_domain_service import EmailValidationService
-from ...domain.models.company_model import CompanyModel
 from ..network.retry_manager import RetryManager
+from ...domain.models.company_model import CompanyModel
+from ...domain.services.email_domain_service import EmailValidationService
 
 
 class DuckDuckGoScraper:
@@ -109,104 +109,102 @@ class DuckDuckGoScraper:
         except Exception:
             return False
 
-    @RetryManager.with_retry(max_attempts=2, base_delay=1.0, exceptions=(WebDriverException, TimeoutException))
     def extract_company_data(self, url: str, max_emails: int) -> CompanyModel:
-        """Extração rápida de dados da empresa"""
+        """Extração otimizada de dados da empresa"""
         try:
-            self.driver_manager.driver.execute_script("window.open(arguments[0],'_blank');", url)
-            self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[-1])
+            # Navegação direta (sem nova aba para velocidade)
+            self.driver_manager.driver.get(url)
 
-            WebDriverWait(self.driver_manager.driver, 8).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            # Timeout agressivo
+            WebDriverWait(self.driver_manager.driver, 3).until(
+                EC.presence_of_element_located((By.TAG_NAME, "html"))
             )
+
+            # Para carregamento se demorar
+            try:
+                self.driver_manager.driver.execute_script("window.stop();")
+            except:
+                pass
 
             time.sleep(random.uniform(*self.delays["page_load"]))
 
-            # Scroll rápido
-            self.driver_manager.driver.execute_script("window.scrollBy(0, 2000);")
+            # Scroll mínimo
+            self.driver_manager.driver.execute_script("window.scrollTo(0, 1000);")
             time.sleep(random.uniform(*self.delays["scroll"]))
 
-            # Capturar HTML content para geolocalização
+            # Capturar HTML (limitado para performance)
             html_content = self.driver_manager.driver.page_source
-            
-            email_list = self._extract_emails_fast()[:max_emails]
+            if len(html_content) > 100000:  # Limita a 100KB
+                html_content = html_content[:100000]
+
+            # Extrair endereço formatado
+            from src.infrastructure.utils.address_extractor import AddressExtractor
+            endereco_formatado = AddressExtractor.extract_from_html(html_content)
+
+            # Extrações otimizadas
+            email_list = self._extract_emails_fast(html_content)[:max_emails]
             emails_string = self.validation_service.validate_and_join_emails(email_list)
-            phone_list = self._extract_phones_fast()[:3]  # Máximo 3 telefones
+            phone_list = self._extract_phones_fast(html_content)[:2]
             phones_string = self.validation_service.validate_and_join_phones(phone_list)
             name = self._get_company_name_fast(url)
             domain = self.validation_service.extract_domain_from_url(url)
 
-            return CompanyModel(name=name, emails=emails_string, domain=domain, url=url, address="",
-                                phone=phones_string, html_content=html_content)
+            return CompanyModel(
+                name=name,
+                emails=emails_string,
+                domain=domain,
+                url=url,
+                address=endereco_formatado or "",
+                phone=phones_string,
+                html_content=html_content
+            )
 
-        except Exception:
+        except Exception as e:
+            print(f"    [ERRO] {str(e)[:50]}...")
             return CompanyModel(name="", emails="", domain="", url=url, html_content="")
-        finally:
-            try:
-                if len(self.driver_manager.driver.window_handles) > 1:
-                    self.driver_manager.driver.close()
-                    self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[0])
-            except Exception as e:
-                print(f"[DEBUG] Erro ao fechar janela: {str(e)[:30]}")
 
-    def _extract_emails_fast(self) -> List[str]:
-        """Extração rápida de e-mails"""
+    def _extract_emails_fast(self, html_content: str) -> List[str]:
+        """Extração ultra-rápida de e-mails"""
         emails = set()
 
         try:
-            # Busca no texto da página
-            page_source = self.driver_manager.driver.page_source
+            # Regex otimizada
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            found_emails = re.findall(email_pattern, html_content)
 
-            # Primeiro separa por delimitadores comuns
-            text_parts = re.split(r'[;|,\s]+', page_source)
+            for email in found_emails:
+                email_lower = email.lower()
+                if (len(email_lower) > 5 and
+                        '.' in email_lower.split('@')[1] and
+                        not any(bad in email_lower for bad in ['sentry.io', 'example.com'])):
+                    emails.add(email_lower)
+                    if len(emails) >= 3:
+                        break
 
-            for part in text_parts:
-                # Busca e-mails em cada parte separadamente
-                found_emails = re.findall(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', part)
-
-                for email in found_emails:
-                    clean_email = email.strip().lower()
-                    if self.validation_service.is_valid_email(clean_email):
-                        emails.add(clean_email)
-                        if len(emails) >= 5:  # Limite para velocidade
-                            break
-
-                if len(emails) >= 5:
-                    break
-        except Exception as e:
-            print(f"[DEBUG] Erro na extração de e-mails: {str(e)[:30]}")
+        except Exception:
+            pass
 
         return list(emails)
 
-    def _extract_phones_fast(self) -> list:
-        """Extração rápida de telefones"""
+    def _extract_phones_fast(self, html_content: str) -> list:
+        """Extração ultra-rápida de telefones"""
         phones = set()
 
         try:
-            # Busca no texto da página
-            page_source = self.driver_manager.driver.page_source
+            # Padrão otimizado para telefones brasileiros
+            phone_pattern = r'(?:\([1-9][1-9]\)\s?|[1-9][1-9]\s)[9][0-9]{4}[-\s]?[0-9]{4}|(?:\([1-9][1-9]\)\s?|[1-9][1-9]\s)[2-5][0-9]{3}[-\s]?[0-9]{4}'
+            found_phones = re.findall(phone_pattern, html_content)
 
-            # Padrões mais específicos de telefone brasileiro
-            import re
-            phone_patterns = [
-                r'\([1-9][1-9]\)\s?9\d{4}[-\s]?\d{4}',  # (11) 99999-9999
-                r'\([1-9][1-9]\)\s?[2-5]\d{3}[-\s]?\d{4}',  # (11) 3333-4444
-                r'[1-9][1-9]\s9\d{4}[-\s]?\d{4}',  # 11 99999-9999
-                r'[1-9][1-9]\s[2-5]\d{3}[-\s]?\d{4}',  # 11 3333-4444
-            ]
+            for phone in found_phones:
+                clean_phone = re.sub(r'[^\d]', '', phone)
+                if len(clean_phone) in [10, 11] and clean_phone[:2] in ['11', '12', '13', '14', '15', '16', '17', '18',
+                                                                        '19', '21']:
+                    phones.add(phone)
+                    if len(phones) >= 2:
+                        break
 
-            for pattern in phone_patterns:
-                found_phones = re.findall(pattern, page_source)
-                for phone in found_phones:
-                    clean_phone = re.sub(r'[^0-9]', '', phone)
-                    if self.validation_service.is_valid_phone(clean_phone):
-                        phones.add(clean_phone)
-                        if len(phones) >= 3:
-                            break
-                if len(phones) >= 3:
-                    break
-        except Exception as e:
-            print(f"[DEBUG] Erro na extração de telefones: {str(e)[:30]}")
+        except Exception:
+            pass
 
         return list(phones)
 

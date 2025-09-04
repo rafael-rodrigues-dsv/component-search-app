@@ -1,24 +1,24 @@
-# 🤖 PYTHON SEARCH APP - COLETOR DE E-MAILS E CONTATOS COM GEOLOCALIZAÇÃO
+# 🤖 PYTHON SEARCH APP v3.0.0 - COLETOR DE E-MAILS E CONTATOS COM GEOLOCALIZAÇÃO
 
-Aplicação Python para coleta de e-mails, telefones e localização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture** e **Geolocalização Automática**.
+Aplicação Python para coleta de e-mails, telefones e localização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture** e **Sistema de Controle de Geolocalização**.
 
 ## 📋 O que a Aplicação Faz
 
-| Funcionalidade                | Descrição                                          |
-|-------------------------------|----------------------------------------------------|
-| **🌐 Detecção automática**    | Verifica Chrome e Brave instalados automaticamente |
-| **🔍 Escolha do motor**       | Google ou DuckDuckGo (usuário escolhe)             |
-| **🎯 Busca inteligente**      | Termos configuráveis por localização e segmento    |
-| **📧 Extração completa**      | E-mails, telefones formatados e dados da empresa   |
-| **📍 Geolocalização seletiva** | Extrai endereços reais do HTML e calcula distâncias precisas |
-| **✅ Validação rigorosa**      | Filtra e-mails/telefones inválidos automaticamente |
-| **🚫 Controle de duplicatas** | Evita revisitar sites e e-mails já coletados       |
-| **📊 Planilha Excel**         | Formato SITE \| EMAIL \| TELEFONE \| ENDEREÇO \| DISTÂNCIA_KM |
-| **⚙️ Modo lote/completo**     | Processamento configurável pelo usuário            |
+| Funcionalidade                 | Descrição                                                     |
+|--------------------------------|---------------------------------------------------------------|
+| **🌐 Detecção automática**     | Verifica Chrome e Brave instalados automaticamente            |
+| **🔍 Escolha do motor**        | Google ou DuckDuckGo (usuário escolhe)                        |
+| **🎯 Busca inteligente**       | Termos configuráveis por localização e segmento               |
+| **📧 Extração completa**       | E-mails, telefones formatados e dados da empresa              |
+| **📍 Geolocalização seletiva** | Extrai endereços reais do HTML e calcula distâncias precisas  |
+| **✅ Validação rigorosa**       | Filtra e-mails/telefones inválidos automaticamente            |
+| **🚫 Controle de duplicatas**  | Evita revisitar sites e e-mails já coletados                  |
+| **📊 Planilha Excel**          | Formato SITE \| EMAIL \| TELEFONE \| ENDEREÇO \| DISTÂNCIA_KM |
+| **⚙️ Modo lote/completo**      | Processamento configurável pelo usuário                       |
 
-| **🔄 Reinício opcional**      | Continuar anterior ou começar do zero              |
+| **🔄 Reinício opcional**      | Continuar anterior ou começar do zero |
 
-## 🏗️ Arquitetura - Clean Architecture
+## 🏗️ Arquitetura v3.0.0 - Clean Architecture + Controle de Geolocalização
 
 ```
 📁 PythonSearchApp/
@@ -110,6 +110,7 @@ python scripts\database\load_initial_data.py
 **3️⃣ Configurar CEP de Referência (Opcional)**
 
 Edite `config/settings.py`:
+
 ```python
 # CEP de referência para cálculo de distâncias
 REFERENCE_CEP = "01310-100"  # Seu CEP de referência
@@ -139,15 +140,17 @@ python scripts\utils\reset_data.py
 run_tests.bat
 ```
 
-### Fluxo Interativo
+### Fluxo Interativo v3.0.0
 
 A aplicação:
 
 1. **🌐 Verifica navegadores**: Detecta automaticamente Chrome e/ou Brave
-2. **🌐 Escolha do navegador**: Seleção automática se apenas um disponível
-3. **🔍 Motor de busca**: `1-DuckDuckGo` ou `2-Google`
-4. **🔄 Reiniciar**: `s-do zero` ou `n-continuar anterior`
-5. **📊 Modo**: `l-lote` ou `c-completo`
+2. **📋 Menu principal**: Escolha da funcionalidade desejada
+   - **[1] Coleta de dados** (e-mails e telefones)
+   - **[2] Geolocalização** das empresas
+   - **[3] Exportar Excel** com dados completos
+3. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
+4. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
 
 ### Configurações
 
@@ -175,7 +178,7 @@ A aplicação:
 | **Brave Browser**      | Navegador alternativo baseado em Chromium (opcional) | Última versão |
 | **ChromeDriver**       | Driver para controle dos navegadores                 | Auto-download |
 | **Nominatim API**      | Geocodificação gratuita (OpenStreetMap)              | Gratuita      |
-| **ViaCEP API**         | Consulta de CEPs brasileiros                          | Gratuita      |
+| **ViaCEP API**         | Consulta de CEPs brasileiros                         | Gratuita      |
 | **Clean Architecture** | Padrão arquitetural                                  | -             |
 | **SOLID Principles**   | Princípios de design de software                     | -             |
 | **Type Hints**         | Tipagem estática para Python                         | Built-in      |
@@ -200,13 +203,14 @@ A aplicação gera:
 - **output/empresas.xlsx**: Planilha com `SITE | EMAIL | TELEFONE | ENDEREÇO | DISTÂNCIA_KM` (ordenada por proximidade)
 - **Logs detalhados**: Progresso em tempo real com informações de geolocalização
 
-### 🗄️ **Banco Access (Principal)**
+### 🗄️ **Banco Access v3.0.0 (Principal)**
 
-- Dados normalizados em 9 tabelas (incluindo geolocalização)
-- Controle completo de status e histórico
+- Dados normalizados em **10 tabelas** (incluindo TB_GEOLOCALIZACAO)
+- **Controle de geolocalização independente** com status e histórico
 - Coordenadas geográficas e cálculo de distâncias
+- **Replicação automática** entre tabelas
 - Consultas avançadas e relatórios
-- Auditoria e logs detalhados
+- Auditoria completa e logs detalhados
 
 ### 📋 **Excel (Compatibilidade)**
 
@@ -240,7 +244,8 @@ A aplicação gera:
 - **Telefones**: DDD válido, formato brasileiro, números repetitivos
 - **Endereços**: Extração seletiva - só geocodifica endereços reais encontrados no HTML
 - **Coordenadas**: Geocodificação via Nominatim (OpenStreetMap) com precisão ±10-50m para endereços completos
-- **Distâncias**: Calculadas usando **Fórmula de Haversine** - método matemático que calcula a distância entre dois pontos na superfície terrestre considerando a curvatura da Terra, fornecendo precisão em quilômetros
+- **Distâncias**: Calculadas usando **Fórmula de Haversine** - método matemático que calcula a distância entre dois
+  pontos na superfície terrestre considerando a curvatura da Terra, fornecendo precisão em quilômetros
 - **Máximo por site**: 5 e-mails e 3 telefones
 
 ### Controles
@@ -251,22 +256,23 @@ A aplicação gera:
 
 ### ⚡ Performance por Motor de Busca
 
-| Motor | Tempo/Empresa | 50 Registros | Vantagens | Desvantagens |
-|-------|---------------|--------------|-----------|-------------|
-| **🦆 DuckDuckGo** | **3-5s** | **~2.5-4min** | ✅ **4x mais rápido**<br>✅ Sem CAPTCHA<br>✅ Performance máxima<br>✅ Delays mínimos<br>✅ Ideal para grandes volumes | ⚠️ Menos resultados por termo<br>⚠️ Qualidade variável<br>⚠️ Sem proteção anti-detecção |
-| **🔍 Google** | **12-18s** | **~10-15min** | ✅ **Mais resultados**<br>✅ Melhor qualidade<br>✅ Anti-detecção completa<br>✅ Comportamento humano<br>✅ Proteção CAPTCHA | ⚠️ 4x mais lento<br>⚠️ Risco de bloqueio<br>⚠️ Pausas de sessão<br>⚠️ Complexidade maior |
+| Motor             | Tempo/Empresa | 50 Registros  | Vantagens                                                                                                               | Desvantagens                                                                             |
+|-------------------|---------------|---------------|-------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| **🦆 DuckDuckGo** | **3-5s**      | **~2.5-4min** | ✅ **4x mais rápido**<br>✅ Sem CAPTCHA<br>✅ Performance máxima<br>✅ Delays mínimos<br>✅ Ideal para grandes volumes       | ⚠️ Menos resultados por termo<br>⚠️ Qualidade variável<br>⚠️ Sem proteção anti-detecção  |
+| **🔍 Google**     | **12-18s**    | **~10-15min** | ✅ **Mais resultados**<br>✅ Melhor qualidade<br>✅ Anti-detecção completa<br>✅ Comportamento humano<br>✅ Proteção CAPTCHA | ⚠️ 4x mais lento<br>⚠️ Risco de bloqueio<br>⚠️ Pausas de sessão<br>⚠️ Complexidade maior |
 
-**Recomendação**: 
+**Recomendação**:
+
 - **DuckDuckGo**: Para coletas rápidas e grandes volumes (50+ empresas)
 - **Google**: Para qualidade máxima e proteção contra detecção prolongada
 
 ### 🌍 Precisão da Geolocalização
 
-| Cenário | Precisão | Exemplo |
-|---------|----------|---------|
-| **Endereço completo** | ±10-50m | "Rua Augusta, 123, Consolação, SP" |
-| **Cidade/bairro** | ±2-5km | "Moema, São Paulo" (centro do bairro) |
-| **Sem endereço** | - | Não geocodifica (sem fallback) |
+| Cenário               | Precisão | Exemplo                               |
+|-----------------------|----------|---------------------------------------|
+| **Endereço completo** | ±10-50m  | "Rua Augusta, 123, Consolação, SP"    |
+| **Cidade/bairro**     | ±2-5km   | "Moema, São Paulo" (centro do bairro) |
+| **Sem endereço**      | -        | Não geocodifica (sem fallback)        |
 
 ## 📝 Logs
 

@@ -3,12 +3,11 @@ Camada de Domínio - Regras de negócio para coleta de e-mails
 """
 import re
 from abc import ABC, abstractmethod
-from datetime import datetime
 from typing import List
 
 import tldextract
-from config.settings import SUSPICIOUS_EMAIL_DOMAINS
 
+from config.settings import SUSPICIOUS_EMAIL_DOMAINS
 from ..models.company_model import CompanyModel
 from ..models.search_term_model import SearchTermModel
 

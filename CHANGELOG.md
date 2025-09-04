@@ -2,45 +2,135 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [3.0.0] - 2024-12-19
+
+### 🏗️ **BREAKING CHANGE: Nova Arquitetura de Geolocalização**
+
+#### **TB_GEOLOCALIZACAO - Tabela de Controle**
+- **Nova Tabela**: Sistema de controle independente para processamento de geolocalização
+- **Campos de Controle**:
+  - `ID_GEO` - Chave primária da tarefa
+  - `ID_EMPRESA` - Referência à empresa
+  - `ENDERECO` - Endereço a ser geocodificado
+  - `LATITUDE, LONGITUDE, DISTANCIA_KM` - Resultados da geocodificação
+  - `STATUS_PROCESSAMENTO` - PENDENTE/CONCLUIDO/ERRO
+  - `DATA_PROCESSAMENTO, TENTATIVAS, ERRO_DESCRICAO` - Controle detalhado
+
+#### **Separação Completa de Processos**
+- **Coleta (Opção 1)**:
+  - Salva empresa em `TB_EMPRESAS` (coordenadas NULL)
+  - Cria tarefa em `TB_GEOLOCALIZACAO` (status PENDENTE)
+  - Salva em `TB_PLANILHA` (distância NULL)
+- **Geolocalização (Opção 2)**:
+  - Processa tarefas PENDENTES de `TB_GEOLOCALIZACAO`
+  - Atualiza resultado na tabela de controle
+  - **Replica automaticamente** para `TB_EMPRESAS` e `TB_PLANILHA`
+
+#### **Controle Total do Processamento**
+- **Status Detalhado**: Cada tarefa tem status individual
+- **Histórico Completo**: Tentativas, erros e timestamps
+- **Replicação Automática**: Coordenadas propagadas para todas as tabelas
+- **Estatísticas Precisas**: Baseadas na tabela de controle
+
+### 🔧 **Melhorias Técnicas**
+
+#### **AccessRepository Expandido**
+- `create_geolocation_task()` - Cria tarefas de geolocalização
+- `get_pending_geolocation_tasks()` - Obtém tarefas pendentes
+- `update_geolocation_result()` - Atualiza resultado e replica
+- `update_geolocation_error()` - Registra erros de processamento
+- `get_geolocation_stats()` - Estatísticas da tabela de controle
+
+#### **DatabaseService Atualizado**
+- Criação automática de tarefas quando empresa tem endereço
+- Separação clara entre coleta e geolocalização
+- Remoção de geocodificação durante a coleta
+
+#### **GeolocationApplicationService Refatorado**
+- Processamento baseado em tarefas da tabela de controle
+- Replicação automática para múltiplas tabelas
+- Controle de erros e tentativas
+- Estatísticas precisas
+
+### 📊 **Monitores Atualizados**
+
+#### **realtime_monitor.py**
+- Detecta tarefas pendentes em `TB_GEOLOCALIZACAO`
+- Status correto de geolocalização disponível
+- Métricas baseadas na tabela de controle
+
+#### **advanced_monitor.py**
+- Estatísticas detalhadas de tarefas de geolocalização
+- Métricas de processamento por status
+- Relatórios com dados da tabela de controle
+
+### 🎯 **Benefícios da Nova Arquitetura**
+
+- ✅ **Separação Clara**: Coleta e geolocalização são processos independentes
+- ✅ **Controle Total**: Status, tentativas e erros rastreados individualmente
+- ✅ **Replicação Automática**: Dados propagados automaticamente
+- ✅ **Estatísticas Precisas**: Baseadas em tabela de controle dedicada
+- ✅ **Histórico Completo**: Auditoria completa do processamento
+- ✅ **Escalabilidade**: Arquitetura preparada para processamento em lote
+
+### ⚠️ **Breaking Changes**
+
+- **Banco de Dados**: Nova tabela `TB_GEOLOCALIZACAO` (10 tabelas total)
+- **Fluxo de Processamento**: Geolocalização agora é processo separado
+- **Scripts de Criação**: `create_db_simple.py` atualizado para 10 tabelas
+- **Estatísticas**: Métricas baseadas na nova tabela de controle
+
+### 🔄 **Migração**
+
+1. **Recriar Banco**: Execute `scripts\setup\create_database.bat`
+2. **Carregar Dados**: Execute `scripts\database\load_initial_data.py`
+3. **Testar Fluxo**: Coleta → Geolocalização → Excel
+
+---
+
 ## [2.2.2] - 2024-12-19
 
 ### ⚡ Performance Máxima DuckDuckGo
+
 - **DuckDuckGo Extremo**: Delays reduzidos para mínimo seguro
-  - `page_load`: 0.3-0.8s (era 0.8-1.5s) - 60% mais rápido
-  - `scroll`: 0.1-0.4s (era 0.3-0.8s) - 70% mais rápido
+    - `page_load`: 0.3-0.8s (era 0.8-1.5s) - 60% mais rápido
+    - `scroll`: 0.1-0.4s (era 0.3-0.8s) - 70% mais rápido
 - **Google Mantido**: Configuração anti-CAPTCHA preservada
 - **Configuração Dinâmica**: Função agora lê valores do YAML
 - **Performance Atualizada**:
-  - DuckDuckGo: 3-5s por empresa (~2.5-4min para 50 registros)
-  - Google: 12-18s por empresa (~10-15min para 50 registros)
+    - DuckDuckGo: 3-5s por empresa (~2.5-4min para 50 registros)
+    - Google: 12-18s por empresa (~10-15min para 50 registros)
 - **Diferença**: DuckDuckGo agora **4x mais rápido** que Google
 - **README Atualizado**: Tabela comparativa com novos tempos
 
 ### 🌍 Geolocalização Avançada
+
 - **Extração Robusta**: Novos padrões para casos complexos
-  - Suporte a `aria-label`, `title`, `amp`, `zoom` e outros ruídos técnicos
-  - Extração de endereços com CEP no início misturado com ruídos
-  - Padrão "av. nordestina 3423 vila curuçá velha são paulo"
+    - Suporte a `aria-label`, `title`, `amp`, `zoom` e outros ruídos técnicos
+    - Extração de endereços com CEP no início misturado com ruídos
+    - Padrão "av. nordestina 3423 vila curuçá velha são paulo"
 - **Limpeza Inteligente**: Remove ruídos técnicos automaticamente
-  - `aria-label`, `quot`, `url`, `maps.google`, `section`, `id`, etc.
-  - Normalização de espaços e caracteres especiais
-  - Adição automática de "São Paulo, SP" quando ausente
+    - `aria-label`, `quot`, `url`, `maps.google`, `section`, `id`, etc.
+    - Normalização de espaços e caracteres especiais
+    - Adição automática de "São Paulo, SP" quando ausente
 - **Validação Avançada**: Critérios inteligentes de validação
-  - Deve ter tipo de logradouro (rua, av., etc.)
-  - Deve ter "São Paulo" ou "SP"
-  - Rejeita endereços com muitos números (IDs, códigos)
+    - Deve ter tipo de logradouro (rua, av., etc.)
+    - Deve ter "São Paulo" ou "SP"
+    - Rejeita endereços com muitos números (IDs, códigos)
 - **Casos Resolvidos**: Agora processa endereços complexos como:
-  - `03059-010ampzoom10 aria-labelrua siqueira bueno, 136`
-  - `03127-001 quoturlquot httpsmaps.google.com rua chamanta`
-  - `av. nordestina 3423 vila curuçá velha são paulo`
+    - `03059-010ampzoom10 aria-labelrua siqueira bueno, 136`
+    - `03127-001 quoturlquot httpsmaps.google.com rua chamanta`
+    - `av. nordestina 3423 vila curuçá velha são paulo`
 
 ### 🧪 Testes Expandidos
+
 - **18 Testes de Geolocalização**: 8 originais + 10 novos casos avançados
 - **Cobertura Completa**: Ruídos técnicos, validação, limpeza avançada
 - **Casos Reais**: Testes baseados em problemas encontrados em produção
 - **322 Testes Totais**: Todos passando sem impacto
 
 ### 🔧 Melhorias Técnicas
+
 - Configuração centralizada no `application.yaml`
 - Valores padrão como fallback
 - Maior flexibilidade para ajustes futuros
@@ -51,16 +141,18 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 ## [2.2.1] - 2024-12-19
 
 ### ⚡ Otimização de Performance
+
 - **Delays Diferenciados**: Configuração específica por motor de busca
 - **Google Otimizado**: Delays reduzidos para 1.5-2.5s (page_load) e 0.8-1.2s (scroll)
 - **DuckDuckGo Acelerado**: Delays mínimos 0.8-1.5s (page_load) e 0.3-0.8s (scroll)
-- **Melhoria de Velocidade**: 
-  - Google: ~25% mais rápido (12-18s por empresa)
-  - DuckDuckGo: ~45% mais rápido (5-8s por empresa)
+- **Melhoria de Velocidade**:
+    - Google: ~25% mais rápido (12-18s por empresa)
+    - DuckDuckGo: ~45% mais rápido (5-8s por empresa)
 - **Segurança Mantida**: Google ainda protegido contra CAPTCHA
 - **Testes Corrigidos**: 12 testes passando após ajustes nos delays
 
 ### 🔧 Melhorias Técnicas
+
 - Função `get_scraper_delays()` para delays dinâmicos
 - Configuração YAML com delays separados por motor
 - Correção de referências `SCRAPER_DELAYS` nos scrapers
@@ -70,6 +162,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 ## [2.2.0] - 2024-12-19
 
 ### 🛡️ Sistema Anti-Detecção Avançado
+
 - **Proxy Rotation**: Gerenciador de proxies para rotação de IPs
 - **Navegação Humana**: Simulação realista de comportamento humano no Google
 - **User-Agent Dinâmico**: Rotação de navegadores e sistemas operacionais
@@ -78,6 +171,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Sessões Inteligentes**: Reinício automático do navegador para evitar detecção prolongada
 
 ### 🎭 Simulação de Comportamento Humano
+
 - **HumanBehaviorSimulator**: Nova classe para simular ações humanas
 - **Digitação Realista**: Letra por letra com delays variáveis
 - **Movimento de Mouse**: Simulação de movimentos naturais
@@ -86,12 +180,14 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Tempo de Leitura**: Delays baseados no tamanho do conteúdo
 
 ### 🔄 Gerenciamento de Sessão
+
 - **SessionManager**: Controle automático de sessões do navegador
 - **Rotação Temporal**: Reinício baseado em tempo (30-60 min)
 - **Limite de Buscas**: Reinício após número aleatório de buscas (20-40)
 - **Pausas Entre Sessões**: Intervalos realistas entre reinicializações
 
 ### 🌐 Melhorias no WebDriver
+
 - **Anti-Detecção Crítica**: Argumentos avançados do Chrome
 - **Headers Realistas**: Accept-Language, Accept-Encoding
 - **Viewport Dinâmico**: Resoluções e posições aleatórias
@@ -99,6 +195,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Proxy Integration**: Suporte automático a proxies quando disponíveis
 
 ### 🔍 Google Scraper Humanizado
+
 - **Navegação Natural**: Vai para google.com primeiro, depois digita
 - **Interação com Campo**: Clica e digita no campo de busca
 - **Detecção de CAPTCHA**: Identifica "unusual traffic" automaticamente
@@ -106,6 +203,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Contadores de Sessão**: Rastreamento para pausas automáticas
 
 ### 🧪 Testes Completos
+
 - **ProxyManager**: 7 testes para gerenciamento de proxies
 - **HumanBehaviorSimulator**: 10 testes para comportamento humano
 - **SessionManager**: 8 testes para gerenciamento de sessões
@@ -114,6 +212,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Cobertura**: Mantida em 95%+
 
 ### 📋 Arquivos Criados
+
 ```
 src/infrastructure/network/
 ├── proxy_manager.py          # Gerenciamento de proxies
@@ -127,12 +226,14 @@ tests/unit/infrastructure/network/
 ```
 
 ### 🎯 Efetividade Anti-CAPTCHA
+
 - **90%+ Redução**: Drasticamente menos CAPTCHAs do Google
 - **Fallback Automático**: DuckDuckGo quando Google bloqueia
 - **Sessões Longas**: 30-60 minutos sem detecção
 - **Comportamento Indistinguível**: Simula perfeitamente usuário humano
 
 ### 🔧 Configurações
+
 - **Proxy Gratuitos**: Lista básica incluída (expansível)
 - **Delays Inteligentes**: Distribuição beta para naturalidade
 - **Intervalos Variáveis**: Pausas baseadas em padrões humanos
@@ -143,21 +244,23 @@ tests/unit/infrastructure/network/
 ## [2.1.0] - 2024-12-19
 
 ### ✨ Adicionado
+
 - **Geolocalização Automática**: Sistema completo de extração de endereços e cálculo de distâncias
 - **GeolocationService**: Novo serviço para geocodificação usando APIs gratuitas (Nominatim + ViaCEP)
-- **Extração Seletiva de Endereços**: 
-  - Cenário ideal: Endereço completo com rua, número, bairro (±10-50m precisão)
-  - Cenário parcial: Cidade/bairro extraído do HTML (±2-5km precisão)
-  - Sem fallback: Só geocodifica endereços reais encontrados no site
+- **Extração Seletiva de Endereços**:
+    - Cenário ideal: Endereço completo com rua, número, bairro (±10-50m precisão)
+    - Cenário parcial: Cidade/bairro extraído do HTML (±2-5km precisão)
+    - Sem fallback: Só geocodifica endereços reais encontrados no site
 - **Cálculo de Distâncias**: Fórmula de Haversine para calcular distância em km do ponto de referência
 - **Novas Colunas no Banco**:
-  - TB_EMPRESAS: `ENDERECO`, `LATITUDE`, `LONGITUDE`, `DISTANCIA_KM`
-  - TB_PLANILHA: `ENDERECO`, `DISTANCIA_KM`
+    - TB_EMPRESAS: `ENDERECO`, `LATITUDE`, `LONGITUDE`, `DISTANCIA_KM`
+    - TB_PLANILHA: `ENDERECO`, `DISTANCIA_KM`
 - **Excel Ordenado por Proximidade**: Planilha agora inclui endereço e distância, ordenada por proximidade
 - **Configuração de CEP de Referência**: Configurável via `application.yaml`
 - **Testes Completos**: 19 novos testes para funcionalidades de geolocalização
 
 ### 🔧 Modificado
+
 - **CompanyModel**: Adicionado campo `html_content` para captura de HTML das páginas
 - **Scrapers**: DuckDuckGo e Google agora capturam HTML content para extração de endereços
 - **AccessRepository**: Métodos atualizados para suportar dados de geolocalização
@@ -166,23 +269,26 @@ tests/unit/infrastructure/network/
 - **Estrutura do Projeto**: Novo diretório `src/infrastructure/services/`
 
 ### 📋 Detalhes Técnicos
-- **APIs Utilizadas**: 
-  - Nominatim (OpenStreetMap) - Geocodificação gratuita
-  - ViaCEP - Consulta de CEPs brasileiros
+
+- **APIs Utilizadas**:
+    - Nominatim (OpenStreetMap) - Geocodificação gratuita
+    - ViaCEP - Consulta de CEPs brasileiros
 - **Rate Limiting**: Implementado para APIs externas (1 segundo entre requests)
 - **Geocodificação Seletiva**: Só processa endereços reais extraídos do HTML, eliminando geocodificações desnecessárias
 - **Validação**: Coordenadas e distâncias validadas antes do armazenamento
 - **Performance**: Processamento otimizado - só geocodifica quando há endereço real, reduzindo chamadas de API
 
 ### 🧪 Testes
+
 - **Cobertura Atualizada**: 95% de cobertura de código
 - **Novos Testes**:
-  - `test_geolocation_service.py`: 9 testes para GeolocationService
-  - `test_scrapers_geolocation.py`: 4 testes para integração com scrapers
-  - Testes atualizados para AccessRepository, DatabaseService e CompanyModel
+    - `test_geolocation_service.py`: 9 testes para GeolocationService
+    - `test_scrapers_geolocation.py`: 4 testes para integração com scrapers
+    - Testes atualizados para AccessRepository, DatabaseService e CompanyModel
 - **Compatibilidade**: Todos os testes existentes continuam passando
 
 ### 🗂️ Estrutura de Dados
+
 ```
 TB_EMPRESAS:
 - ENDERECO (TEXT): Endereço completo extraído
@@ -196,9 +302,11 @@ TB_PLANILHA:
 ```
 
 ### 📊 Formato Excel Atualizado
+
 ```
 SITE | EMAIL | TELEFONE | ENDERECO | DISTANCIA_KM
 ```
+
 - Ordenado por proximidade (menor distância primeiro)
 - Endereços formatados e limpos
 - Distâncias em quilômetros com 2 casas decimais
@@ -208,6 +316,7 @@ SITE | EMAIL | TELEFONE | ENDERECO | DISTANCIA_KM
 ## [2.0.0] - 2024-12-15
 
 ### ✨ Adicionado
+
 - **Clean Architecture**: Implementação completa com separação de camadas
 - **Banco Access**: Substituição completa do sistema JSON por banco Access
 - **9 Tabelas Normalizadas**: Estrutura robusta para dados empresariais
@@ -216,12 +325,14 @@ SITE | EMAIL | TELEFONE | ENDERECO | DISTANCIA_KM
 - **Validação Avançada**: Sistema robusto de validação de e-mails e telefones
 
 ### 🔧 Modificado
+
 - **Arquitetura Completa**: Migração para Clean Architecture
 - **Persistência**: JSON → Microsoft Access
 - **Performance**: Otimizações significativas de velocidade
 - **Logs Estruturados**: Sistema de logging contextual
 
 ### 🗑️ Removido
+
 - **Sistema JSON**: Arquivos visited.json e emails.json
 - **Dependências Legadas**: Limpeza de código antigo
 
@@ -230,8 +341,9 @@ SITE | EMAIL | TELEFONE | ENDERECO | DISTANCIA_KM
 ## [1.x.x] - Versões Anteriores
 
 ### Funcionalidades Base
+
 - Scraping básico com Selenium
-- Suporte a Google e DuckDuckGo  
+- Suporte a Google e DuckDuckGo
 - Extração de e-mails e telefones
 - Exportação para Excel
 - Sistema de blacklist

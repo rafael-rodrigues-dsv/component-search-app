@@ -1,8 +1,10 @@
 """
 Testes atualizados para EmailApplicationService com nova arquitetura
 """
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+
 from src.application.services.email_application_service import EmailApplicationService
 
 

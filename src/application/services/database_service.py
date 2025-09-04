@@ -1,9 +1,10 @@
 """
 Serviço de aplicação para gerenciamento do banco de dados
 """
-from src.infrastructure.repositories.access_repository import AccessRepository
-from pathlib import Path
 import logging
+from pathlib import Path
+
+from src.infrastructure.repositories.access_repository import AccessRepository
 
 
 class DatabaseService:
@@ -45,31 +46,35 @@ class DatabaseService:
 
     def save_company_data(self, termo_id: int, site_url: str, domain: str,
                           motor_busca: str, emails: list, telefones: list,
-                          nome_empresa: str = None, html_content: str = None, 
+                          nome_empresa: str = None, html_content: str = None,
                           termo_busca: str = None) -> bool:
         """Salva dados completos da empresa"""
         try:
-            # Extrair e geocodificar endereço - só se encontrar endereço real
-            endereco, latitude, longitude, distancia_km = None, None, None, None
+            # Extrair apenas endereço do HTML (sem geocodificação)
+            endereco = None
+
             if html_content:
                 try:
-                    from src.infrastructure.services.geolocation_service import GeolocationService
-                    geo_service = GeolocationService()
-                    endereco = geo_service.extrair_endereco_do_html(html_content, termo_busca or '')
-                    if endereco:  # Só geocodifica se encontrou endereço real no HTML
-                        self.logger.info(f"[GEO] Endereco encontrado: {endereco[:50]}...")
-                        endereco, latitude, longitude, distancia_km = geo_service.calcular_distancia_do_endereco(endereco)
-                        if latitude and longitude:
-                            self.logger.info(f"[GEO] Geocodificado: {latitude}, {longitude} - {distancia_km}km")
+                    from src.infrastructure.utils.address_extractor import AddressExtractor
+                    endereco = AddressExtractor.extract_from_html(html_content)
+
+                    if endereco:
+                        self.logger.debug(f"[ADDR] Endereco extraido: {endereco[:50]}...")
                     else:
-                        self.logger.debug("[GEO] Nenhum endereco encontrado no HTML - pulando geolocalizacao")
+                        self.logger.debug("[ADDR] Nenhum endereco encontrado no HTML")
+
                 except Exception as e:
-                    self.logger.error(f"[GEO] Erro na geolocalizacao: {str(e)[:50]}... - continuando sem coordenadas")
-                    endereco, latitude, longitude, distancia_km = None, None, None, None
+                    self.logger.error(f"[ADDR] Erro na extração: {str(e)[:50]}... - continuando sem endereco")
+                    endereco = None
+
+            # Salvar empresa completa (coordenadas serão preenchidas depois)
+            latitude, longitude, distancia_km = None, None, None
+            empresa_id = self.repository.save_empresa(termo_id, site_url, domain, motor_busca,
+                                                      endereco, latitude, longitude, distancia_km)
             
-            # Salvar empresa
-            empresa_id = self.repository.save_empresa(termo_id, site_url, domain, motor_busca, 
-                                                    endereco, latitude, longitude, distancia_km)
+            # Criar tarefa de geolocalização se houver endereço
+            if endereco and endereco.strip():
+                self.repository.create_geolocation_task(empresa_id, endereco)
 
             # Salvar e-mails se houver
             if emails:
@@ -84,11 +89,11 @@ class DatabaseService:
             status = 'COLETADO' if (emails or telefones) else 'SEM_DADOS'
             self.repository.update_empresa_status(empresa_id, status, nome_empresa)
 
-            # Salvar na tabela planilha se houver dados
+            # Salvar na tabela planilha se houver dados (sem distância inicialmente)
             if emails or telefones:
                 emails_str = ';'.join(emails) + ';' if emails else ''
                 telefones_str = ';'.join([t['formatted'] for t in telefones]) + ';' if telefones else ''
-                self.repository.save_to_final_sheet(site_url, emails_str, telefones_str, endereco, distancia_km)
+                self.repository.save_to_final_sheet(site_url, emails_str, telefones_str, endereco, None)
 
             return True
 

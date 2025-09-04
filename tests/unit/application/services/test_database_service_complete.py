@@ -1,8 +1,10 @@
 """
 Testes completos para DatabaseService
 """
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.application.services.database_service import DatabaseService
 
 

@@ -1,11 +1,11 @@
 """
 Testes unitários simplificados para DataRepository
 """
-import unittest
-import sys
 import os
-import tempfile
 import shutil
+import sys
+import tempfile
+import unittest
 from unittest.mock import patch, MagicMock
 
 # Adiciona o diretório raiz ao path para imports

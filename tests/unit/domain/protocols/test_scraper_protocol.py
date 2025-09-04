@@ -1,9 +1,9 @@
 """
 Testes unitários para ScraperProtocol
 """
-import unittest
-import sys
 import os
+import sys
+import unittest
 from typing import List
 
 # Adiciona o diretório raiz ao path para imports

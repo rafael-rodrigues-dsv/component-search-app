@@ -2,6 +2,7 @@
 Protocols para scrapers
 """
 from typing import Protocol, List
+
 from ..models.company_model import CompanyModel
 
 

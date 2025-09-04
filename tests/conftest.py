@@ -1,8 +1,8 @@
 """
 Configuração global para testes pytest
 """
-import sys
 import os
+import sys
 
 # Adiciona o diretório raiz ao path para imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))

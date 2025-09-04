@@ -2,6 +2,7 @@
 Modelo para estatísticas da coleta completa
 """
 from dataclasses import dataclass
+
 from .term_result_model import TermResultModel
 
 

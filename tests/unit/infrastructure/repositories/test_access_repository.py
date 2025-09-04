@@ -1,8 +1,10 @@
 """
 Testes unitários para AccessRepository
 """
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+
 from src.infrastructure.repositories.access_repository import AccessRepository
 
 
@@ -42,21 +44,21 @@ class TestAccessRepository:
         cursor.fetchone.return_value = [123]
 
         with patch.object(repository, '_get_connection', return_value=conn):
-            empresa_id = repository.save_empresa(1, 'http://test.com', 'test.com', 'GOOGLE', 
-                                                'Rua Test, 123', -23.5505, -46.6333, 5.2)
+            empresa_id = repository.save_empresa(1, 'http://test.com', 'test.com', 'GOOGLE',
+                                                 'Rua Test, 123', -23.5505, -46.6333, 5.2)
 
         assert empresa_id == 123
         assert cursor.execute.call_count == 2
-    
+
     def test_save_to_final_sheet_with_geolocation(self, repository, mock_connection):
         """Testa salvamento na planilha com geolocalização"""
         conn, cursor = mock_connection
         cursor.fetchone.return_value = None  # Não existe
-        
+
         with patch.object(repository, '_get_connection', return_value=conn):
-            repository.save_to_final_sheet('http://test.com', 'test@test.com;', '(11) 99999-9999;', 
-                                         'Rua Test, 123', 5.2)
-        
+            repository.save_to_final_sheet('http://test.com', 'test@test.com;', '(11) 99999-9999;',
+                                           'Rua Test, 123', 5.2)
+
         cursor.execute.assert_called()
         conn.commit.assert_called_once()
 

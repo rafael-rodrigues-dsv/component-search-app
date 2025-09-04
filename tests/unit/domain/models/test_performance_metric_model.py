@@ -1,8 +1,8 @@
 """
 Testes unitários para PerformanceMetricModel
 """
-import unittest
 import time
+import unittest
 
 from src.domain.models.performance_metric_model import PerformanceMetricModel
 

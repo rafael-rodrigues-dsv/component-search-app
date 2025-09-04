@@ -2,6 +2,7 @@
 Testes de segurança para StructuredLogger
 """
 import pytest
+
 from src.infrastructure.logging.structured_logger import StructuredLogger
 
 

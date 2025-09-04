@@ -4,8 +4,8 @@ Fábrica de termos de busca
 from typing import List
 
 from config.settings import *
-from ..models.search_term_model import SearchTermModel
 from src.infrastructure.config.config_manager import ConfigManager
+from ..models.search_term_model import SearchTermModel
 
 
 class SearchTermFactory:

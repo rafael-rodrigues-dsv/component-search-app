@@ -1,9 +1,9 @@
 """
 Logger estruturado para o PythonSearchApp
 """
+import html
 import logging
 import sys
-import html
 from typing import Any
 
 

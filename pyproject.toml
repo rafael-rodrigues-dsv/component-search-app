@@ -1,7 +1,7 @@
 [project]
 name = "python-search-app"
-version = "2.1.0"
-description = "Aplicação Python para coleta de e-mails de empresas de elevadores"
+version = "3.0.0"
+description = "Aplicação Python para coleta de e-mails e geolocalização com sistema de controle de tarefas"
 authors = [{ name = "Developer", email = "dev@example.com" }]
 readme = "README.md"
 requires-python = ">=3.13"

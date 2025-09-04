@@ -1,8 +1,10 @@
 """
 Testes completos para AccessRepository
 """
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+
 from src.infrastructure.repositories.access_repository import AccessRepository
 
 

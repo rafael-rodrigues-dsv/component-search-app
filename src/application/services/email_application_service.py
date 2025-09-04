@@ -3,32 +3,29 @@ Camada de Aplicação - Serviço principal do robô coletor (refatorado)
 """
 import random
 import time
-from typing import List, Dict, Set, Optional, Union
+from typing import List, Dict
 
 from config.settings import (
     BLACKLIST_HOSTS, MAX_EMAILS_PER_SITE,
     RESULTS_PER_TERM_LIMIT, SEARCH_DWELL, COMPLETE_MODE_THRESHOLD
 )
-from .user_config_service import UserConfigService
 from .database_service import DatabaseService
+from .user_config_service import UserConfigService
+from ...domain.models.collection_result_model import CollectionResultModel
+from ...domain.models.collection_stats_model import CollectionStatsModel
+from ...domain.models.company_model import CompanyModel
+from ...domain.models.search_term_model import SearchTermModel
+from ...domain.models.term_result_model import TermResultModel
+from ...domain.protocols.scraper_protocol import ScraperProtocol
 from ...domain.services.email_domain_service import (
     EmailCollectorInterface, EmailValidationService
 )
-from ...domain.factories.search_term_factory import SearchTermFactory
-from ...domain.models.search_term_model import SearchTermModel
-from ...domain.models.company_model import CompanyModel
-from ...domain.models.term_result_model import TermResultModel
-from ...domain.models.collection_stats_model import CollectionStatsModel
-from ...domain.models.collection_result_model import CollectionResultModel
-from ...domain.protocols.scraper_protocol import ScraperProtocol
+from ...infrastructure.config.config_manager import ConfigManager
+from ...infrastructure.drivers.web_driver import WebDriverManager
 from ...infrastructure.logging.structured_logger import StructuredLogger
-from ...infrastructure.repositories.data_repository import JsonRepository, ExcelRepository
+from ...infrastructure.metrics.performance_tracker import PerformanceTracker
 from ...infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ...infrastructure.scrapers.google_scraper import GoogleScraper
-from ...infrastructure.storage.data_storage import DataStorage
-from ...infrastructure.drivers.web_driver import WebDriverManager
-from ...infrastructure.metrics.performance_tracker import PerformanceTracker
-from ...infrastructure.config.config_manager import ConfigManager
 
 
 class EmailApplicationService(EmailCollectorInterface):
@@ -140,6 +137,13 @@ class EmailApplicationService(EmailCollectorInterface):
                          term=self.logger._sanitize_input(term.query),
                          progress=f"{current}/{total}",
                          mode=mode_text)
+
+        # Verificar se driver ainda está ativo
+        if not self._check_driver_health():
+            self.logger.warning("Driver inativo - reiniciando")
+            if not self._restart_driver():
+                self.logger.error("Falha ao reiniciar driver")
+                return False
 
         if self.performance_tracker:
             with self.performance_tracker.track_operation(f"search_term_{term.query}"):
@@ -293,3 +297,26 @@ class EmailApplicationService(EmailCollectorInterface):
                              phones_count=len(telefones_data))
 
         return success
+
+    def _check_driver_health(self) -> bool:
+        """Verifica se o driver ainda está ativo"""
+        try:
+            if not self.driver_manager.driver:
+                return False
+            # Tenta executar comando simples
+            self.driver_manager.driver.current_url
+            return True
+        except Exception:
+            return False
+
+    def _restart_driver(self) -> bool:
+        """Reinicia o driver"""
+        try:
+            self.driver_manager.close_driver()
+            if self.driver_manager.start_driver():
+                if self.search_engine == "GOOGLE":
+                    self.scraper.driver = self.driver_manager.driver
+                return True
+            return False
+        except Exception:
+            return False

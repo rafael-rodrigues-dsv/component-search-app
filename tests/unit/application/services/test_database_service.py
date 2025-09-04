@@ -1,8 +1,10 @@
 """
 Testes unitários para DatabaseService
 """
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.application.services.database_service import DatabaseService
 
 
@@ -57,17 +59,17 @@ class TestDatabaseService:
         service.repository.save_telefones.assert_called_once()
         service.repository.update_empresa_status.assert_called_once()
         service.repository.save_to_final_sheet.assert_called_once()
-    
+
     @patch('src.infrastructure.services.geolocation_service.GeolocationService')
     def test_save_company_data_with_geolocation(self, mock_geo_service, service):
         """Testa salvamento com geolocalização"""
         service.repository.save_empresa.return_value = 123
-        
+
         mock_geo_instance = Mock()
         mock_geo_instance.extrair_endereco_do_html.return_value = 'Rua Test, 123'
         mock_geo_instance.calcular_distancia_do_endereco.return_value = ('Rua Test, 123', -23.5505, -46.6333, 5.2)
         mock_geo_service.return_value = mock_geo_instance
-        
+
         result = service.save_company_data(
             termo_id=1,
             site_url='http://test.com',
@@ -78,7 +80,7 @@ class TestDatabaseService:
             html_content='<html>Rua Test, 123</html>',
             termo_busca='elevadores São Paulo'
         )
-        
+
         assert result is True
         mock_geo_instance.extrair_endereco_do_html.assert_called_once()
         mock_geo_instance.calcular_distancia_do_endereco.assert_called_once()

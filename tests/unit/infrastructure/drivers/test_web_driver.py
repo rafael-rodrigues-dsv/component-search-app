@@ -1,10 +1,10 @@
 """
 Testes completos para WebDriverManager
 """
-import unittest
-from unittest.mock import patch, MagicMock, Mock
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import patch, MagicMock
 
 # Adiciona o diretório raiz ao path para imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
@@ -39,14 +39,15 @@ class TestWebDriverManager(unittest.TestCase):
     @patch('random.choice')
     @patch('random.randint')
     @patch('time.sleep')
-    def test_start_driver_success(self, mock_sleep, mock_randint, mock_choice, mock_wait, mock_options, mock_service, mock_chrome):
+    def test_start_driver_success(self, mock_sleep, mock_randint, mock_choice, mock_wait, mock_options, mock_service,
+                                  mock_chrome):
         """Testa inicialização bem-sucedida do driver com anti-detecção"""
         # Setup mocks
         mock_driver = MagicMock()
         mock_chrome.return_value = mock_driver
         mock_wait_instance = MagicMock()
         mock_wait.return_value = mock_wait_instance
-        
+
         # Mock para seleções aleatórias
         mock_choice.side_effect = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",  # user agent
@@ -66,7 +67,7 @@ class TestWebDriverManager(unittest.TestCase):
         mock_options.assert_called_once()
         mock_service.assert_called_once_with(self.driver_path)
         mock_chrome.assert_called_once()
-        
+
         # Verifica se script stealth foi executado
         mock_driver.execute_script.assert_called()
 
@@ -148,29 +149,29 @@ class TestWebDriverManager(unittest.TestCase):
 
         # Verify - não deve lançar exceção
         self.assertIsNone(self.manager.driver)
-    
+
     @patch('os.path.exists')
     def test_get_browser_path_brave_found(self, mock_exists):
         """Testa obtenção do caminho do Brave"""
         mock_exists.side_effect = [True, False]  # Primeiro caminho existe
         manager = WebDriverManager(browser="brave")
-        
+
         path = manager._get_browser_path()
         self.assertEqual(path, "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe")
-    
+
     @patch('os.path.exists')
     def test_get_browser_path_brave_not_found(self, mock_exists):
         """Testa quando Brave não é encontrado"""
         mock_exists.return_value = False
         manager = WebDriverManager(browser="brave")
-        
+
         path = manager._get_browser_path()
         self.assertIsNone(path)
-    
+
     def test_get_browser_path_chrome(self):
         """Testa obtenção do caminho do Chrome (padrão)"""
         manager = WebDriverManager(browser="chrome")
-        
+
         path = manager._get_browser_path()
         self.assertIsNone(path)  # Chrome usa caminho padrão
 

@@ -1,8 +1,8 @@
 """
 Testes unitários para PerformanceTracker
 """
-import unittest
 import time
+import unittest
 from unittest.mock import patch
 
 from src.infrastructure.metrics.performance_tracker import PerformanceTracker

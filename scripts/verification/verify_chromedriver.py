@@ -3,7 +3,6 @@
 Script para verificar e instalar ChromeDriver
 """
 import os
-import subprocess
 import sys
 import zipfile
 from pathlib import Path

@@ -1,8 +1,8 @@
 """
 Gerenciador de retry pattern para operações de rede
 """
-import time
 import random
+import time
 from functools import wraps
 from typing import Callable, Any, Type, Tuple
 

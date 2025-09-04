@@ -1,10 +1,10 @@
 """
 Testes unitários simplificados para DataStorage
 """
-import unittest
-import sys
 import os
-from unittest.mock import patch, MagicMock
+import sys
+import unittest
+from unittest.mock import patch
 
 # Adiciona o diretório raiz ao path para imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))

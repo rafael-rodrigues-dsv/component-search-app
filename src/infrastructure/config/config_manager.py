@@ -1,10 +1,8 @@
 """
 Gerenciador de configurações via YAML/JSON
 """
-import json
-import os
 from pathlib import Path
-from typing import Dict, Any, Union
+from typing import Dict, Any
 
 
 class ConfigManager:
@@ -62,7 +60,7 @@ class ConfigManager:
                 'tracking_enabled': True
             }
         }
-        
+
         # Tentar carregar do arquivo YAML
         try:
             if self.config_path.exists():
@@ -74,7 +72,7 @@ class ConfigManager:
                         return
         except Exception as e:
             print(f"Erro ao carregar YAML: {e}")
-        
+
         # Usar configuração padrão se falhar
         self._config = default_config
 
@@ -151,3 +149,8 @@ class ConfigManager:
     @property
     def performance_tracking_enabled(self) -> bool:
         return self.get('performance.tracking_enabled', True)
+
+    # Propriedades de geolocalização
+    @property
+    def reference_cep(self) -> str:
+        return self.get('geolocation.reference_cep', '01310-100')
