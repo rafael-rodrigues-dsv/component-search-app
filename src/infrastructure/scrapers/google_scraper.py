@@ -11,7 +11,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import WebDriverException, TimeoutException
 
-from config.settings import MAX_PHONES_PER_SITE, get_scraper_delays
+from config.settings import MAX_PHONES_PER_SITE
+from src.infrastructure.config.delay_config import get_scraper_delays
 from ...domain.services.email_domain_service import EmailValidationService
 from ..network.retry_manager import RetryManager
 from ..network.human_behavior import HumanBehaviorSimulator

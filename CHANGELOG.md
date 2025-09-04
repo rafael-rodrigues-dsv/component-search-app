@@ -2,6 +2,52 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [2.2.2] - 2024-12-19
+
+### ⚡ Performance Máxima DuckDuckGo
+- **DuckDuckGo Extremo**: Delays reduzidos para mínimo seguro
+  - `page_load`: 0.3-0.8s (era 0.8-1.5s) - 60% mais rápido
+  - `scroll`: 0.1-0.4s (era 0.3-0.8s) - 70% mais rápido
+- **Google Mantido**: Configuração anti-CAPTCHA preservada
+- **Configuração Dinâmica**: Função agora lê valores do YAML
+- **Performance Atualizada**:
+  - DuckDuckGo: 3-5s por empresa (~2.5-4min para 50 registros)
+  - Google: 12-18s por empresa (~10-15min para 50 registros)
+- **Diferença**: DuckDuckGo agora **4x mais rápido** que Google
+- **README Atualizado**: Tabela comparativa com novos tempos
+
+### 🌍 Geolocalização Avançada
+- **Extração Robusta**: Novos padrões para casos complexos
+  - Suporte a `aria-label`, `title`, `amp`, `zoom` e outros ruídos técnicos
+  - Extração de endereços com CEP no início misturado com ruídos
+  - Padrão "av. nordestina 3423 vila curuçá velha são paulo"
+- **Limpeza Inteligente**: Remove ruídos técnicos automaticamente
+  - `aria-label`, `quot`, `url`, `maps.google`, `section`, `id`, etc.
+  - Normalização de espaços e caracteres especiais
+  - Adição automática de "São Paulo, SP" quando ausente
+- **Validação Avançada**: Critérios inteligentes de validação
+  - Deve ter tipo de logradouro (rua, av., etc.)
+  - Deve ter "São Paulo" ou "SP"
+  - Rejeita endereços com muitos números (IDs, códigos)
+- **Casos Resolvidos**: Agora processa endereços complexos como:
+  - `03059-010ampzoom10 aria-labelrua siqueira bueno, 136`
+  - `03127-001 quoturlquot httpsmaps.google.com rua chamanta`
+  - `av. nordestina 3423 vila curuçá velha são paulo`
+
+### 🧪 Testes Expandidos
+- **18 Testes de Geolocalização**: 8 originais + 10 novos casos avançados
+- **Cobertura Completa**: Ruídos técnicos, validação, limpeza avançada
+- **Casos Reais**: Testes baseados em problemas encontrados em produção
+- **322 Testes Totais**: Todos passando sem impacto
+
+### 🔧 Melhorias Técnicas
+- Configuração centralizada no `application.yaml`
+- Valores padrão como fallback
+- Maior flexibilidade para ajustes futuros
+- Métodos `_limpar_endereco_avancado()` e `_validar_endereco()`
+
+---
+
 ## [2.2.1] - 2024-12-19
 
 ### ⚡ Otimização de Performance

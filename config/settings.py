@@ -27,7 +27,7 @@ COMPLETE_MODE_THRESHOLD = config.complete_mode_threshold
 MAX_PHONES_PER_SITE = config.max_phones_per_site
 
 # Geolocalização
-REFERENCE_CEP = "01310-100"  # CEP de referência para cálculo de distâncias (Av. Paulista)
+REFERENCE_CEP = "04766-080"  # CEP de referência para cálculo de distâncias (Av. Paulista)
 
 # Zonas SP
 BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
@@ -64,21 +64,8 @@ UF_BASE = "SP"
 CIDADE_BASE = "São Paulo"
 CATEGORIA_BASE = "elevadores"
 
-# Delays dinâmicos por motor de busca
-def get_scraper_delays(search_engine: str = "DUCKDUCKGO"):
-    """Retorna delays baseados no motor de busca"""
-    if search_engine == "GOOGLE":
-        return {
-            "page_load": (1.5, 2.5),  # Mínimo seguro
-            "scroll": (0.8, 1.2)
-        }
-    else:  # DuckDuckGo - otimizado
-        return {
-            "page_load": (0.8, 1.5),
-            "scroll": (0.3, 0.8)
-        }
-
-# Delays padrão (DuckDuckGo)
+# Delays padrão (DuckDuckGo) - importado de delay_config
+from src.infrastructure.config.delay_config import get_scraper_delays
 SCRAPER_DELAYS = get_scraper_delays()
 
 # Blacklist

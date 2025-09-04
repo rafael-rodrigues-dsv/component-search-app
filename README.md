@@ -253,8 +253,8 @@ A aplicação gera:
 
 | Motor | Tempo/Empresa | 50 Registros | Vantagens | Desvantagens |
 |-------|---------------|--------------|-----------|-------------|
-| **🦆 DuckDuckGo** | **5-8s** | **~4-7min** | ✅ **2x mais rápido**<br>✅ Sem CAPTCHA<br>✅ Execução ininterrupta<br>✅ Delays otimizados<br>✅ Ideal para lotes grandes | ⚠️ Menos resultados por termo<br>⚠️ Qualidade variável<br>⚠️ Sem proteção anti-detecção |
-| **🔍 Google** | **12-18s** | **~10-15min** | ✅ **Mais resultados**<br>✅ Melhor qualidade<br>✅ Anti-detecção completa<br>✅ Comportamento humano<br>✅ Proteção CAPTCHA | ⚠️ 2x mais lento<br>⚠️ Risco de bloqueio<br>⚠️ Pausas de sessão<br>⚠️ Complexidade maior |
+| **🦆 DuckDuckGo** | **3-5s** | **~2.5-4min** | ✅ **4x mais rápido**<br>✅ Sem CAPTCHA<br>✅ Performance máxima<br>✅ Delays mínimos<br>✅ Ideal para grandes volumes | ⚠️ Menos resultados por termo<br>⚠️ Qualidade variável<br>⚠️ Sem proteção anti-detecção |
+| **🔍 Google** | **12-18s** | **~10-15min** | ✅ **Mais resultados**<br>✅ Melhor qualidade<br>✅ Anti-detecção completa<br>✅ Comportamento humano<br>✅ Proteção CAPTCHA | ⚠️ 4x mais lento<br>⚠️ Risco de bloqueio<br>⚠️ Pausas de sessão<br>⚠️ Complexidade maior |
 
 **Recomendação**: 
 - **DuckDuckGo**: Para coletas rápidas e grandes volumes (50+ empresas)

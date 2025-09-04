@@ -58,22 +58,36 @@ class GeolocationService:
         return None
     
     def _extrair_endereco_completo(self, html_content: str) -> Optional[str]:
-        """Extrai endereço completo do HTML"""
+        """Extrai endereço completo do HTML com limpeza avançada"""
         patterns = [
-            r'(?:rua|av\.|avenida|alameda|travessa)\s+[^,\n]+,\s*\d+[^,\n]*,\s*[^,\n]+,\s*sp',
-            r'(?:endereço|address)[:=]\s*([^<\n]+(?:rua|av\.|avenida)[^<\n]+sp)',
-            r'(?:rua|av\.|avenida)\s+[^,\n]+,?\s*\d+[^,\n]*[^,\n]*são\s+paulo',
-            r'\d{5}-?\d{3}[^<\n]*(?:rua|av\.|avenida)[^<\n]+',
-            r'(?:rua|av\.|avenida)[^<\n]+\d{5}-?\d{3}'
+            # Padrão com CEP no início (caso 2 e 3)
+            r'(\d{5}-?\d{3})[^a-zA-Z]*([^,\n]*(?:rua|av\.|avenida|alameda)[^,\n]+[^,\n]*são\s*paulo[^,\n]*)',
+            # Padrão tradicional melhorado
+            r'(?:rua|av\.|avenida|alameda|travessa)\s+[^,\n]+,?\s*\d+[^,\n]*[^,\n]*(?:são\s*paulo|sp)',
+            # Padrão com endereço estruturado
+            r'(?:endereço|address)[:=]\s*([^<\n]+(?:rua|av\.|avenida)[^<\n]+(?:são\s*paulo|sp))',
+            # Padrão específico para caso 1
+            r'(av\.?\s*[^\d]*\d+[^,]*(?:vila|jardim|bairro)[^,]*são\s*paulo)',
+            # Padrão com aria-label (caso 2)
+            r'aria-label[^>]*([^,]+,\s*\d+[^,]*[^,]*são\s*paulo[^,]*)',
+            # Padrão genérico com limpeza
+            r'([^\n]*(?:rua|av\.|avenida)[^\n]*\d+[^\n]*são\s*paulo[^\n]*)',
         ]
         
         html_lower = html_content.lower()
         for pattern in patterns:
             matches = re.findall(pattern, html_lower, re.IGNORECASE | re.MULTILINE)
             if matches:
-                endereco = matches[0].strip()
-                if len(endereco) > 20:
-                    return self._limpar_endereco(endereco)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        # Para padrões com grupos, junta os grupos
+                        endereco = ' '.join([m for m in match if m]).strip()
+                    else:
+                        endereco = match.strip()
+                    
+                    endereco_limpo = self._limpar_endereco_avancado(endereco)
+                    if len(endereco_limpo) > 15 and self._validar_endereco(endereco_limpo):
+                        return endereco_limpo
         
         return None
     
@@ -100,12 +114,56 @@ class GeolocationService:
     
 
     
-    def _limpar_endereco(self, endereco: str) -> str:
-        """Limpa e formata endereço"""
+    def _limpar_endereco_avancado(self, endereco: str) -> str:
+        """Limpeza avançada de endereço com remoção de ruídos"""
+        # Remove tags HTML
         endereco = re.sub(r'<[^>]+>', '', endereco)
-        endereco = re.sub(r'[^\w\s,.-]', '', endereco)
+        
+        # Remove termos técnicos comuns
+        ruidos = [
+            r'aria-label[^\s]*', r'title[^\s]*', r'amp[^\s]*', r'zoom\d+',
+            r'quot[^\s]*', r'url[^\s]*', r'http[^\s]*', r'maps\.google[^\s]*',
+            r'section[^\s]*', r'main_block[^\s]*', r'action[^\s]*', r'address[^\s]*',
+            r'adv_address[^\s]*', r'id[^\s]*', r'copy_lo[^\s]*', r'log[^\s]*'
+        ]
+        
+        for ruido in ruidos:
+            endereco = re.sub(ruido, '', endereco, flags=re.IGNORECASE)
+        
+        # Remove caracteres especiais exceto vírgulas, pontos e hífens
+        endereco = re.sub(r'[^\w\s,.\-]', ' ', endereco)
+        
+        # Remove números isolados no final (IDs, códigos)
+        endereco = re.sub(r'\s+\d{6,}\s*$', '', endereco)
+        
+        # Normaliza espaços
         endereco = ' '.join(endereco.split())
+        
+        # Garante que termina com São Paulo se não tiver
+        if 'são paulo' not in endereco.lower() and 'sp' not in endereco.lower():
+            endereco += ', São Paulo, SP'
+        
         return endereco.strip()
+    
+    def _validar_endereco(self, endereco: str) -> bool:
+        """Valida se o endereço extraído é válido"""
+        endereco_lower = endereco.lower()
+        
+        # Deve ter pelo menos um tipo de logradouro
+        tipos_logradouro = ['rua', 'av.', 'avenida', 'alameda', 'travessa', 'praça']
+        tem_logradouro = any(tipo in endereco_lower for tipo in tipos_logradouro)
+        
+        # Deve ter São Paulo
+        tem_sao_paulo = 'são paulo' in endereco_lower or 'sp' in endereco_lower
+        
+        # Não deve ter muitos números seguidos (IDs, códigos)
+        tem_muitos_numeros = len(re.findall(r'\d{6,}', endereco)) > 1
+        
+        return tem_logradouro and tem_sao_paulo and not tem_muitos_numeros
+    
+    def _limpar_endereco(self, endereco: str) -> str:
+        """Limpa e formata endereço (método legado)"""
+        return self._limpar_endereco_avancado(endereco)
     
     def geocodificar_endereco(self, endereco: str) -> Tuple[Optional[float], Optional[float]]:
         """Converte endereço em coordenadas usando Nominatim"""

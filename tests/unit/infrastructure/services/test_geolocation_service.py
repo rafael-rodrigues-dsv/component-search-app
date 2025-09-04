@@ -42,7 +42,9 @@ class TestGeolocationService:
         """Testa limpeza de endereço"""
         endereco = "<p>Rua Test, 123</p>"
         result = service._limpar_endereco(endereco)
-        assert result == "Rua Test, 123"
+        # Nova implementação adiciona São Paulo se não tiver
+        assert "Rua Test, 123" in result
+        assert "São Paulo" in result or "SP" in result
     
     @patch('requests.get')
     def test_geocodificar_endereco_sucesso(self, mock_get, service):
