@@ -64,11 +64,22 @@ UF_BASE = "SP"
 CIDADE_BASE = "São Paulo"
 CATEGORIA_BASE = "elevadores"
 
-# Delays rápidos - via configuração
-SCRAPER_DELAYS = {
-    "page_load": config.page_load_delay,
-    "scroll": config.scroll_delay
-}
+# Delays dinâmicos por motor de busca
+def get_scraper_delays(search_engine: str = "DUCKDUCKGO"):
+    """Retorna delays baseados no motor de busca"""
+    if search_engine == "GOOGLE":
+        return {
+            "page_load": (1.5, 2.5),  # Mínimo seguro
+            "scroll": (0.8, 1.2)
+        }
+    else:  # DuckDuckGo - otimizado
+        return {
+            "page_load": (0.8, 1.5),
+            "scroll": (0.3, 0.8)
+        }
+
+# Delays padrão (DuckDuckGo)
+SCRAPER_DELAYS = get_scraper_delays()
 
 # Blacklist
 BLACKLIST_HOSTS = [

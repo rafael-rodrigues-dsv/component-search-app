@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import WebDriverException, TimeoutException
 
-from config.settings import SCRAPER_DELAYS, MAX_PHONES_PER_SITE
+from config.settings import MAX_PHONES_PER_SITE, get_scraper_delays
 from ...domain.services.email_domain_service import EmailValidationService
 from ..network.retry_manager import RetryManager
 from ..network.human_behavior import HumanBehaviorSimulator
@@ -35,6 +35,7 @@ class GoogleScraper:
         self.validation_service = EmailValidationService()
         self.human_behavior = HumanBehaviorSimulator()
         self.searches_count = 0
+        self.delays = get_scraper_delays("GOOGLE")  # Delays específicos do Google
 
     @RetryManager.with_retry(max_attempts=3, base_delay=2.0, exceptions=(WebDriverException, TimeoutException))
     def search(self, term, max_results=50):
@@ -120,7 +121,7 @@ class GoogleScraper:
         try:
             ddg_url = f"https://duckduckgo.com/?q={term.replace(' ', '+')}"
             self.driver.get(ddg_url)
-            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+            time.sleep(random.uniform(*self.delays["page_load"]))
             return True
         except Exception as e:
             print(f"    [DEBUG] Erro no fallback: {str(e)[:30]}")
@@ -187,7 +188,7 @@ class GoogleScraper:
                 new_url = current_url + f"&start={SECOND_PAGE_START}"
 
             self.driver.get(new_url)
-            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+            time.sleep(random.uniform(*self.delays["page_load"]))
 
             # Verifica se carregou resultados
             try:

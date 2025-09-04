@@ -1,6 +1,6 @@
 app:
   name: "PythonSearchApp"
-  version: "2.1.0"
+  version: "2.2.1"
 
 search:
   engines:
@@ -29,12 +29,23 @@ performance:
   metrics_retention_hours: 24
 
 delays:
-  page_load_min: 2.0
-  page_load_max: 3.0
-  scroll_min: 1.0
-  scroll_max: 1.5
-  search_dwell_min: 1.2
-  search_dwell_max: 2.4
+  # Delays para Google (mínimo seguro)
+  google:
+    page_load_min: 1.5
+    page_load_max: 2.5
+    scroll_min: 0.8
+    scroll_max: 1.2
+    search_dwell_min: 1.0
+    search_dwell_max: 2.0
+  
+  # Delays para DuckDuckGo (otimizado)
+  duckduckgo:
+    page_load_min: 0.8
+    page_load_max: 1.5
+    scroll_min: 0.3
+    scroll_max: 0.8
+    search_dwell_min: 0.5
+    search_dwell_max: 1.2
 
 mode:
   is_test: true

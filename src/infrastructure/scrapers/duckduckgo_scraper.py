@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import WebDriverException, TimeoutException
 
-from config.settings import SCRAPER_DELAYS
+from config.settings import get_scraper_delays
 from ..drivers.web_driver import WebDriverManager
 from ...domain.services.email_domain_service import EmailValidationService
 from ...domain.models.company_model import CompanyModel
@@ -25,6 +25,7 @@ class DuckDuckGoScraper:
     def __init__(self, driver_manager: WebDriverManager):
         self.driver_manager = driver_manager
         self.validation_service = EmailValidationService()
+        self.delays = get_scraper_delays("DUCKDUCKGO")  # Delays específicos do DuckDuckGo
 
     @RetryManager.with_retry(max_attempts=3, base_delay=2.0, exceptions=(WebDriverException, TimeoutException))
     def search(self, query: str, max_retries: int = 2) -> bool:
@@ -44,7 +45,7 @@ class DuckDuckGoScraper:
                 EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
             )
 
-            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+            time.sleep(random.uniform(*self.delays["page_load"]))
             return True
 
         except Exception as e:
@@ -57,7 +58,7 @@ class DuckDuckGoScraper:
         try:
             # Scroll para carregar mais resultados
             self.driver_manager.driver.execute_script("window.scrollBy(0, 1500);")
-            time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            time.sleep(random.uniform(*self.delays["scroll"]))
 
             cards = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']")
             for card in cards:
@@ -77,7 +78,7 @@ class DuckDuckGoScraper:
         try:
             # Scroll para o final da página
             self.driver_manager.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            time.sleep(random.uniform(*self.delays["scroll"]))
 
             # Procura botão "More results" ou similar
             more_selectors = [
@@ -92,7 +93,7 @@ class DuckDuckGoScraper:
                     more_btn = self.driver_manager.driver.find_element(By.CSS_SELECTOR, selector)
                     if more_btn.is_displayed():
                         more_btn.click()
-                        time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+                        time.sleep(random.uniform(*self.delays["page_load"]))
                         return True
                 except Exception as e:
                     print(f"    [DEBUG] Erro no seletor {selector}: {str(e)[:30]}")
@@ -101,7 +102,7 @@ class DuckDuckGoScraper:
             # Se não encontrou botão, tenta scroll adicional para carregar mais
             for _ in range(3):
                 self.driver_manager.driver.execute_script("window.scrollBy(0, 1000);")
-                time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+                time.sleep(random.uniform(*self.delays["scroll"]))
 
             return True  # Assume que carregou mais resultados
 
@@ -119,11 +120,11 @@ class DuckDuckGoScraper:
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
 
-            time.sleep(random.uniform(*SCRAPER_DELAYS["page_load"]))
+            time.sleep(random.uniform(*self.delays["page_load"]))
 
             # Scroll rápido
             self.driver_manager.driver.execute_script("window.scrollBy(0, 2000);")
-            time.sleep(random.uniform(*SCRAPER_DELAYS["scroll"]))
+            time.sleep(random.uniform(*self.delays["scroll"]))
 
             # Capturar HTML content para geolocalização
             html_content = self.driver_manager.driver.page_source

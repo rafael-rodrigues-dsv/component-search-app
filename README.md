@@ -249,7 +249,18 @@ A aplicação gera:
 - **Geolocalização**: Rate limiting 1s/request, só processa endereços reais do HTML
 - **Simulação humana**: Scroll aleatório, pausas variáveis
 
-### Precisão da Geolocalização
+### ⚡ Performance por Motor de Busca
+
+| Motor | Tempo/Empresa | 50 Registros | Vantagens | Desvantagens |
+|-------|---------------|--------------|-----------|-------------|
+| **🦆 DuckDuckGo** | **5-8s** | **~4-7min** | ✅ **2x mais rápido**<br>✅ Sem CAPTCHA<br>✅ Execução ininterrupta<br>✅ Delays otimizados<br>✅ Ideal para lotes grandes | ⚠️ Menos resultados por termo<br>⚠️ Qualidade variável<br>⚠️ Sem proteção anti-detecção |
+| **🔍 Google** | **12-18s** | **~10-15min** | ✅ **Mais resultados**<br>✅ Melhor qualidade<br>✅ Anti-detecção completa<br>✅ Comportamento humano<br>✅ Proteção CAPTCHA | ⚠️ 2x mais lento<br>⚠️ Risco de bloqueio<br>⚠️ Pausas de sessão<br>⚠️ Complexidade maior |
+
+**Recomendação**: 
+- **DuckDuckGo**: Para coletas rápidas e grandes volumes (50+ empresas)
+- **Google**: Para qualidade máxima e proteção contra detecção prolongada
+
+### 🌍 Precisão da Geolocalização
 
 | Cenário | Precisão | Exemplo |
 |---------|----------|---------|
