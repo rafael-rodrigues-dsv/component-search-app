@@ -52,16 +52,20 @@ class DatabaseService:
             # Extrair e geocodificar endereço - só se encontrar endereço real
             endereco, latitude, longitude, distancia_km = None, None, None, None
             if html_content:
-                from src.infrastructure.services.geolocation_service import GeolocationService
-                geo_service = GeolocationService()
-                endereco = geo_service.extrair_endereco_do_html(html_content, termo_busca or '')
-                if endereco:  # Só geocodifica se encontrou endereço real no HTML
-                    self.logger.info(f"[GEO] Endereço encontrado: {endereco}")
-                    endereco, latitude, longitude, distancia_km = geo_service.calcular_distancia_do_endereco(endereco)
-                    if latitude and longitude:
-                        self.logger.info(f"[GEO] Geocodificado: {latitude}, {longitude} - {distancia_km}km")
-                else:
-                    self.logger.debug("[GEO] Nenhum endereço encontrado no HTML - pulando geolocalização")
+                try:
+                    from src.infrastructure.services.geolocation_service import GeolocationService
+                    geo_service = GeolocationService()
+                    endereco = geo_service.extrair_endereco_do_html(html_content, termo_busca or '')
+                    if endereco:  # Só geocodifica se encontrou endereço real no HTML
+                        self.logger.info(f"[GEO] Endereco encontrado: {endereco[:50]}...")
+                        endereco, latitude, longitude, distancia_km = geo_service.calcular_distancia_do_endereco(endereco)
+                        if latitude and longitude:
+                            self.logger.info(f"[GEO] Geocodificado: {latitude}, {longitude} - {distancia_km}km")
+                    else:
+                        self.logger.debug("[GEO] Nenhum endereco encontrado no HTML - pulando geolocalizacao")
+                except Exception as e:
+                    self.logger.error(f"[GEO] Erro na geolocalizacao: {str(e)[:50]}... - continuando sem coordenadas")
+                    endereco, latitude, longitude, distancia_km = None, None, None, None
             
             # Salvar empresa
             empresa_id = self.repository.save_empresa(termo_id, site_url, domain, motor_busca, 

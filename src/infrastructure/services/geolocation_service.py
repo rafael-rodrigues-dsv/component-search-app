@@ -166,49 +166,112 @@ class GeolocationService:
         return self._limpar_endereco_avancado(endereco)
     
     def geocodificar_endereco(self, endereco: str) -> Tuple[Optional[float], Optional[float]]:
-        """Converte endereço em coordenadas usando Nominatim"""
+        """Converte endereço em coordenadas usando Nominatim com timeout agressivo"""
         if not endereco:
             return None, None
         
-        try:
-            if 'são paulo' not in endereco.lower():
+        self.logger.info(f"[GEO] Iniciando geocodificação: {endereco[:50]}...")
+        
+        # Lista de variações do endereço para tentar (máximo 2 para evitar travamento)
+        endereco_variants = self._gerar_variantes_endereco(endereco)[:2]
+        
+        for i, variant in enumerate(endereco_variants, 1):
+            try:
+                self.logger.debug(f"[GEO] Tentativa {i}/{len(endereco_variants)}: {variant[:30]}...")
+                
+                url = "https://nominatim.openstreetmap.org/search"
+                params = {
+                    'q': variant,
+                    'format': 'json',
+                    'limit': 1,
+                    'countrycodes': 'br'
+                }
+                
+                headers = {'User-Agent': 'PythonSearchApp/2.2.2'}
+                
+                # Timeout agressivo de 5 segundos
+                response = requests.get(url, params=params, headers=headers, timeout=5)
+                response.raise_for_status()
+                
+                data = response.json()
+                if data:
+                    lat = float(data[0]['lat'])
+                    lon = float(data[0]['lon'])
+                    self.logger.info(f"[GEO] ✅ Sucesso: {variant[:30]}... -> {lat}, {lon}")
+                    return lat, lon
+                
+                # Rate limiting reduzido
+                time.sleep(0.5)
+                
+            except requests.exceptions.Timeout:
+                self.logger.warning(f"[GEO] ⏱️ Timeout na tentativa {i}: {variant[:30]}...")
+                continue
+            except Exception as e:
+                self.logger.debug(f"[GEO] ❌ Falha na tentativa {i}: {str(e)[:50]}...")
+                continue
+        
+        self.logger.warning(f"[GEO] ❌ Falha total na geocodificação: {endereco[:50]}...")
+        return None, None
+    
+    def _gerar_variantes_endereco(self, endereco: str) -> list:
+        """Gera variações do endereço para melhorar geocodificação"""
+        endereco_limpo = self._normalizar_endereco_para_geocodificacao(endereco)
+        variants = []
+        
+        # Variante 1: Endereço original limpo
+        variants.append(endereco_limpo)
+        
+        # Variante 2: Sem número (para ruas que não existem o número)
+        endereco_sem_numero = re.sub(r',?\s*\d+[a-zA-Z]*\s*', ' ', endereco_limpo)
+        endereco_sem_numero = re.sub(r'\s+', ' ', endereco_sem_numero).strip()
+        if endereco_sem_numero != endereco_limpo:
+            variants.append(endereco_sem_numero)
+        
+        # Variante 3: Apenas rua + cidade
+        match = re.search(r'((?:rua|av\.|avenida|alameda)\s+[^,]+)', endereco_limpo, re.IGNORECASE)
+        if match:
+            rua_simples = match.group(1) + ', São Paulo, SP, Brasil'
+            variants.append(rua_simples)
+        
+        # Variante 4: Apenas bairro + cidade (para casos como "vila curuçá")
+        match_bairro = re.search(r'(vila|jardim|bairro)\s+([^,\s]+(?:\s+[^,\s]+)?)', endereco_limpo, re.IGNORECASE)
+        if match_bairro:
+            bairro = f"{match_bairro.group(1)} {match_bairro.group(2)}, São Paulo, SP, Brasil"
+            variants.append(bairro)
+        
+        return variants
+    
+    def _normalizar_endereco_para_geocodificacao(self, endereco: str) -> str:
+        """Normaliza endereço especificamente para geocodificação"""
+        # Remove ruídos comuns
+        endereco = re.sub(r'\s*-\s*nbsp\s*', ' ', endereco)
+        endereco = re.sub(r'\s*cep\s*\d{5}-?\d{3}\s*', ' ', endereco, flags=re.IGNORECASE)
+        endereco = re.sub(r'\s+sp\s+sp\s*', ' SP ', endereco, flags=re.IGNORECASE)
+        endereco = re.sub(r'\s*-\s*são\s+josé\s+dos\s+c\s*', ', São José dos Campos, SP', endereco, flags=re.IGNORECASE)
+        
+        # Normaliza espaços
+        endereco = re.sub(r'\s+', ' ', endereco).strip()
+        
+        # Garante que termina com Brasil
+        if 'brasil' not in endereco.lower():
+            if 'sp' in endereco.lower():
+                endereco += ', Brasil'
+            else:
                 endereco += ', São Paulo, SP, Brasil'
-            
-            url = "https://nominatim.openstreetmap.org/search"
-            params = {
-                'q': endereco,
-                'format': 'json',
-                'limit': 1,
-                'countrycodes': 'br'
-            }
-            
-            headers = {'User-Agent': 'PythonSearchApp/1.0'}
-            
-            response = requests.get(url, params=params, headers=headers, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            if data:
-                lat = float(data[0]['lat'])
-                lon = float(data[0]['lon'])
-                return lat, lon
-            
-            time.sleep(1)
-            return None, None
-            
-        except Exception as e:
-            self.logger.error(f"Erro na geocodificação: {e}")
-            return None, None
+        
+        return endereco
     
     def geocodificar_cep(self, cep: str) -> Tuple[Optional[float], Optional[float]]:
-        """Geocodifica CEP usando ViaCEP + Nominatim"""
+        """Geocodifica CEP usando ViaCEP + Nominatim com timeout"""
         try:
             cep_limpo = re.sub(r'\D', '', cep)
             if len(cep_limpo) != 8:
                 return None, None
             
+            self.logger.debug(f"[GEO] Geocodificando CEP: {cep}")
+            
             url = f"https://viacep.com.br/ws/{cep_limpo}/json/"
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=5)  # Timeout reduzido
             response.raise_for_status()
             
             data = response.json()
@@ -218,8 +281,11 @@ class GeolocationService:
             endereco = f"{data.get('logradouro', '')}, {data.get('bairro', '')}, {data.get('localidade', '')}, {data.get('uf', '')}"
             return self.geocodificar_endereco(endereco)
             
+        except requests.exceptions.Timeout:
+            self.logger.warning(f"[GEO] ⏱️ Timeout na consulta do CEP: {cep}")
+            return None, None
         except Exception as e:
-            self.logger.error(f"Erro na geocodificação do CEP: {e}")
+            self.logger.error(f"[GEO] ❌ Erro na geocodificação do CEP {cep}: {str(e)[:50]}...")
             return None, None
     
     def calcular_distancia(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -235,16 +301,55 @@ class GeolocationService:
         return round(c * 6371, 2)
     
     def calcular_distancia_do_endereco(self, endereco: str) -> Tuple[Optional[str], Optional[float], Optional[float], Optional[float]]:
-        """Calcula distância de um endereço até o ponto de referência"""
+        """Calcula distância de um endereço até o ponto de referência com timeout Windows-compatível"""
         if not endereco or not self.lat_referencia or not self.lon_referencia:
+            self.logger.debug(f"[GEO] Pulando - sem endereco ou referencia")
             return endereco, None, None, None
         
-        lat, lon = self.geocodificar_endereco(endereco)
-        if not lat or not lon:
+        try:
+            # Timeout usando threading (compatível com Windows)
+            import threading
+            import queue
+            
+            result_queue = queue.Queue()
+            
+            def geocode_worker():
+                try:
+                    lat, lon = self.geocodificar_endereco(endereco)
+                    result_queue.put((lat, lon, None))
+                except Exception as e:
+                    result_queue.put((None, None, str(e)))
+            
+            # Iniciar thread com timeout de 15 segundos
+            thread = threading.Thread(target=geocode_worker)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout=15)
+            
+            if thread.is_alive():
+                self.logger.error(f"[GEO] TIMEOUT (15s) - Geocodificacao cancelada")
+                return endereco, None, None, None
+            
+            # Obter resultado
+            try:
+                lat, lon, error = result_queue.get_nowait()
+                if error:
+                    self.logger.error(f"[GEO] Erro na geocodificacao: {error[:50]}...")
+                    return endereco, None, None, None
+            except queue.Empty:
+                self.logger.error(f"[GEO] Nenhum resultado da geocodificacao")
+                return endereco, None, None, None
+            
+            if not lat or not lon:
+                return endereco, None, None, None
+            
+            distancia = self.calcular_distancia(
+                self.lat_referencia, self.lon_referencia, lat, lon
+            )
+            
+            self.logger.info(f"[GEO] Distancia calculada: {distancia}km")
+            return endereco, lat, lon, distancia
+            
+        except Exception as e:
+            self.logger.error(f"[GEO] Erro inesperado: {str(e)[:100]}...")
             return endereco, None, None, None
-        
-        distancia = self.calcular_distancia(
-            self.lat_referencia, self.lon_referencia, lat, lon
-        )
-        
-        return endereco, lat, lon, distancia
