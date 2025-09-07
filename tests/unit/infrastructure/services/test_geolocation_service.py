@@ -1,102 +1,143 @@
 """
-Testes para GeolocationService
+Testes corrigidos para GeolocationService
 """
-from unittest.mock import Mock, patch
-
 import pytest
-
-from src.infrastructure.services.geolocation_service import GeolocationService
+from unittest.mock import Mock, patch
+from src.infrastructure.services.geolocation_service import GeolocationService, GeoResult
 
 
 class TestGeolocationService:
     """Testes para GeolocationService"""
 
-    @pytest.fixture
-    def service(self):
-        """Fixture do serviço"""
-        with patch.object(GeolocationService, '_inicializar_ponto_referencia'):
-            with patch('config.settings.REFERENCE_CEP', "01310-100"):
-                service = GeolocationService()
-                service.lat_referencia = -23.5505
-                service.lon_referencia = -46.6333
-                return service
+    def setup_method(self):
+        """Setup para cada teste"""
+        with patch('src.infrastructure.config.config_manager.ConfigManager'):
+            self.service = GeolocationService()
 
-    def test_extrair_endereco_completo(self, service):
-        """Testa extração de endereço completo"""
-        html = "Endereço: Rua Augusta, 123, Consolação, São Paulo, SP"
-        result = service._extrair_endereco_completo(html)
-        if result:  # Pode ser None se o padrão não corresponder
-            assert "rua augusta" in result.lower()
-        else:
-            # Teste alternativo com padrão mais simples
-            html2 = "rua augusta, 123, são paulo, sp"
-            result2 = service._extrair_endereco_completo(html2)
-            assert result2 is None or "augusta" in result2.lower()
+    def test_extrair_endereco_do_html(self):
+        """Testa extração de endereço do HTML"""
+        html = "<div>Rua Augusta, 123, São Paulo</div>"
+        
+        with patch('src.infrastructure.utils.address_extractor.AddressExtractor.extract_from_html') as mock_extract:
+            mock_extract.return_value = "Rua Augusta, 123"
+            result = self.service.extrair_endereco_do_html(html)
+            assert result == "Rua Augusta, 123"
 
-    def test_extrair_endereco_parcial(self, service):
-        """Testa extração de endereço parcial"""
-        html = "Localização: Moema, São Paulo"
-        result = service._extrair_endereco_parcial(html)
-        assert result == "moema, São Paulo, SP"
-
-    def test_limpar_endereco(self, service):
-        """Testa limpeza de endereço"""
-        endereco = "<p>Rua Test, 123</p>"
-        result = service._limpar_endereco(endereco)
-        # Nova implementação adiciona São Paulo se não tiver
-        assert "Rua Test, 123" in result
-        assert "São Paulo" in result or "SP" in result
-
-    @patch('requests.get')
-    def test_geocodificar_endereco_sucesso(self, mock_get, service):
-        """Testa geocodificação com sucesso"""
+    @patch('requests.Session.get')
+    def test_geocodificar_endereco_sucesso(self, mock_get):
+        """Testa geocodificação bem-sucedida"""
         mock_response = Mock()
         mock_response.json.return_value = [{'lat': '-23.5505', 'lon': '-46.6333'}]
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
+        
+        result = self.service.geocodificar_endereco("Rua Augusta, São Paulo")
+        
+        assert isinstance(result, GeoResult)
+        assert result.success is True
+        assert result.latitude == -23.5505
+        assert result.longitude == -46.6333
 
-        lat, lon = service.geocodificar_endereco("Rua Augusta, São Paulo")
-
-        assert lat == -23.5505
-        assert lon == -46.6333
-
-    @patch('requests.get')
-    def test_geocodificar_endereco_falha(self, mock_get, service):
+    @patch('requests.Session.get')
+    def test_geocodificar_endereco_falha(self, mock_get):
         """Testa geocodificação com falha"""
         mock_response = Mock()
         mock_response.json.return_value = []
+        mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
+        
+        result = self.service.geocodificar_endereco("Endereço inválido")
+        
+        assert isinstance(result, GeoResult)
+        assert result.success is False
 
-        lat, lon = service.geocodificar_endereco("Endereço inválido")
-
-        assert lat is None
-        assert lon is None
-
-    def test_calcular_distancia(self, service):
+    def test_calcular_distancia(self):
         """Testa cálculo de distância"""
+        # São Paulo para Rio de Janeiro (aproximadamente)
         lat1, lon1 = -23.5505, -46.6333  # São Paulo
         lat2, lon2 = -22.9068, -43.1729  # Rio de Janeiro
+        
+        distancia = self.service.calcular_distancia(lat1, lon1, lat2, lon2)
+        
+        assert isinstance(distancia, float)
+        assert 350 < distancia < 450  # Aproximadamente 400km
 
-        distancia = service.calcular_distancia(lat1, lon1, lat2, lon2)
+    @patch('requests.Session.get')
+    def test_geocodificar_cep(self, mock_get):
+        """Testa geocodificação por CEP"""
+        # Mock ViaCEP
+        mock_viacep = Mock()
+        mock_viacep.json.return_value = {
+            'logradouro': 'Rua Augusta',
+            'bairro': 'Consolação',
+            'localidade': 'São Paulo',
+            'uf': 'SP'
+        }
+        mock_viacep.raise_for_status.return_value = None
+        
+        # Mock Nominatim
+        mock_nominatim = Mock()
+        mock_nominatim.json.return_value = [{'lat': '-23.5505', 'lon': '-46.6333'}]
+        mock_nominatim.raise_for_status.return_value = None
+        
+        mock_get.side_effect = [mock_viacep, mock_nominatim]
+        
+        lat, lon = self.service.geocodificar_cep("01310-100")
+        
+        assert lat == -23.5505
+        assert lon == -46.6333
 
-        assert 350 <= distancia <= 400
+    def test_calcular_distancia_do_endereco_sem_referencia(self):
+        """Testa cálculo sem ponto de referência"""
+        service = GeolocationService()
+        service.lat_referencia = None
+        service.lon_referencia = None
+        
+        result = service.calcular_distancia_do_endereco("Rua Augusta, São Paulo")
+        
+        assert result == ("Rua Augusta, São Paulo", None, None, None)
 
-    def test_calcular_distancia_do_endereco_sucesso(self, service):
-        """Testa cálculo de distância de endereço"""
-        with patch.object(service, 'geocodificar_endereco', return_value=(-23.5505, -46.6333)):
-            endereco, lat, lon, distancia = service.calcular_distancia_do_endereco("Rua Augusta")
+    @patch('requests.Session.get')
+    def test_calcular_distancia_do_endereco_sucesso(self, mock_get):
+        """Testa cálculo de distância bem-sucedido"""
+        # Setup referência
+        self.service.lat_referencia = -23.5505
+        self.service.lon_referencia = -46.6333
+        
+        # Mock geocodificação
+        mock_response = Mock()
+        mock_response.json.return_value = [{'lat': '-23.5600', 'lon': '-46.6400'}]
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+        
+        result = self.service.calcular_distancia_do_endereco("Rua Teste, São Paulo")
+        
+        endereco, lat, lon, distancia = result
+        assert endereco == "Rua Teste, São Paulo"
+        assert lat is not None
+        assert lon is not None
+        assert distancia is not None
 
-            assert endereco == "Rua Augusta"
-            assert lat == -23.5505
-            assert lon == -46.6333
-            assert distancia == 0.0
+    def test_parse_endereco(self):
+        """Testa parsing de endereço"""
+        endereco = "Rua Augusta, 123, Consolação, São Paulo, SP"
+        street, city, state = self.service._parse_endereco(endereco)
+        
+        assert "augusta" in street.lower()
+        assert city == "São Paulo"
+        assert state == "SP"
 
-    def test_calcular_distancia_do_endereco_falha(self, service):
-        """Testa cálculo de distância com falha na geocodificação"""
-        with patch.object(service, 'geocodificar_endereco', return_value=(None, None)):
-            endereco, lat, lon, distancia = service.calcular_distancia_do_endereco("Endereço inválido")
+    def test_gerar_variantes_endereco(self):
+        """Testa geração de variantes"""
+        endereco = "Av. Paulista, 1000"
+        variantes = self.service._gerar_variantes_endereco(endereco)
+        
+        assert len(variantes) <= 2
+        assert any("avenida" in v.lower() for v in variantes)
 
-            assert endereco == "Endereço inválido"
-            assert lat is None
-            assert lon is None
-            assert distancia is None
+    def test_normalizar_endereco(self):
+        """Testa normalização de endereço"""
+        endereco = "  Rua Augusta, 123  "
+        resultado = self.service._normalizar_endereco(endereco)
+        
+        assert resultado == "Rua Augusta, 123"

@@ -211,20 +211,37 @@ class GoogleScraper:
         from ...domain.models.company_model import CompanyModel
 
         try:
+            print(f"    [INFO] Carregando site: {url}")
+            
             # Abre site em nova aba (igual ao DuckDuckGo)
             self.driver.execute_script("window.open(arguments[0],'_blank');", url)
             self.driver.switch_to.window(self.driver.window_handles[-1])
 
-            # Aguarda carregamento
-            WebDriverWait(self.driver, 8).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
+            # Timeout agressivo - 8 segundos máximo
+            self.driver.set_page_load_timeout(8)
+            
+            try:
+                # Aguarda carregamento
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
+                )
+            except TimeoutException:
+                print(f"    [AVISO] Timeout no carregamento - continuando...")
+                # Continua mesmo com timeout
+                pass
+
+            # Para carregamento forçadamente se necessário
+            try:
+                self.driver.execute_script("window.stop();")
+            except:
+                pass
 
             # Simula tempo de leitura da página
             page_title = self.driver.title or ""
             reading_time = self.human_behavior.reading_delay(len(page_title))
             time.sleep(min(reading_time, 3.0))  # Máximo 3s
 
+            print(f"    [DEBUG] Fazendo scroll...")
             # Scroll humano para carregar conteúdo
             self.human_behavior.scroll_behavior(self.driver)
 
@@ -232,13 +249,24 @@ class GoogleScraper:
             if random.random() < 0.4:  # 40% chance
                 self.human_behavior.mouse_movement(self.driver)
 
-            # Capturar HTML content e extrair endereço formatado
+            print(f"    [DEBUG] Capturando HTML...")
+            # Capturar HTML content (limitado para performance)
             html_content = self.driver.page_source
+            if len(html_content) > 100000:  # Limita a 100KB
+                html_content = html_content[:100000]
+            print(f"    [DEBUG] HTML capturado: {len(html_content)} chars")
 
+            print(f"    [DEBUG] Extraindo endereço...")
             # Extrair endereço formatado usando AddressExtractor
-            from src.infrastructure.utils.address_extractor import AddressExtractor
-            endereco_formatado = AddressExtractor.extract_from_html(html_content)
+            try:
+                from src.infrastructure.utils.address_extractor import AddressExtractor
+                endereco_formatado = AddressExtractor.extract_from_html(html_content)
+                print(f"    [DEBUG] Endereço: {endereco_formatado.to_full_address()[:50] if endereco_formatado else 'Não encontrado'}")
+            except Exception as e:
+                print(f"    [DEBUG] Erro na extração de endereço: {str(e)[:30]}")
+                endereco_formatado = None
 
+            print(f"    [DEBUG] Extraindo emails...")
             # Extração rápida de e-mails
             page_source = html_content
 
@@ -266,11 +294,15 @@ class GoogleScraper:
 
             # Valida e concatena e-mails (emails já é uma lista)
             emails_string = self.validation_service.validate_and_join_emails(emails)
+            print(f"    [DEBUG] Emails: {len(emails)} encontrados")
 
+            print(f"    [DEBUG] Extraindo telefones...")
             # Extração de telefones
             phones = self._extract_phones_fast(page_source)
             phones_string = self.validation_service.validate_and_join_phones(phones)
+            print(f"    [DEBUG] Telefones: {len(phones)} encontrados")
 
+            print(f"    [DEBUG] Extraindo nome da empresa...")
             # Nome da empresa (título da página)
             try:
                 name = self.driver.title or url.split('/')[2]
@@ -278,11 +310,14 @@ class GoogleScraper:
             except Exception as e:
                 print(f"    [DEBUG] Erro ao obter título: {str(e)[:30]}")
                 name = url.split('/')[2]
+            
+            domain = url.split('/')[2] if '/' in url else url
+            print(f"    [DEBUG] Nome: {name[:30]}... | Domain: {domain}")
 
             return CompanyModel(
                 name=name,
                 emails=emails_string,
-                domain=url.split('/')[2] if '/' in url else url,
+                domain=domain,
                 url=url,
                 address=endereco_formatado or "",
                 phone=phones_string,
@@ -290,7 +325,7 @@ class GoogleScraper:
             )
 
         except Exception as e:
-            print(f"[ERRO] Falha ao extrair dados de {url}: {str(e)[:MAX_ERROR_MESSAGE_LENGTH]}")
+            print(f"    [ERRO] {str(e)[:50]}...")
             return CompanyModel(
                 name="",
                 emails="",

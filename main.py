@@ -245,26 +245,19 @@ def main():
 
         if success:
             print("[OK] Aplicação executada com sucesso")
-            print("[INFO] Encerrando em:")
-            import time
-            for i in range(3, 0, -1):
-                print(f"{i}")
-                time.sleep(1)
-            print("[INFO] Finalizando...")
-            
-            # Fechar conexão singleton
-            try:
-                from src.infrastructure.repositories.access_repository import AccessRepository
-                AccessRepository().close_connection()
-                print("[OK] Conexão singleton fechada")
-            except:
-                pass
-            
-            return 0
         else:
             print("[ERRO] Falha na execução da aplicação")
-            input("Pressione Enter para sair...")
-            return 1
+            
+        # Fechar conexão singleton
+        try:
+            from src.infrastructure.repositories.access_repository import AccessRepository
+            AccessRepository().close_connection()
+            print("[OK] Conexão singleton fechada")
+        except:
+            pass
+        
+        input("Pressione Enter para sair...")
+        return 0 if success else 1
 
     except KeyboardInterrupt:
         print("\n[INFO] Aplicação interrompida pelo usuário")

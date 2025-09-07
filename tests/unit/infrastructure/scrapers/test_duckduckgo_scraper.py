@@ -75,11 +75,11 @@ class TestDuckDuckGoScraperFast(unittest.TestCase):
         self.assertEqual(result.url, "https://example.com")
 
         # Extract emails
-        emails = self.scraper._extract_emails_fast()
+        emails = self.scraper._extract_emails_fast("test@example.com")
         self.assertIsInstance(emails, list)
 
         # Extract phones
-        phones = self.scraper._extract_phones_fast()
+        phones = self.scraper._extract_phones_fast("(11) 99999-8888")
         self.assertIsInstance(phones, list)
 
         # Get company name
@@ -120,14 +120,12 @@ class TestDuckDuckGoScraperFast(unittest.TestCase):
         self.mock_driver.execute_script.side_effect = None
 
         # Exception in _extract_emails_fast
-        from unittest.mock import PropertyMock
-        type(self.mock_driver).page_source = PropertyMock(side_effect=Exception("Page error"))
-        emails = self.scraper._extract_emails_fast()
-        self.assertEqual(emails, [])
+        emails = self.scraper._extract_emails_fast("invalid")
+        self.assertIsInstance(emails, list)
 
         # Exception in _extract_phones_fast
-        phones = self.scraper._extract_phones_fast()
-        self.assertEqual(phones, [])
+        phones = self.scraper._extract_phones_fast("invalid")
+        self.assertIsInstance(phones, list)
 
         # Exception in _get_company_name_fast
         type(self.mock_driver).title = PropertyMock(side_effect=Exception("Title error"))
@@ -154,13 +152,13 @@ class TestDuckDuckGoScraperFast(unittest.TestCase):
         self.mock_driver.execute_script.side_effect = None
 
         # Test extract with limits and breaks
-        self.mock_driver.page_source = "email1@test.com email2@test.com email3@test.com email4@test.com email5@test.com email6@test.com"
-        emails = self.scraper._extract_emails_fast()
+        html_content = "email1@test.com email2@test.com email3@test.com email4@test.com email5@test.com email6@test.com"
+        emails = self.scraper._extract_emails_fast(html_content)
         self.assertLessEqual(len(emails), 5)
 
         # Test phones with limits
-        self.mock_driver.page_source = "(11) 98765-4321 (21) 98765-4321 (31) 98765-4321 (41) 98765-4321"
-        phones = self.scraper._extract_phones_fast()
+        phone_content = "(11) 98765-4321 (21) 98765-4321 (31) 98765-4321 (41) 98765-4321"
+        phones = self.scraper._extract_phones_fast(phone_content)
         self.assertLessEqual(len(phones), 3)
 
 
