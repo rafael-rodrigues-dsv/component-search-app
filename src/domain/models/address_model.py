@@ -10,6 +10,7 @@ class AddressModel:
     """Modelo estruturado de endereço"""
     logradouro: str = ""
     numero: str = ""
+    complemento: str = ""
     bairro: str = ""
     cidade: str = "São Paulo"
     estado: str = "SP"
@@ -21,7 +22,10 @@ class AddressModel:
         
         if self.logradouro:
             if self.numero:
-                parts.append(f"{self.logradouro}, {self.numero}")
+                numero_completo = self.numero
+                if self.complemento:
+                    numero_completo += f" {self.complemento}"
+                parts.append(f"{self.logradouro}, {numero_completo}")
             else:
                 parts.append(self.logradouro)
         

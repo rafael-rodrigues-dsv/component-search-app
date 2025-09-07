@@ -10,43 +10,37 @@ search:
     duckduckgo:
       enabled: true
       max_pages: 3
-
-scraping:
-  max_emails_per_site: 3
-  max_phones_per_site: 2
-  request_delay: 0.1
-  timeout: 3
-  results_per_term_limit: 1200
-  site_timeout: 5
-
-retry:
-  max_attempts: 3
-  base_delay: 1.0
-  backoff_factor: 2.0
-  max_delay: 60.0
+  delays:
+    google:
+      page_load_min: 0.1
+      page_load_max: 0.3
+      scroll_min: 0.0
+      scroll_max: 0.1
+      search_dwell_min: 0.1
+      search_dwell_max: 0.2
+    duckduckgo:
+      page_load_min: 0.05
+      page_load_max: 0.2
+      scroll_min: 0.0
+      scroll_max: 0.1
+      search_dwell_min: 0.05
+      search_dwell_max: 0.15
+  scraping:
+    max_emails_per_site: 3
+    max_phones_per_site: 2
+    request_delay: 0.1
+    timeout: 3
+    results_per_term_limit: 1200
+    site_timeout: 5
+  retry:
+    max_attempts: 3
+    base_delay: 1.0
+    backoff_factor: 2.0
+    max_delay: 60.0
 
 performance:
   tracking_enabled: true
   metrics_retention_hours: 24
-
-delays:
-  # Delays otimizados para performance máxima
-  google:
-    page_load_min: 0.1
-    page_load_max: 0.3
-    scroll_min: 0.0
-    scroll_max: 0.1
-    search_dwell_min: 0.1
-    search_dwell_max: 0.2
-  
-  # DuckDuckGo - performance extrema
-  duckduckgo:
-    page_load_min: 0.05
-    page_load_max: 0.2
-    scroll_min: 0.0
-    scroll_max: 0.1
-    search_dwell_min: 0.05
-    search_dwell_max: 0.15
 
 mode:
   is_test: true
@@ -54,3 +48,36 @@ mode:
 
 geolocation:
   reference_cep: "01310-100"  # CEP de referência para cálculo de distâncias
+#  reference_cep: "18015-000"  # CEP de referência para cálculo de distâncias
+
+
+geographic_discovery:
+  enabled: true
+  radius_km: 50  # Raio único para descoberta de cidades E bairros
+  
+  # Validação de CEP de capital (DESABILITADO)
+  capital_validation:
+    enabled: false
+    show_suggestions: true
+  
+  # APIs de descoberta (100% dinâmico)
+  apis:
+    viacep:
+      enabled: true
+      url: "https://viacep.com.br/ws"
+    ibge:
+      enabled: true
+      url: "https://servicodados.ibge.gov.br/api/v1/localidades"
+    nominatim:
+      enabled: true
+      url: "https://nominatim.openstreetmap.org"
+
+  # Rate limiting
+  request_delay_seconds: 1.0
+  max_retries: 3
+  
+  # Filtros de qualidade
+  min_city_population: 500000
+  target_large_cities: 10  # Parar busca quando encontrar este número de cidades grandes
+  exclude_rural_areas: true
+  focus_metropolitan_area: true

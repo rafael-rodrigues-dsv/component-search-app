@@ -5,19 +5,15 @@ echo "========================================"
 echo "  MONITOR PYTHONSEARCHAPP - TEMPO REAL"
 echo "========================================"
 echo
-echo "Monitora as 3 funcionalidades do robo:"
+echo "Monitora as 5 funcionalidades do robo:"
 echo "  - Coleta de dados (emails/telefones)"
-echo "  - Geolocalizacao das empresas"
-echo "  - Exportacao de planilha Excel"
+echo "  - Enriquecimento CEP (ViaCEP)"
+echo "  - Geolocalizacao (Nominatim)"
+echo "  - Exportacao Excel"
+echo "  - Estatisticas completas"
 echo
-echo "Escolha o tipo de monitor:"
+echo "Iniciando Monitor em Tempo Real..."
 echo
-echo "[1] Monitor Simples (atualiza a cada 5s)"
-echo "[2] Monitor Avancado (metricas completas)"
-echo "[3] Sair"
-echo
-
-read -p "Digite sua opcao (1-3): " opcao
 
 cd "$(dirname "$0")"
 
@@ -27,27 +23,8 @@ if [ -f ".venv/bin/activate" ]; then
     source .venv/bin/activate
 fi
 
-case $opcao in
-    1)
-        echo
-        echo "Iniciando Monitor Simples..."
-        python scripts/monitoring/realtime_monitor.py
-        ;;
-    2)
-        echo
-        echo "Iniciando Monitor Avancado..."
-        python scripts/monitoring/advanced_monitor.py
-        ;;
-    3)
-        echo
-        echo "Saindo..."
-        exit 0
-        ;;
-    *)
-        echo
-        echo "Opcao invalida! Tente novamente."
-        read -p "Pressione Enter para continuar..."
-        ;;
-esac
+echo
+echo "Iniciando Monitor..."
+python scripts/monitoring/realtime_monitor.py
 
 read -p "Pressione Enter para continuar..."

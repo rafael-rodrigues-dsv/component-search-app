@@ -11,15 +11,15 @@ def get_scraper_delays(search_engine: str = "DUCKDUCKGO"):
 
     if engine_key == "google":
         return {
-            "page_load": (config.get("delays.google.page_load_min", 1.5),
-                          config.get("delays.google.page_load_max", 2.5)),
-            "scroll": (config.get("delays.google.scroll_min", 0.8),
-                       config.get("delays.google.scroll_max", 1.2))
+            "page_load": (config.get("search.delays.google.page_load_min", 1.5),
+                          config.get("search.delays.google.page_load_max", 2.5)),
+            "scroll": (config.get("search.delays.google.scroll_min", 0.8),
+                       config.get("search.delays.google.scroll_max", 1.2))
         }
     else:  # DuckDuckGo
         return {
-            "page_load": (config.get("delays.duckduckgo.page_load_min", 0.3),
-                          config.get("delays.duckduckgo.page_load_max", 0.8)),
-            "scroll": (config.get("delays.duckduckgo.scroll_min", 0.1),
-                       config.get("delays.duckduckgo.scroll_max", 0.4))
+            "page_load": (config.get("search.delays.duckduckgo.page_load_min", 0.3),
+                          config.get("search.delays.duckduckgo.page_load_max", 0.8)),
+            "scroll": (config.get("search.delays.duckduckgo.scroll_min", 0.1),
+                       config.get("search.delays.duckduckgo.scroll_max", 0.4))
         }

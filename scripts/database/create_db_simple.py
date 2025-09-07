@@ -54,20 +54,21 @@ def create_simple_db(auto_mode=False):
             "CREATE TABLE TB_BAIRROS (ID_BAIRRO COUNTER PRIMARY KEY, NOME_BAIRRO TEXT(100), UF TEXT(2), ATIVO BIT, DATA_CRIACAO DATE)",
             "CREATE TABLE TB_CIDADES (ID_CIDADE COUNTER PRIMARY KEY, NOME_CIDADE TEXT(100), UF TEXT(2), ATIVO BIT, DATA_CRIACAO DATE)",
             "CREATE TABLE TB_BASE_BUSCA (ID_BASE COUNTER PRIMARY KEY, TERMO_BUSCA TEXT(200), CATEGORIA TEXT(50), ATIVO BIT, DATA_CRIACAO DATE)",
-            "CREATE TABLE TB_ENDERECOS (ID_ENDERECO COUNTER PRIMARY KEY, LOGRADOURO TEXT(200), NUMERO TEXT(20), BAIRRO TEXT(100), CIDADE TEXT(100), ESTADO TEXT(2), CEP TEXT(10), DATA_CRIACAO DATE)",
+            "CREATE TABLE TB_ENDERECOS (ID_ENDERECO COUNTER PRIMARY KEY, LOGRADOURO TEXT(200), NUMERO TEXT(20), COMPLEMENTO TEXT(50), BAIRRO TEXT(100), CIDADE TEXT(100), ESTADO TEXT(2), CEP TEXT(10), DATA_CRIACAO DATE)",
             "CREATE TABLE TB_TERMOS_BUSCA (ID_TERMO COUNTER PRIMARY KEY, ID_BASE LONG, ID_ZONA LONG, ID_BAIRRO LONG, ID_CIDADE LONG, TERMO_COMPLETO TEXT(255), TIPO_LOCALIZACAO TEXT(20), STATUS_PROCESSAMENTO TEXT(20), DATA_CRIACAO DATE, DATA_PROCESSAMENTO DATE)",
             "CREATE TABLE TB_EMPRESAS (ID_EMPRESA COUNTER PRIMARY KEY, ID_TERMO LONG, SITE_URL TEXT(255), DOMINIO TEXT(100), NOME_EMPRESA TEXT(100), STATUS_COLETA TEXT(20), DATA_PRIMEIRA_VISITA DATE, DATA_ULTIMA_VISITA DATE, TENTATIVAS_COLETA LONG, MOTOR_BUSCA TEXT(20), ID_ENDERECO LONG, LATITUDE DOUBLE, LONGITUDE DOUBLE, DISTANCIA_KM DOUBLE)",
             "CREATE TABLE TB_EMAILS (ID_EMAIL COUNTER PRIMARY KEY, ID_EMPRESA LONG, EMAIL TEXT(200), DOMINIO_EMAIL TEXT(100), VALIDADO BIT, DATA_COLETA DATE, ORIGEM_COLETA TEXT(20))",
             "CREATE TABLE TB_TELEFONES (ID_TELEFONE COUNTER PRIMARY KEY, ID_EMPRESA LONG, TELEFONE TEXT(20), TELEFONE_FORMATADO TEXT(20), DDD TEXT(2), TIPO_TELEFONE TEXT(10), VALIDADO BIT, DATA_COLETA DATE)",
             "CREATE TABLE TB_GEOLOCALIZACAO (ID_GEO COUNTER PRIMARY KEY, ID_EMPRESA LONG, ID_ENDERECO LONG, LATITUDE DOUBLE, LONGITUDE DOUBLE, DISTANCIA_KM DOUBLE, STATUS_PROCESSAMENTO TEXT(20), DATA_PROCESSAMENTO DATE, TENTATIVAS LONG, ERRO_DESCRICAO TEXT(255))",
-            "CREATE TABLE TB_PLANILHA (ID_PLANILHA COUNTER PRIMARY KEY, SITE TEXT(255), EMAIL MEMO, TELEFONE MEMO, ENDERECO TEXT(255), DISTANCIA_KM DOUBLE, DATA_ATUALIZACAO DATE)"
+            "CREATE TABLE TB_PLANILHA (ID_PLANILHA COUNTER PRIMARY KEY, SITE TEXT(255), EMAIL MEMO, TELEFONE MEMO, ENDERECO TEXT(255), DISTANCIA_KM DOUBLE, DATA_ATUALIZACAO DATE)",
+            "CREATE TABLE TB_CEP_ENRICHMENT (ID_CEP_ENRICHMENT COUNTER PRIMARY KEY, ID_EMPRESA LONG, ID_ENDERECO LONG, STATUS_PROCESSAMENTO TEXT(20), DATA_PROCESSAMENTO DATE, TENTATIVAS LONG, ERRO_DESCRICAO TEXT(255))"
         ]
 
         for i, sql in enumerate(sqls, 1):
             try:
                 access.DoCmd.RunSQL(sql)
                 table = sql.split()[2]
-                print(f"[DB] {i}/11 - {table} criada")
+                print(f"[DB] {i}/12 - {table} criada")
             except Exception as e:
                 table = sql.split()[2] if len(sql.split()) > 2 else "UNKNOWN"
                 print(f"[DB-ERRO] {i}/11 - {table}: {str(e)[:50]}")
@@ -85,16 +86,9 @@ def create_simple_db(auto_mode=False):
             "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona central', 'SP', -1, Date())"
         ]
 
-        bairros = [
-            "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES ('Moema', 'SP', -1, Date())",
-            "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES ('Vila Mariana', 'SP', -1, Date())",
-            "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES ('Pinheiros', 'SP', -1, Date())"
-        ]
-
-        cidades = [
-            "INSERT INTO TB_CIDADES (NOME_CIDADE, UF, ATIVO, DATA_CRIACAO) VALUES ('Campinas', 'SP', -1, Date())",
-            "INSERT INTO TB_CIDADES (NOME_CIDADE, UF, ATIVO, DATA_CRIACAO) VALUES ('Guarulhos', 'SP', -1, Date())"
-        ]
+        # Tabelas TB_BAIRROS e TB_CIDADES ficam vazias - serão populadas pela descoberta dinâmica
+        bairros = []  # Sem dados hardcoded
+        cidades = []  # Sem dados hardcoded
 
         termos = [
             "INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO) VALUES ('empresa de elevadores', 'elevadores', -1, Date())",
@@ -110,23 +104,29 @@ def create_simple_db(auto_mode=False):
                 pass
         print(f"[DB-DATA] {len(zonas)} zonas carregadas")
 
-        # Carregar bairros
-        print(f"[DB-DATA] Carregando {len(bairros)} bairros...")
-        for sql in bairros:
-            try:
-                access.DoCmd.RunSQL(sql)
-            except:
-                pass
-        print(f"[DB-DATA] {len(bairros)} bairros carregados")
+        # Carregar bairros (agora vazio - descoberta dinâmica)
+        if bairros:
+            print(f"[DB-DATA] Carregando {len(bairros)} bairros...")
+            for sql in bairros:
+                try:
+                    access.DoCmd.RunSQL(sql)
+                except:
+                    pass
+            print(f"[DB-DATA] {len(bairros)} bairros carregados")
+        else:
+            print(f"[DB-DATA] TB_BAIRROS vazia - usará descoberta dinâmica")
 
-        # Carregar cidades
-        print(f"[DB-DATA] Carregando {len(cidades)} cidades...")
-        for sql in cidades:
-            try:
-                access.DoCmd.RunSQL(sql)
-            except:
-                pass
-        print(f"[DB-DATA] {len(cidades)} cidades carregadas")
+        # Carregar cidades (agora vazio - descoberta dinâmica)
+        if cidades:
+            print(f"[DB-DATA] Carregando {len(cidades)} cidades...")
+            for sql in cidades:
+                try:
+                    access.DoCmd.RunSQL(sql)
+                except:
+                    pass
+            print(f"[DB-DATA] {len(cidades)} cidades carregadas")
+        else:
+            print(f"[DB-DATA] TB_CIDADES vazia - usará descoberta dinâmica")
 
         # Carregar termos base
         print(f"[DB-DATA] Carregando {len(termos)} termos base...")
@@ -190,7 +190,7 @@ def create_simple_db(auto_mode=False):
             print(f"   {total_combinacoes} combinacoes possiveis")
             print(f"\n[OK] BANCO CRIADO COM SUCESSO!")
             print(f"[INFO] Localizacao: {db_path}")
-            print(f"[OK] 11 tabelas estruturadas")
+            print(f"[OK] 12 tabelas estruturadas")
             
             # Verificar se TB_ENDERECOS foi criada (nova conexão)
             try:

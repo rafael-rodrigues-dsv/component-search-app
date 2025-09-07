@@ -117,11 +117,30 @@ echo [INFO] Executavel Python: !PYTHON_EXE!
 for %%i in ("!PYTHON_EXE!") do set PYTHON_DIR=%%~dpi
 echo [INFO] Diretorio Python: !PYTHON_DIR!
 
-REM Criar e ativar ambiente virtual
-if not exist ".venv" (
-  echo [INFO] Criando ambiente virtual...
+REM Verificar se banco de dados existe
+if not exist "data\pythonsearch.accdb" (
+  echo [AVISO] Banco de dados nao encontrado em data\pythonsearch.accdb
+  echo [INFO] Recriando ambiente virtual do zero...
+  
+  REM Deletar ambiente virtual anterior se existir
+  if exist ".venv" (
+    echo [INFO] Removendo ambiente virtual anterior...
+    rmdir /s /q ".venv" 2>nul
+  )
+  
+  REM Criar novo ambiente virtual
+  echo [INFO] Criando novo ambiente virtual...
   %PYTHON_CMD% -m venv .venv
+) else (
+  echo [OK] Banco de dados encontrado
+  
+  REM Criar ambiente virtual se nao existir
+  if not exist ".venv" (
+    echo [INFO] Criando ambiente virtual...
+    %PYTHON_CMD% -m venv .venv
+  )
 )
+
 if exist ".venv\Scripts\activate.bat" (
   echo [INFO] Ativando ambiente virtual...
   call .venv\Scripts\activate.bat

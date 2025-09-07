@@ -13,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from src.infrastructure.config.delay_config import get_scraper_delays
+from src.infrastructure.config.config_manager import ConfigManager
 from ..drivers.web_driver import WebDriverManager
 from ..network.retry_manager import RetryManager
 from ...domain.models.company_model import CompanyModel
@@ -26,9 +27,21 @@ class DuckDuckGoScraper:
         self.driver_manager = driver_manager
         self.validation_service = EmailValidationService()
         self.delays = get_scraper_delays("DUCKDUCKGO")  # Delays específicos do DuckDuckGo
+        self.config = ConfigManager()  # Para acessar configurações de retry
 
-    @RetryManager.with_retry(max_attempts=3, base_delay=2.0, exceptions=(WebDriverException, TimeoutException))
     def search(self, query: str, max_retries: int = 2) -> bool:
+        @RetryManager.with_retry(
+            max_attempts=self.config.retry_max_attempts,
+            base_delay=self.config.retry_base_delay,
+            backoff_factor=self.config.retry_backoff_factor,
+            max_delay=self.config.retry_max_delay,
+            exceptions=(WebDriverException, TimeoutException)
+        )
+        def _search_impl():
+            return self._search_implementation(query, max_retries)
+        return _search_impl()
+    
+    def _search_implementation(self, query: str, max_retries: int = 2) -> bool:
         """Executa busca rápida no DuckDuckGo"""
         try:
             self.driver_manager.driver.get("https://duckduckgo.com/")
@@ -110,18 +123,24 @@ class DuckDuckGoScraper:
             return False
 
     def extract_company_data(self, url: str, max_emails: int) -> CompanyModel:
-        """Extração otimizada de dados da empresa"""
+        """Extração otimizada de dados da empresa usando sistema de abas"""
         try:
             print(f"    [INFO] Carregando site: {url}")
+            
+            # Abre site em nova aba (mantém aba de pesquisa aberta)
+            self.driver_manager.driver.execute_script("window.open(arguments[0],'_blank');", url)
+            self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[-1])
             
             # Timeout muito agressivo - 5 segundos máximo
             self.driver_manager.driver.set_page_load_timeout(5)
             
             try:
-                self.driver_manager.driver.get(url)
+                # Aguarda carregamento na nova aba
+                WebDriverWait(self.driver_manager.driver, 5).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
+                )
             except TimeoutException:
                 print(f"    [AVISO] Timeout no carregamento - continuando...")
-                # Continua mesmo com timeout
                 pass
             
             # Aguarda mínimo para HTML carregar
@@ -193,6 +212,15 @@ class DuckDuckGoScraper:
         except Exception as e:
             print(f"    [ERRO] {str(e)[:50]}...")
             return CompanyModel(name="", emails="", domain="", url=url, html_content="")
+        finally:
+            # Fecha aba atual e volta para aba de pesquisa
+            try:
+                if len(self.driver_manager.driver.window_handles) > 1:
+                    self.driver_manager.driver.close()
+                    self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[0])
+                    print(f"    [INFO] Voltou para aba de pesquisa")
+            except Exception as e:
+                print(f"[DEBUG] Erro ao fechar aba: {str(e)[:30]}")
 
     def _extract_emails_fast(self, html_content: str) -> List[str]:
         """Extração ultra-rápida de e-mails"""

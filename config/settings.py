@@ -30,26 +30,6 @@ MAX_PHONES_PER_SITE = config.max_phones_per_site
 # Geolocalização - via ConfigManager
 REFERENCE_CEP = config.reference_cep
 
-# Zonas SP
-BASE_ZONAS = ["zona norte", "zona sul", "zona leste", "zona oeste", "zona central"]
-
-# Bairros SP
-BASE_BAIRROS = [
-    "Moema", "Vila Mariana", "Pinheiros", "Itaim Bibi", "Brooklin", "Campo Belo",
-    "Saúde", "Santo Amaro", "Morumbi", "Tatuapé", "Anália Franco", "Carrão", "Penha",
-    "Vila Prudente", "Ipiranga", "Liberdade", "Sé", "Bela Vista", "Higienópolis",
-    "Santana", "Tucuruvi", "Casa Verde", "Freguesia do Ó", "Lapa", "Butantã",
-    "Pompéia", "Perdizes", "Barra Funda", "Mooca", "Brás"
-]
-
-# Cidades interior
-CIDADES_INTERIOR = [
-    "Campinas", "Guarulhos", "Santo André", "São Bernardo do Campo", "São Caetano do Sul",
-    "Osasco", "Barueri", "Carapicuíba", "Mogi das Cruzes", "Suzano", "Jundiaí", "Sorocaba",
-    "Ribeirão Preto", "Bauru", "São José dos Campos", "Taubaté", "Santos", "Praia Grande",
-    "Americana", "Piracicaba"
-]
-
 BASE_BUSCA = [
     "empresa de elevadores", "manutenção de elevadores", "instalação de elevadores",
     "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
@@ -57,18 +37,8 @@ BASE_BUSCA = [
 
 # Termos para testes
 BASE_TESTES = [
-    "empresa de elevadores", "manutenção de elevadores"
+    "empresa de elevadores"
 ]
-
-# Configurações de busca
-UF_BASE = "SP"
-CIDADE_BASE = "São Paulo"
-CATEGORIA_BASE = "elevadores"
-
-# Delays padrão (DuckDuckGo) - importado de delay_config
-from src.infrastructure.config.delay_config import get_scraper_delays
-
-SCRAPER_DELAYS = get_scraper_delays()
 
 # Blacklist
 BLACKLIST_HOSTS = [

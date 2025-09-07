@@ -89,7 +89,13 @@ def _handle_reset_option(db_service) -> bool:
 
 def main():
     """Função principal da aplicação"""
+    from src.infrastructure.config.config_manager import ConfigManager
+    config = ConfigManager()
+    
+    # Mostrar modo de operação
+    mode_text = "TESTE" if config.is_test_mode else "PRODUÇÃO"
     print(f"[INFO] Iniciando Python Search App - Coletor de E-mails e Contatos v{__version__}")
+    print(f"[INFO] Modo de operação: {mode_text}")
 
     # Verificar se pelo menos um navegador está disponível
     chrome_available = _check_browser_availability("CHROME")
@@ -146,7 +152,8 @@ def main():
             input("Pressione Enter para sair...")
             return 1
         
-        print(f"[OK] {terms_count} termos de busca gerados")
+        mode_text = "TESTE" if config.is_test_mode else "PRODUÇÃO"
+        print(f"[OK] {terms_count} termos de busca gerados (modo {mode_text})")
         
     except Exception as e:
         print(f"[ERRO] Falha ao conectar com banco: {e}")
@@ -170,12 +177,13 @@ def main():
     # Escolher modo de operação
     print("\n=== PYTHON SEARCH APP ===")
     print("[1] Processar coleta de dados (e-mails e telefones)")
-    print("[2] Processar geolocalização das empresas")
-    print("[3] Extrair planilha Excel")
-    print("[4] Sair")
+    print("[2] Enriquecer endereços (ViaCEP)")
+    print("[3] Processar geolocalização (Nominatim)")
+    print("[4] Extrair planilha Excel")
+    print("[5] Sair")
 
     while True:
-        opcao = input("\nEscolha uma opção (1-4): ").strip()
+        opcao = input("\nEscolha uma opção (1-5): ").strip()
 
         if opcao == '1':
             # Verificar se precisa resetar ou continuar APENAS para coleta
@@ -186,7 +194,36 @@ def main():
             success = collector_service.execute()
             break
         elif opcao == '2':
-            print("\n[INFO] Iniciando processamento de geolocalização...")
+            print("\n[INFO] Iniciando enriquecimento de endereços via ViaCEP...")
+            from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
+            cep_service = CepEnrichmentApplicationService()
+
+            # Mostrar estatísticas antes
+            stats = cep_service.get_cep_enrichment_stats()
+            print(f"\n[INFO] Tarefas CEP: {stats['total']}")
+            print(f"[INFO] Já processadas: {stats['concluidos']} ({stats['percentual']}%)")
+            print(f"[INFO] Pendentes: {stats['pendentes']}")
+            print(f"[INFO] Erros: {stats['erros']}")
+
+            if stats['pendentes'] == 0 and stats['total'] > 0:
+                print("\n[OK] Todos os endereços já foram processados!")
+                success = True
+            else:
+                # Criar tarefas se necessário
+                if stats['total'] == 0:
+                    print("\n[INFO] Criando tarefas de enriquecimento...")
+                    created = cep_service.create_cep_enrichment_tasks()
+                    if created == 0:
+                        print("\n[AVISO] Nenhuma empresa com CEP encontrada!")
+                        success = False
+                        break
+                
+                result = cep_service.process_cep_enrichment()
+                success = result['processadas'] > 0
+                print(f"\n[OK] Processamento concluído: {result['enriquecidas']}/{result['total']} enriquecidas")
+            break
+        elif opcao == '3':
+            print("\n[INFO] Iniciando processamento de geolocalização via Nominatim...")
             from src.application.services.geolocation_application_service import GeolocationApplicationService
             geo_service = GeolocationApplicationService()
 
@@ -204,7 +241,7 @@ def main():
                 success = result['geocodificadas'] > 0
                 print(f"\n[OK] Processamento concluído: {result['geocodificadas']}/{result['total']} geocodificadas")
             break
-        elif opcao == '3':
+        elif opcao == '4':
             print("\n[INFO] Extraindo planilha Excel...")
             from src.application.services.excel_application_service import ExcelApplicationService
             excel_service = ExcelApplicationService()
@@ -226,15 +263,15 @@ def main():
                 else:
                     print(f"\n[ERRO] {result['message']}")
             break
-        elif opcao == '4':
+        elif opcao == '5':
             print("\n[INFO] Saindo...")
             return 0
         else:
-            print("[ERRO] Opção inválida. Digite 1, 2, 3 ou 4.")
+            print("[ERRO] Opção inválida. Digite 1, 2, 3, 4 ou 5.")
 
     try:
-        # Mostrar estatísticas finais apenas para coleta e geolocalização
-        if success and opcao in ['1', '2']:
+        # Mostrar estatísticas finais
+        if success:
             stats = db_service.get_statistics()
             if stats:
                 print("\n[INFO] === ESTATÍSTICAS FINAIS ===")
@@ -242,6 +279,26 @@ def main():
                 print(f"[INFO] Empresas encontradas: {stats['empresas_total']}")
                 print(f"[INFO] E-mails coletados: {stats['emails_total']}")
                 print(f"[INFO] Telefones coletados: {stats['telefones_total']}")
+                
+                # Estatísticas de CEP enrichment
+                try:
+                    from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
+                    cep_service = CepEnrichmentApplicationService()
+                    cep_stats = cep_service.get_cep_enrichment_stats()
+                    if cep_stats['total'] > 0:
+                        print(f"[INFO] CEP enriquecidos: {cep_stats['concluidos']}/{cep_stats['total']} ({cep_stats['percentual']}%)")
+                except:
+                    pass
+                
+                # Estatísticas de geolocalização
+                try:
+                    from src.application.services.geolocation_application_service import GeolocationApplicationService
+                    geo_service = GeolocationApplicationService()
+                    geo_stats = geo_service.get_geolocation_stats()
+                    if geo_stats['total_com_endereco'] > 0:
+                        print(f"[INFO] Geocodificadas: {geo_stats['geocodificadas']}/{geo_stats['total_com_endereco']} ({geo_stats['percentual']}%)")
+                except:
+                    pass
 
         if success:
             print("[OK] Aplicação executada com sucesso")

@@ -82,11 +82,30 @@ echo "[INFO] Verificando detalhes do Python..."
 PYTHON_EXE=$("$PYTHON_CMD" -c "import sys; print(sys.executable)")
 echo "[INFO] Executável Python: $PYTHON_EXE"
 
-# Criar e ativar ambiente virtual
-if [ ! -d ".venv" ]; then
-    echo "[INFO] Criando ambiente virtual..."
+# Verificar se banco de dados existe
+if [ ! -f "data/pythonsearch.accdb" ]; then
+    echo "[AVISO] Banco de dados não encontrado em data/pythonsearch.accdb"
+    echo "[INFO] Recriando ambiente virtual do zero..."
+    
+    # Deletar ambiente virtual anterior se existir
+    if [ -d ".venv" ]; then
+        echo "[INFO] Removendo ambiente virtual anterior..."
+        rm -rf .venv
+    fi
+    
+    # Criar novo ambiente virtual
+    echo "[INFO] Criando novo ambiente virtual..."
     "$PYTHON_CMD" -m venv .venv
+else
+    echo "[OK] Banco de dados encontrado"
+    
+    # Criar ambiente virtual se não existir
+    if [ ! -d ".venv" ]; then
+        echo "[INFO] Criando ambiente virtual..."
+        "$PYTHON_CMD" -m venv .venv
+    fi
 fi
+
 if [ -f ".venv/bin/activate" ]; then
     echo "[INFO] Ativando ambiente virtual..."
     source .venv/bin/activate

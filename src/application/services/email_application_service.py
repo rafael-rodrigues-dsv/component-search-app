@@ -253,21 +253,16 @@ class EmailApplicationService(EmailCollectorInterface):
         return term_saved
 
     def _save_company_to_database(self, company: CompanyModel, domain: str, termo_id: int) -> bool:
-        """Salva empresa no banco Access"""
-        if not company.emails or not company.emails.strip():
-            self.logger.debug("Sem e-mail válido", domain=self.logger._sanitize_input(domain))
-            return False
-
-        email_list = [e.strip() for e in company.emails.split(';') if e.strip()]
-        new_emails = [e for e in email_list if not self.db_service.is_email_collected(e)]
-
-        if not new_emails and not company.phone:
-            self.logger.debug("Nenhum dado novo", domain=self.logger._sanitize_input(domain))
-            return False
+        """Salva empresa no banco Access (sempre salva, mesmo sem dados)"""
+        # Processar e-mails
+        new_emails = []
+        if company.emails and company.emails.strip():
+            email_list = [e.strip() for e in company.emails.split(';') if e.strip()]
+            new_emails = [e for e in email_list if not self.db_service.is_email_collected(e)]
 
         # Processar telefones
         telefones_data = []
-        if company.phone:
+        if company.phone and company.phone.strip():
             phone_list = [p.strip() for p in company.phone.split(';') if p.strip()]
             for phone in phone_list:
                 telefones_data.append({
@@ -277,7 +272,7 @@ class EmailApplicationService(EmailCollectorInterface):
                     'tipo': 'CELULAR' if len(phone) == 11 else 'FIXO'
                 })
 
-        # Salvar no banco
+        # Salvar no banco (sempre salva, mesmo sem e-mails/telefones)
         success = self.db_service.save_company_data(
             termo_id=termo_id,
             site_url=company.url,
@@ -291,10 +286,36 @@ class EmailApplicationService(EmailCollectorInterface):
         )
 
         if success:
-            self.logger.info("Empresa salva no banco",
+            # TB_EMPRESAS sempre é salva
+            tables_saved = ["TB_EMPRESAS"]
+            
+            # Outras tabelas só se houver dados válidos
+            if new_emails:
+                tables_saved.append("TB_EMAILS")
+            if telefones_data:
+                tables_saved.append("TB_TELEFONES")
+            if company.html_content:
+                # Verificar se endereço foi extraído
+                try:
+                    from src.infrastructure.utils.address_extractor import AddressExtractor
+                    address_model = AddressExtractor.extract_from_html(company.html_content)
+                    if address_model and address_model.is_valid():
+                        tables_saved.extend(["TB_ENDERECOS", "TB_CEP_ENRICHMENT", "TB_GEOLOCALIZACAO"])
+                except Exception:
+                    pass
+            
+            # TB_PLANILHA só se houver dados coletados
+            if new_emails or telefones_data:
+                tables_saved.append("TB_PLANILHA")
+                status_msg = "com dados coletados"
+            else:
+                status_msg = "sem dados (NAO_COLETADO)"
+            
+            self.logger.info(f"Empresa salva no banco {status_msg}",
                              domain=self.logger._sanitize_input(domain),
                              emails_count=len(new_emails),
-                             phones_count=len(telefones_data))
+                             phones_count=len(telefones_data),
+                             tables=" | ".join(tables_saved))
 
         return success
 

@@ -33,24 +33,30 @@ class ConfigManager:
         """Carrega configuração do arquivo YAML"""
         # Configuração padrão como fallback
         default_config = {
-            'scraping': {
-                'max_emails_per_site': 5,
-                'max_phones_per_site': 3,
-                'results_per_term_limit': 1200
+            'search': {
+                'scraping': {
+                    'max_emails_per_site': 5,
+                    'max_phones_per_site': 3,
+                    'results_per_term_limit': 1200
+                },
+                'retry': {
+                    'max_attempts': 3,
+                    'base_delay': 1.0,
+                    'backoff_factor': 2.0,
+                    'max_delay': 60.0
+                }
             },
-            'retry': {
-                'max_attempts': 3,
-                'base_delay': 1.0,
-                'backoff_factor': 2.0,
-                'max_delay': 60.0
-            },
-            'delays': {
-                'page_load_min': 2.0,
-                'page_load_max': 3.0,
-                'scroll_min': 1.0,
-                'scroll_max': 1.5,
-                'search_dwell_min': 1.2,
-                'search_dwell_max': 2.4
+            'search': {
+                'delays': {
+                    'duckduckgo': {
+                        'page_load_min': 2.0,
+                        'page_load_max': 3.0,
+                        'scroll_min': 1.0,
+                        'scroll_max': 1.5,
+                        'search_dwell_min': 1.2,
+                        'search_dwell_max': 2.4
+                    }
+                }
             },
             'mode': {
                 'is_test': False,
@@ -90,50 +96,50 @@ class ConfigManager:
     # Propriedades de scraping
     @property
     def max_emails_per_site(self) -> int:
-        return self.get('scraping.max_emails_per_site', 5)
+        return self.get('search.scraping.max_emails_per_site', 5)
 
     @property
     def max_phones_per_site(self) -> int:
-        return self.get('scraping.max_phones_per_site', 3)
+        return self.get('search.scraping.max_phones_per_site', 3)
 
     @property
     def results_per_term_limit(self) -> int:
-        return self.get('scraping.results_per_term_limit', 1200)
+        return self.get('search.scraping.results_per_term_limit', 1200)
 
     # Propriedades de retry
     @property
     def retry_max_attempts(self) -> int:
-        return self.get('retry.max_attempts', 3)
+        return self.get('search.retry.max_attempts', 3)
 
     @property
     def retry_base_delay(self) -> float:
-        return self.get('retry.base_delay', 1.0)
+        return self.get('search.retry.base_delay', 1.0)
 
     @property
     def retry_backoff_factor(self) -> float:
-        return self.get('retry.backoff_factor', 2.0)
+        return self.get('search.retry.backoff_factor', 2.0)
 
     @property
     def retry_max_delay(self) -> float:
-        return self.get('retry.max_delay', 60.0)
+        return self.get('search.retry.max_delay', 60.0)
 
-    # Propriedades de delays
+    # Propriedades de delays (agora em search.delays)
     @property
     def page_load_delay(self) -> tuple:
-        min_delay = self.get('delays.page_load_min', 2.0)
-        max_delay = self.get('delays.page_load_max', 3.0)
+        min_delay = self.get('search.delays.duckduckgo.page_load_min', 2.0)
+        max_delay = self.get('search.delays.duckduckgo.page_load_max', 3.0)
         return (min_delay, max_delay)
 
     @property
     def scroll_delay(self) -> tuple:
-        min_delay = self.get('delays.scroll_min', 1.0)
-        max_delay = self.get('delays.scroll_max', 1.5)
+        min_delay = self.get('search.delays.duckduckgo.scroll_min', 1.0)
+        max_delay = self.get('search.delays.duckduckgo.scroll_max', 1.5)
         return (min_delay, max_delay)
 
     @property
     def search_dwell_delay(self) -> tuple:
-        min_delay = self.get('delays.search_dwell_min', 1.2)
-        max_delay = self.get('delays.search_dwell_max', 2.4)
+        min_delay = self.get('search.delays.duckduckgo.search_dwell_min', 1.2)
+        max_delay = self.get('search.delays.duckduckgo.search_dwell_max', 2.4)
         return (min_delay, max_delay)
 
     # Propriedades de modo
@@ -153,4 +159,50 @@ class ConfigManager:
     # Propriedades de geolocalização
     @property
     def reference_cep(self) -> str:
-        return self.get('geolocation.reference_cep', '01310-100')
+        cep = self.get('geolocation.reference_cep', '01310-100')
+        
+        # Validar se é CEP de capital (se habilitado)
+        if self.get('geographic_discovery.capital_validation.enabled', True):
+            validation_result = self._validate_capital_cep(cep)
+            if not validation_result['valid']:
+                raise ValueError(f"CEP inválido: {validation_result['error']}")
+        
+        return cep
+    
+    def _validate_capital_cep(self, cep: str) -> dict:
+        """Validar CEP de capital dinamicamente"""
+        try:
+            from ..services.capital_cep_validator import CapitalCepValidator
+            validator = CapitalCepValidator()
+            return validator.validate_capital_cep(cep)
+        except Exception as e:
+            return {
+                'valid': False,
+                'error': f'Erro na validação: {e}'
+            }
+    
+    @property
+    def discovery_radius_km(self) -> int:
+        return self.get('geolocation.discovery_radius_km', 50)
+    
+    # Propriedades de descoberta geográfica
+    @property
+    def geographic_discovery_enabled(self) -> bool:
+        return self.get('geographic_discovery.enabled', True)
+    
+    @property
+    def capital_validation_enabled(self) -> bool:
+        return self.get('geographic_discovery.capital_validation.enabled', True)
+    
+    def get_capital_info(self) -> dict:
+        """Obter informações da capital do CEP de referência"""
+        try:
+            from ..services.capital_cep_validator import CapitalCepValidator
+            validator = CapitalCepValidator()
+            return validator.validate_capital_cep(self.get('geolocation.reference_cep', '01310-100'))
+        except Exception:
+            return {'valid': False, 'error': 'Erro ao obter informações da capital'}
+    
+    def get_config_value(self, key: str, default: Any = None) -> Any:
+        """Método genérico para obter qualquer valor de configuração"""
+        return self.get(key, default)

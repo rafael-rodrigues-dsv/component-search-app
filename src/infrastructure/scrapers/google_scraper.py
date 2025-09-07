@@ -13,6 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import MAX_PHONES_PER_SITE
 from src.infrastructure.config.delay_config import get_scraper_delays
+from src.infrastructure.config.config_manager import ConfigManager
 from ..network.human_behavior import HumanBehaviorSimulator
 from ..network.retry_manager import RetryManager
 from ...domain.services.email_domain_service import EmailValidationService
@@ -37,9 +38,21 @@ class GoogleScraper:
         self.human_behavior = HumanBehaviorSimulator()
         self.searches_count = 0
         self.delays = get_scraper_delays("GOOGLE")  # Delays específicos do Google
+        self.config = ConfigManager()  # Para acessar configurações de retry
 
-    @RetryManager.with_retry(max_attempts=3, base_delay=2.0, exceptions=(WebDriverException, TimeoutException))
     def search(self, term, max_results=50):
+        @RetryManager.with_retry(
+            max_attempts=self.config.retry_max_attempts,
+            base_delay=self.config.retry_base_delay,
+            backoff_factor=self.config.retry_backoff_factor,
+            max_delay=self.config.retry_max_delay,
+            exceptions=(WebDriverException, TimeoutException)
+        )
+        def _search_impl():
+            return self._search_implementation(term, max_results)
+        return _search_impl()
+    
+    def _search_implementation(self, term, max_results=50):
         """Executa busca no Google simulando comportamento humano"""
         try:
             # === NAVEGAÇÃO HUMANA ===
@@ -336,13 +349,14 @@ class GoogleScraper:
                 html_content=""
             )
         finally:
-            # Fecha aba atual e volta para aba de resultados (igual ao DuckDuckGo)
+            # Fecha aba atual e volta para aba de pesquisa
             try:
                 if len(self.driver.window_handles) > 1:
                     self.driver.close()
                     self.driver.switch_to.window(self.driver.window_handles[0])
+                    print(f"    [INFO] Voltou para aba de pesquisa")
             except Exception as e:
-                print(f"[DEBUG] Erro ao fechar janela: {str(e)[:30]}")
+                print(f"[DEBUG] Erro ao fechar aba: {str(e)[:30]}")
 
     def _is_valid_url(self, url):
         """Verifica se URL é válida"""

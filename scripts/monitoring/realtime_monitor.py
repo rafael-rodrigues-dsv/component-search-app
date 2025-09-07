@@ -23,37 +23,32 @@ class MonitorTempoReal:
         self.db_service = DatabaseService()
         self.running = False
         self.stats_anteriores = {}
-        self.processo_ativo = self._detectar_processo_ativo()
+        self.recurso_monitorado = self._escolher_recurso_monitoramento()
 
-    def _detectar_processo_ativo(self):
-        """Detecta qual processo está ativo baseado no estado do banco"""
-        try:
-            stats = self.db_service.get_statistics()
-            if not stats:
-                return "INICIALIZANDO"
-
-            # Verificar se há termos pendentes (coleta ativa)
-            if stats.get('termos_pendentes', 0) > 0 and stats.get('termos_concluidos', 0) > 0:
-                return "COLETA"
-
-            # Verificar se há tarefas de geolocalização pendentes
+    def _escolher_recurso_monitoramento(self):
+        """Menu para escolher qual recurso monitorar"""
+        print("\n=== ESCOLHA O RECURSO PARA MONITORAR ===")
+        print("[1] 📊 Coleta de Dados (termos/empresas/emails)")
+        print("[2] 🏠 Enriquecimento CEP (ViaCEP)")
+        print("[3] 🌍 Geolocalização (Nominatim)")
+        print("[4] 📋 Visão Geral (todos os recursos)")
+        
+        while True:
             try:
-                with self.db_service.repository._get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
-                    pendentes_geo = cursor.fetchone()[0]
-                    if pendentes_geo > 0:
-                        return "GEOLOCALIZACAO"
-            except:
-                pass
-
-            # Se há dados coletados, pode exportar Excel
-            if stats.get('empresas_coletadas', 0) > 0:
-                return "EXCEL_DISPONIVEL"
-
-            return "AGUARDANDO"
-        except:
-            return "ERRO"
+                opcao = input("\nDigite sua opção (1-4): ").strip()
+                if opcao == '1':
+                    return "COLETA"
+                elif opcao == '2':
+                    return "CEP_ENRICHMENT"
+                elif opcao == '3':
+                    return "GEOLOCALIZACAO"
+                elif opcao == '4':
+                    return "GERAL"
+                else:
+                    print("Opção inválida! Digite 1, 2, 3 ou 4.")
+            except KeyboardInterrupt:
+                print("\nSaindo...")
+                exit(0)
 
     def limpar_tela(self):
         """Limpa a tela do terminal"""
@@ -91,86 +86,211 @@ class MonitorTempoReal:
             # Calcular velocidades
             vel_empresas, vel_emails, vel_termos = self.calcular_velocidade(stats, self.stats_anteriores)
 
-            # Detectar processo atual
-            self.processo_ativo = self._detectar_processo_ativo()
+
 
             # Cabeçalho com processo ativo
             agora = datetime.now().strftime("%H:%M:%S")
             processo_emoji = {
                 "COLETA": "📊",
+                "CEP_ENRICHMENT": "🏠",
                 "GEOLOCALIZACAO": "🌍",
-                "EXCEL_DISPONIVEL": "📋",
-                "AGUARDANDO": "⏸️",
-                "INICIALIZANDO": "🔄",
-                "ERRO": "❌"
+                "GERAL": "📋"
             }
-            emoji = processo_emoji.get(self.processo_ativo, "🤖")
+            emoji = processo_emoji.get(self.recurso_monitorado, "🤖")
 
             print("=" * 80)
             print(f"{emoji} PYTHONSEARCHAPP - MONITOR TEMPO REAL | {agora}")
-            print(f"Status: {self.processo_ativo}")
+            print(f"Monitorando: {self.recurso_monitorado}")
             print("=" * 80)
 
-            # Progresso específico por processo
-            if self.processo_ativo == "COLETA":
+            # Barra de progresso baseada na escolha do usuário
+            if self.recurso_monitorado == "COLETA":
                 progresso = stats.get('progresso_pct', 0)
-                barra_progresso = "█" * int(progresso / 2) + "░" * (50 - int(progresso / 2))
+                barra = "█" * int(progresso / 2) + "░" * (50 - int(progresso / 2))
                 print(f"\n📊 PROGRESSO COLETA: {progresso}%")
-                print(f"[{barra_progresso}] {progresso}%")
-            elif self.processo_ativo == "GEOLOCALIZACAO":
+                print(f"[{barra}] {progresso}%")
+            elif self.recurso_monitorado == "CEP_ENRICHMENT":
                 try:
-                    from src.application.services.geolocation_application_service import GeolocationApplicationService
-                    geo_service = GeolocationApplicationService()
-                    geo_stats = geo_service.get_geolocation_stats()
-                    progresso_geo = geo_stats.get('percentual', 0)
-                    barra_geo = "█" * int(progresso_geo / 2) + "░" * (50 - int(progresso_geo / 2))
-                    print(f"\n🌍 PROGRESSO GEOLOCALIZAÇÃO: {progresso_geo}%")
-                    print(f"[{barra_geo}] {progresso_geo}%")
-                except:
-                    print(f"\n🌍 GEOLOCALIZAÇÃO: Processando...")
-            else:
+                    # Usar status da TB_CEP_ENRICHMENT (CONCLUIDO + ERRO = processados)
+                    from src.infrastructure.repositories.access_repository import AccessRepository
+                    repo = AccessRepository()
+                    with repo._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO IN ('CONCLUIDO', 'ERRO')")
+                        processados = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT")
+                        total = cursor.fetchone()[0]
+                        progresso = (processados / max(total, 1)) * 100
+                    
+                    barra = "█" * int(progresso / 2) + "░" * (50 - int(progresso / 2))
+                    print(f"\n🏠 PROGRESSO CEP: {progresso:.1f}%")
+                    print(f"[{barra}] {processados}/{total} processados")
+                except Exception as e:
+                    print(f"\n🏠 CEP: Erro - {e}")
+            elif self.recurso_monitorado == "GEOLOCALIZACAO":
+                try:
+                    # Usar status da TB_GEOLOCALIZACAO
+                    from src.infrastructure.repositories.access_repository import AccessRepository
+                    repo = AccessRepository()
+                    with repo._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+                        concluidos = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO")
+                        total = cursor.fetchone()[0]
+                        progresso = (concluidos / max(total, 1)) * 100
+                    
+                    barra = "█" * int(progresso / 2) + "░" * (50 - int(progresso / 2))
+                    print(f"\n🌍 PROGRESSO GEO: {progresso:.1f}%")
+                    print(f"[{barra}] {concluidos}/{total} geocodificados")
+                except Exception as e:
+                    print(f"\n🌍 GEO: Erro - {e}")
+            else:  # GERAL
                 progresso = stats.get('progresso_pct', 0)
-                barra_progresso = "█" * int(progresso / 2) + "░" * (50 - int(progresso / 2))
-                print(f"\n📊 PROGRESSO GERAL: {progresso}%")
-                print(f"[{barra_progresso}] {progresso}%")
+                barra = "█" * int(progresso / 2) + "░" * (50 - int(progresso / 2))
+                print(f"\n📋 PROGRESSO GERAL: {progresso}%")
+                print(f"[{barra}] {progresso}%")
 
-            # Estatísticas Principais
-            print(f"\n📈 ESTATÍSTICAS PRINCIPAIS:")
-            print(f"   Termos Processados: {stats.get('termos_concluidos', 0):,} / {stats.get('termos_total', 0):,}")
-            print(f"   Termos Pendentes:   {stats.get('termos_pendentes', 0):,}")
-            print(f"   Empresas Visitadas: {stats.get('empresas_total', 0):,}")
-            print(f"   Empresas Coletadas: {stats.get('empresas_coletadas', 0):,}")
-            print(f"   E-mails Coletados:  {stats.get('emails_total', 0):,}")
-            print(f"   Telefones Coletados: {stats.get('telefones_total', 0):,}")
+            # Estatísticas específicas por recurso monitorado
+            print(f"\n📈 ESTATÍSTICAS - {self.recurso_monitorado}:")
+            if self.recurso_monitorado == "COLETA":
+                print(f"   Termos Processados: {stats.get('termos_concluidos', 0):,} / {stats.get('termos_total', 0):,}")
+                print(f"   Termos Pendentes:   {stats.get('termos_pendentes', 0):,}")
+                print(f"   Empresas Visitadas: {stats.get('empresas_total', 0):,}")
+                print(f"   Empresas Coletadas: {stats.get('empresas_coletadas', 0):,}")
+                print(f"   E-mails Coletados:  {stats.get('emails_total', 0):,}")
+                print(f"   Telefones Coletados: {stats.get('telefones_total', 0):,}")
+            elif self.recurso_monitorado == "CEP_ENRICHMENT":
+                try:
+                    from src.infrastructure.repositories.access_repository import AccessRepository
+                    repo = AccessRepository()
+                    with repo._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+                        concluidos = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
+                        pendentes = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'ERRO'")
+                        erros = cursor.fetchone()[0]
+                        total = concluidos + pendentes + erros
+                    print(f"   Total de Tarefas:   {total:,}")
+                    print(f"   CEPs Enriquecidos:  {concluidos:,} (✅ sucesso)")
+                    print(f"   Tentativas Falhas:  {erros:,} (⚠️ não melhorou)")
+                    print(f"   Pendentes:          {pendentes:,}")
+                except Exception as e:
+                    print(f"   Erro ao obter dados CEP: {e}")
+            elif self.recurso_monitorado == "GEOLOCALIZACAO":
+                try:
+                    with self.db_service.repository._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+                        concluidos = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
+                        pendentes = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'ERRO'")
+                        erros = cursor.fetchone()[0]
+                        cursor.execute("SELECT AVG(DISTANCIA_KM) FROM TB_GEOLOCALIZACAO WHERE DISTANCIA_KM IS NOT NULL")
+                        dist_media = cursor.fetchone()[0] or 0
+                        total = concluidos + pendentes + erros
+                    print(f"   Total de Tarefas:   {total:,}")
+                    print(f"   Geocodificadas:     {concluidos:,}")
+                    print(f"   Pendentes:          {pendentes:,}")
+                    print(f"   Erros:              {erros:,}")
+                    print(f"   Distância Média:    {dist_media:.1f} km")
+                except:
+                    print(f"   Erro ao obter dados GEO")
+            else:  # GERAL
+                print(f"   Termos Processados: {stats.get('termos_concluidos', 0):,} / {stats.get('termos_total', 0):,}")
+                print(f"   Empresas Visitadas: {stats.get('empresas_total', 0):,}")
+                print(f"   E-mails Coletados:  {stats.get('emails_total', 0):,}")
+                print(f"   Telefones Coletados: {stats.get('telefones_total', 0):,}")
 
-            # Velocidade (por minuto)
-            print(f"\n⚡ VELOCIDADE (últimos 5s):")
-            print(f"   Empresas/min: {vel_empresas * 12:,}")
-            print(f"   E-mails/min:  {vel_emails * 12:,}")
-            print(f"   Termos/min:   {vel_termos * 12:,}")
+            # Velocidade específica por recurso
+            if self.recurso_monitorado == "COLETA":
+                print(f"\n⚡ VELOCIDADE COLETA (últimos 5s):")
+                print(f"   Empresas/min: {vel_empresas * 12:,}")
+                print(f"   E-mails/min:  {vel_emails * 12:,}")
+                print(f"   Termos/min:   {vel_termos * 12:,}")
+            elif self.recurso_monitorado == "CEP_ENRICHMENT":
+                print(f"\n⚡ VELOCIDADE CEP:")
+                print(f"   Rate Limit: 1 req/seg (60/min)")
+                print(f"   ✅ Sucesso: CEP melhora endereço")
+                print(f"   ⚠️ Falha: CEP não melhora endereço")
+            elif self.recurso_monitorado == "GEOLOCALIZACAO":
+                print(f"\n⚡ VELOCIDADE GEO:")
+                print(f"   Rate Limit: 1 req/seg (60/min)")
+            else:  # GERAL
+                print(f"\n⚡ VELOCIDADE GERAL (últimos 5s):")
+                print(f"   Empresas/min: {vel_empresas * 12:,}")
+                print(f"   E-mails/min:  {vel_emails * 12:,}")
+                print(f"   Termos/min:   {vel_termos * 12:,}")
 
-            # Taxa de Sucesso
-            if stats.get('empresas_total', 0) > 0:
-                taxa_sucesso = (stats.get('empresas_coletadas', 0) / stats.get('empresas_total', 0)) * 100
-                print(f"\n✅ TAXA DE SUCESSO: {taxa_sucesso:.1f}%")
+            # Taxa de Sucesso específica por recurso
+            if self.recurso_monitorado == "COLETA":
+                if stats.get('empresas_total', 0) > 0:
+                    taxa_sucesso = (stats.get('empresas_coletadas', 0) / stats.get('empresas_total', 0)) * 100
+                    print(f"\n✅ TAXA DE SUCESSO COLETA: {taxa_sucesso:.1f}%")
+            elif self.recurso_monitorado == "CEP_ENRICHMENT":
+                try:
+                    from src.infrastructure.repositories.access_repository import AccessRepository
+                    repo = AccessRepository()
+                    with repo._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+                        concluidos = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO IN ('CONCLUIDO', 'ERRO')")
+                        processados = cursor.fetchone()[0]
+                        if processados > 0:
+                            taxa_sucesso = (concluidos / processados) * 100
+                            print(f"\n✅ TAXA DE SUCESSO CEP: {taxa_sucesso:.1f}% ({concluidos}/{processados})")
+                except Exception as e:
+                    print(f"   Erro CEP taxa: {e}")
+            elif self.recurso_monitorado == "GEOLOCALIZACAO":
+                try:
+                    with self.db_service.repository._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+                        concluidos = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO")
+                        total = cursor.fetchone()[0]
+                        if total > 0:
+                            taxa_sucesso = (concluidos / total) * 100
+                            print(f"\n✅ TAXA DE SUCESSO GEO: {taxa_sucesso:.1f}%")
+                except:
+                    pass
 
-            # Estimativa de Conclusão
-            if vel_termos > 0 and stats.get('termos_pendentes', 0) > 0:
+            # Estimativa de Conclusão específica por recurso
+            if self.recurso_monitorado == "COLETA" and vel_termos > 0 and stats.get('termos_pendentes', 0) > 0:
                 tempo_restante = stats.get('termos_pendentes', 0) / (vel_termos * 12)  # em minutos
-                print(f"⏱️  TEMPO ESTIMADO: {self.formatar_tempo(tempo_restante * 60)}")
+                print(f"⏱️  TEMPO ESTIMADO COLETA: {self.formatar_tempo(tempo_restante * 60)}")
+            elif self.recurso_monitorado in ["CEP_ENRICHMENT", "GEOLOCALIZACAO"]:
+                try:
+                    tabela = "TB_CEP_ENRICHMENT" if self.recurso_monitorado == "CEP_ENRICHMENT" else "TB_GEOLOCALIZACAO"
+                    from src.infrastructure.repositories.access_repository import AccessRepository
+                    repo = AccessRepository()
+                    with repo._get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute(f"SELECT COUNT(*) FROM {tabela} WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
+                        pendentes = cursor.fetchone()[0]
+                        if pendentes > 0:
+                            # Estimativa baseada em 1 tarefa por segundo (rate limiting)
+                            tempo_restante = pendentes  # em segundos
+                            recurso_nome = "CEP" if self.recurso_monitorado == "CEP_ENRICHMENT" else "GEO"
+                            print(f"⏱️  TEMPO ESTIMADO {recurso_nome}: {self.formatar_tempo(tempo_restante)} ({pendentes} pendentes)")
+                except Exception as e:
+                    print(f"   Erro estimativa: {e}")
 
             # Salvar stats para próxima iteração
             self.stats_anteriores = stats.copy()
 
-            # Status específico por processo
-            if self.processo_ativo == "COLETA":
-                print(f"\n📊 COLETA DE DADOS EM ANDAMENTO")
-            elif self.processo_ativo == "GEOLOCALIZACAO":
-                print(f"\n🌍 GEOLOCALIZAÇÃO EM ANDAMENTO")
-            elif self.processo_ativo == "EXCEL_DISPONIVEL":
-                print(f"\n📋 DADOS PRONTOS PARA EXPORTAÇÃO EXCEL")
-            elif self.processo_ativo == "AGUARDANDO":
-                print(f"\n⏸️ SISTEMA AGUARDANDO PRÓXIMA OPERAÇÃO")
+            # Status baseado na escolha do usuário
+            status_msgs = {
+                "COLETA": "📊 MONITORANDO COLETA DE DADOS",
+                "CEP_ENRICHMENT": "🏠 MONITORANDO CEP (✅ sucesso | ⚠️ não melhorou)",
+                "GEOLOCALIZACAO": "🌍 MONITORANDO GEOLOCALIZAÇÃO",
+                "GERAL": "📋 MONITORANDO VISÃO GERAL"
+            }
+            print(f"\n{status_msgs.get(self.recurso_monitorado, 'MONITORANDO')}")
 
             print(f"\n🔄 Atualizando a cada 5 segundos... (Ctrl+C para sair)")
 
