@@ -19,18 +19,24 @@ echo
 
 read -p "Digite sua opcao (1-3): " opcao
 
+cd "$(dirname "$0")"
+
+# Ativar ambiente virtual se existir
+if [ -f ".venv/bin/activate" ]; then
+    echo "[INFO] Ativando ambiente virtual..."
+    source .venv/bin/activate
+fi
+
 case $opcao in
     1)
         echo
         echo "Iniciando Monitor Simples..."
-        cd "$(dirname "$0")"
-        python3 scripts/monitoring/realtime_monitor.py
+        python scripts/monitoring/realtime_monitor.py
         ;;
     2)
         echo
         echo "Iniciando Monitor Avancado..."
-        cd "$(dirname "$0")"
-        python3 scripts/monitoring/advanced_monitor.py
+        python scripts/monitoring/advanced_monitor.py
         ;;
     3)
         echo

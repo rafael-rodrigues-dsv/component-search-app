@@ -117,6 +117,16 @@ echo [INFO] Executavel Python: !PYTHON_EXE!
 for %%i in ("!PYTHON_EXE!") do set PYTHON_DIR=%%~dpi
 echo [INFO] Diretorio Python: !PYTHON_DIR!
 
+REM Criar e ativar ambiente virtual
+if not exist ".venv" (
+  echo [INFO] Criando ambiente virtual...
+  %PYTHON_CMD% -m venv .venv
+)
+if exist ".venv\Scripts\activate.bat" (
+  echo [INFO] Ativando ambiente virtual...
+  call .venv\Scripts\activate.bat
+)
+
 echo [INFO] Verificando e instalando dependencias...
 %PYTHON_CMD% scripts\verification\verify_python_installation.py || (
   echo [ERRO] Falha na verificacao das dependencias

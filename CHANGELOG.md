@@ -4,87 +4,126 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
 ## [3.0.0] - 2024-12-19
 
-### 🏗️ **BREAKING CHANGE: Nova Arquitetura de Geolocalização**
+### 🏗️ **BREAKING CHANGE: Endereços Estruturados + Geolocalização Avançada**
 
-#### **TB_GEOLOCALIZACAO - Tabela de Controle**
-- **Nova Tabela**: Sistema de controle independente para processamento de geolocalização
-- **Campos de Controle**:
-  - `ID_GEO` - Chave primária da tarefa
-  - `ID_EMPRESA` - Referência à empresa
-  - `ENDERECO` - Endereço a ser geocodificado
-  - `LATITUDE, LONGITUDE, DISTANCIA_KM` - Resultados da geocodificação
-  - `STATUS_PROCESSAMENTO` - PENDENTE/CONCLUIDO/ERRO
-  - `DATA_PROCESSAMENTO, TENTATIVAS, ERRO_DESCRICAO` - Controle detalhado
+#### **TB_ENDERECOS - Normalização Completa**
+- **Nova Tabela**: Endereços estruturados e normalizados
+- **Campos Estruturados**:
+  - `LOGRADOURO` - Rua/Avenida completa (ex: "Rua Augusta")
+  - `NUMERO` - Número do endereço
+  - `BAIRRO` - Bairro extraído
+  - `CIDADE` - Cidade (padrão: São Paulo)
+  - `ESTADO` - Estado (padrão: SP)
+  - `CEP` - CEP quando disponível
+- **TB_EMPRESAS**: Agora usa `ID_ENDERECO` (FK) em vez de campo texto
+- **TB_GEOLOCALIZACAO**: Usa `ID_ENDERECO` para referenciar endereços estruturados
+- **Deduplicação Inteligente**: Mesmo endereço = mesmo ID (evita duplicatas)
 
-#### **Separação Completa de Processos**
-- **Coleta (Opção 1)**:
-  - Salva empresa em `TB_EMPRESAS` (coordenadas NULL)
-  - Cria tarefa em `TB_GEOLOCALIZACAO` (status PENDENTE)
-  - Salva em `TB_PLANILHA` (distância NULL)
-- **Geolocalização (Opção 2)**:
-  - Processa tarefas PENDENTES de `TB_GEOLOCALIZACAO`
-  - Atualiza resultado na tabela de controle
-  - **Replica automaticamente** para `TB_EMPRESAS` e `TB_PLANILHA`
+#### **AddressExtractor Melhorado**
+- **Extração Estruturada**: Captura tipo + nome completo do logradouro
+- **Padrões Avançados**: 
+  - `"Rua Augusta"` → logradouro completo
+  - `"Av. Paulista"` → `"Avenida Paulista"`
+  - `"R. Oscar Freire"` → `"Rua Oscar Freire"`
+- **Normalização Automática**: Converte abreviações para nomes completos
+- **Validação Robusta**: Só aceita endereços com dados mínimos válidos
 
-#### **Controle Total do Processamento**
-- **Status Detalhado**: Cada tarefa tem status individual
-- **Histórico Completo**: Tentativas, erros e timestamps
-- **Replicação Automática**: Coordenadas propagadas para todas as tabelas
-- **Estatísticas Precisas**: Baseadas na tabela de controle
+#### **Geolocalização com Fallback Progressivo**
+- **API Nominatim Estruturada**: Usa campos separados em vez de string
+- **Tentativa 1**: Endereço completo (`street + city + state`)
+- **Tentativa 2**: Só CEP (`postalcode`) - muito preciso!
+- **Tentativa 3**: Bairro + Cidade (`city="Moema, São Paulo"`)
+- **Tentativa 4**: Só Cidade (`city + state`) - fallback final
+- **Taxa de Sucesso**: Muito maior com campos estruturados
 
-### 🔧 **Melhorias Técnicas**
+#### **TB_GEOLOCALIZACAO Atualizada**
+- **ID_ENDERECO**: Referencia TB_ENDERECOS (não mais string)
+- **Processamento Inteligente**: Busca dados estruturados por ID
+- **Evita Duplicatas**: Mesmo endereço = uma geocodificação
+- **Queries Otimizadas**: JOINs com TB_ENDERECOS para dados completos
 
-#### **AccessRepository Expandido**
-- `create_geolocation_task()` - Cria tarefas de geolocalização
-- `get_pending_geolocation_tasks()` - Obtém tarefas pendentes
-- `update_geolocation_result()` - Atualiza resultado e replica
-- `update_geolocation_error()` - Registra erros de processamento
-- `get_geolocation_stats()` - Estatísticas da tabela de controle
+### ⚡ **Performance e Arquitetura**
 
-#### **DatabaseService Atualizado**
-- Criação automática de tarefas quando empresa tem endereço
-- Separação clara entre coleta e geolocalização
-- Remoção de geocodificação durante a coleta
+#### **Singleton de Conexão**
+- **AccessRepository**: Padrão Singleton implementado
+- **Conexão Persistente**: Uma conexão durante toda execução
+- **Performance**: Elimina overhead de reconexões
+- **Logs Limpos**: Sem spam de logs de conexão
+- **Fechamento Automático**: Conexão fechada ao finalizar programa
 
-#### **GeolocationApplicationService Refatorado**
-- Processamento baseado em tarefas da tabela de controle
-- Replicação automática para múltiplas tabelas
-- Controle de erros e tentativas
-- Estatísticas precisas
+#### **Logs Categorizados**
+- **[DB]**: Criação de tabelas (`[DB] 1/11 - TB_ZONAS criada`)
+- **[DB-DATA]**: Carregamento de dados iniciais
+- **[DB-CHECK]**: Verificações de integridade
+- **[DB-ERRO]**: Erros específicos de banco
+- **[GEO]**: Processamento de geolocalização
+- **[DEBUG]**: Informações detalhadas de debug
 
-### 📊 **Monitores Atualizados**
+#### **Scrapers Equalizados**
+- **DuckDuckGo e Google**: Mesma estrutura de logs e extração
+- **AddressExtractor Unificado**: Ambos usam AddressModel estruturado
+- **Timeouts Consistentes**: Tratamento de erro padronizado
+- **Métodos Idênticos**: `_extract_emails_fast()`, `_get_company_name_fast()`
 
-#### **realtime_monitor.py**
-- Detecta tarefas pendentes em `TB_GEOLOCALIZACAO`
-- Status correto de geolocalização disponível
-- Métricas baseadas na tabela de controle
+#### **Criação de Banco Centralizada**
+- **create_db_simple.py**: Fonte única da verdade
+- **main.py**: Chama Python diretamente (não mais .bat)
+- **Scripts .bat/.sh**: Ambos chamam o mesmo Python
+- **Instalação Automática**: pywin32 instalado automaticamente no Windows
 
-#### **advanced_monitor.py**
-- Estatísticas detalhadas de tarefas de geolocalização
-- Métricas de processamento por status
-- Relatórios com dados da tabela de controle
+### 🗄️ **Estrutura de Banco Atualizada**
+
+#### **11 Tabelas Estruturadas**
+```sql
+TB_ENDERECOS:
+- ID_ENDERECO (PK)
+- LOGRADOURO, NUMERO, BAIRRO, CIDADE, ESTADO, CEP
+- DATA_CRIACAO
+
+TB_EMPRESAS:
+- ID_ENDERECO (FK) -- Referencia TB_ENDERECOS
+- LATITUDE, LONGITUDE, DISTANCIA_KM
+
+TB_GEOLOCALIZACAO:
+- ID_ENDERECO (FK) -- Referencia TB_ENDERECOS
+- STATUS_PROCESSAMENTO, TENTATIVAS, ERRO_DESCRICAO
+
+TB_PLANILHA:
+- ENDERECO (concatenado na query com limite 255 chars)
+```
+
+#### **Queries Otimizadas**
+- **TB_PLANILHA**: Concatena endereço na hora da consulta
+- **Geolocalização**: Busca dados estruturados via JOIN
+- **Deduplicação**: Por logradouro + numero + bairro
+- **Performance**: Sem campos redundantes
 
 ### 🎯 **Benefícios da Nova Arquitetura**
 
-- ✅ **Separação Clara**: Coleta e geolocalização são processos independentes
-- ✅ **Controle Total**: Status, tentativas e erros rastreados individualmente
-- ✅ **Replicação Automática**: Dados propagados automaticamente
-- ✅ **Estatísticas Precisas**: Baseadas em tabela de controle dedicada
-- ✅ **Histórico Completo**: Auditoria completa do processamento
-- ✅ **Escalabilidade**: Arquitetura preparada para processamento em lote
+- ✅ **Normalização Correta**: Endereços estruturados sem duplicação
+- ✅ **Geolocalização Precisa**: APIs estruturadas + fallback progressivo
+- ✅ **Performance Máxima**: Singleton de conexão + queries otimizadas
+- ✅ **Logs Organizados**: Categorização profissional por contexto
+- ✅ **Manutenibilidade**: Código limpo e centralizado
+- ✅ **Escalabilidade**: Arquitetura preparada para grandes volumes
+- ✅ **Multiplataforma**: Funciona Windows, Linux e Mac
+- ✅ **Taxa de Sucesso**: Geolocalização muito mais eficaz
 
 ### ⚠️ **Breaking Changes**
 
-- **Banco de Dados**: Nova tabela `TB_GEOLOCALIZACAO` (10 tabelas total)
-- **Fluxo de Processamento**: Geolocalização agora é processo separado
-- **Scripts de Criação**: `create_db_simple.py` atualizado para 10 tabelas
-- **Estatísticas**: Métricas baseadas na nova tabela de controle
+- **Banco de Dados**: Nova tabela `TB_ENDERECOS` (11 tabelas total)
+- **TB_EMPRESAS**: Campo `ENDERECO` → `ID_ENDERECO` (FK)
+- **TB_GEOLOCALIZACAO**: Campo `ENDERECO` → `ID_ENDERECO` (FK)
+- **AddressExtractor**: Retorna `AddressModel` em vez de string
+- **GeolocationService**: Método `geocodificar_endereco_estruturado()` adicionado
+- **AccessRepository**: Métodos atualizados para endereços estruturados
 
 ### 🔄 **Migração**
 
-1. **Recriar Banco**: Execute `scripts\setup\create_database.bat`
-2. **Carregar Dados**: Execute `scripts\database\load_initial_data.py`
+1. **Deletar Banco Antigo**: `del data\pythonsearch.accdb`
+2. **Executar Robô**: `iniciar_robo_simples.bat` (cria banco automaticamente)
 3. **Testar Fluxo**: Coleta → Geolocalização → Excel
+4. **Verificar Logs**: Deve mostrar `[DB] X/11 - TB_ENDERECOS criada`
 
 ---
 

@@ -9,6 +9,12 @@ echo "  EXECUTANDO TESTES COM COBERTURA"
 echo "========================================"
 echo
 
+# Ativar ambiente virtual se existir
+if [ -f "../.venv/bin/activate" ]; then
+    echo "[INFO] Ativando ambiente virtual..."
+    source "../.venv/bin/activate"
+fi
+
 # Detectar Python disponível
 echo "Verificando Python..."
 if command -v python3 &> /dev/null; then

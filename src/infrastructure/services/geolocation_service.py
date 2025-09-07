@@ -66,8 +66,24 @@ class GeolocationService:
         from src.infrastructure.utils.address_extractor import AddressExtractor
         return AddressExtractor.extract_from_html(html_content)
 
+    def geocodificar_endereco_estruturado(self, address_model) -> GeoResult:
+        """Converte AddressModel em coordenadas (método otimizado)"""
+        if not address_model or not address_model.is_valid():
+            return GeoResult()
+
+        self.logger.info(f"[GEO] Geocodificando estruturado: {address_model.logradouro}")
+
+        # Usar campos estruturados diretamente
+        result = self._geocodificar_structured_model(address_model)
+        if result.success:
+            return result
+
+        # Fallback para string completa
+        endereco_str = address_model.to_full_address()
+        return self._geocodificar_freeform(endereco_str)
+    
     def geocodificar_endereco(self, endereco: str) -> GeoResult:
-        """Converte endereço em coordenadas"""
+        """Converte endereço string em coordenadas (método legado)"""
         if not endereco:
             return GeoResult()
 
@@ -81,6 +97,79 @@ class GeolocationService:
         # Fallback para free-form query
         return self._geocodificar_freeform(endereco)
 
+    def _geocodificar_structured_model(self, address_model) -> GeoResult:
+        """Geocodificação usando AddressModel estruturado com fallback progressivo"""
+        
+        # Tentativa 1: Endereço completo
+        if address_model.logradouro:
+            result = self._try_geocode_with_params({
+                'street': f"{address_model.logradouro} {address_model.numero}".strip(),
+                'city': address_model.cidade,
+                'state': address_model.estado,
+                'country': 'Brazil'
+            }, "endereço completo")
+            if result.success:
+                return result
+        
+        # Tentativa 2: Só CEP (se disponível)
+        if address_model.cep:
+            result = self._try_geocode_with_params({
+                'postalcode': address_model.cep,
+                'country': 'Brazil'
+            }, "CEP")
+            if result.success:
+                return result
+        
+        # Tentativa 3: Bairro + Cidade
+        if address_model.bairro:
+            result = self._try_geocode_with_params({
+                'city': f"{address_model.bairro}, {address_model.cidade}",
+                'state': address_model.estado,
+                'country': 'Brazil'
+            }, "bairro")
+            if result.success:
+                return result
+        
+        # Tentativa 4: Só Cidade
+        result = self._try_geocode_with_params({
+            'city': address_model.cidade,
+            'state': address_model.estado,
+            'country': 'Brazil'
+        }, "cidade")
+        
+        return result
+    
+    def _try_geocode_with_params(self, params: dict, tipo: str) -> GeoResult:
+        """Tenta geocodificar com parâmetros específicos"""
+        try:
+            params.update({
+                'format': 'json',
+                'limit': 1,
+                'addressdetails': 0
+            })
+
+            response = self.session.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
+                timeout=5
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            if data:
+                lat, lon = float(data[0]['lat']), float(data[0]['lon'])
+                self.logger.info(f"[GEO] Structured {tipo} OK: {lat}, {lon}")
+                return GeoResult(latitude=lat, longitude=lon, success=True)
+
+        except requests.RequestException as e:
+            self.logger.debug(f"[GEO] {tipo} - erro de rede: {self._sanitize_log(str(e))}")
+        except (ValueError, KeyError) as e:
+            self.logger.debug(f"[GEO] {tipo} - erro de parsing: {self._sanitize_log(str(e))}")
+        except Exception as e:
+            self.logger.debug(f"[GEO] {tipo} - erro inesperado: {self._sanitize_log(str(e))}")
+
+        return GeoResult()
+    
     def _geocodificar_structured(self, endereco: str) -> GeoResult:
         """Geocodificação estruturada"""
         try:

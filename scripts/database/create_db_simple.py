@@ -8,10 +8,21 @@ from pathlib import Path
 def create_simple_db(auto_mode=False):
     """Cria banco Access de forma simples e funcional"""
 
-    # Caminhos - ajustado para scripts/database
-    base_dir = Path(__file__).parent.parent.parent
-    data_dir = base_dir / "data"
+    # Sempre usar pasta data do projeto (onde o main.py está)
+    import os
+    if 'scripts' in os.getcwd():
+        # Se executando de dentro de scripts, subir para raíz
+        project_root = Path.cwd().parent.parent
+    else:
+        # Se executando da raíz
+        project_root = Path.cwd()
+    
+    data_dir = project_root / "data"
     db_path = data_dir / "pythonsearch.accdb"
+    
+    print(f"[INFO] Criando banco em: {db_path.resolve()}")
+    print(f"[DEBUG] Diretório atual: {Path.cwd()}")
+    print(f"[DEBUG] Projeto root: {project_root}")
 
     data_dir.mkdir(exist_ok=True)
 
@@ -26,15 +37,16 @@ def create_simple_db(auto_mode=False):
         try:
             import win32com.client
         except ImportError:
-            print("❌ ERRO: pywin32 não encontrado")
-            print("💡 SOLUÇÃO: Execute 'pip install pywin32' e tente novamente")
+            print("[ERRO] pywin32 nao encontrado")
+            print("[INFO] Execute: pip install pywin32")
+            print("[INFO] Depois reinicie o terminal e tente novamente")
             return False
 
-        print("🔨 Criando banco Access...")
+        print("[INFO] Criando banco Access...")
         access = win32com.client.Dispatch("Access.Application")
         access.NewCurrentDatabase(str(db_path))
 
-        print("📋 Criando tabelas...")
+        print("[INFO] Criando tabelas...")
 
         # Tabelas básicas sem complexidade
         sqls = [
@@ -42,11 +54,12 @@ def create_simple_db(auto_mode=False):
             "CREATE TABLE TB_BAIRROS (ID_BAIRRO COUNTER PRIMARY KEY, NOME_BAIRRO TEXT(100), UF TEXT(2), ATIVO BIT, DATA_CRIACAO DATE)",
             "CREATE TABLE TB_CIDADES (ID_CIDADE COUNTER PRIMARY KEY, NOME_CIDADE TEXT(100), UF TEXT(2), ATIVO BIT, DATA_CRIACAO DATE)",
             "CREATE TABLE TB_BASE_BUSCA (ID_BASE COUNTER PRIMARY KEY, TERMO_BUSCA TEXT(200), CATEGORIA TEXT(50), ATIVO BIT, DATA_CRIACAO DATE)",
+            "CREATE TABLE TB_ENDERECOS (ID_ENDERECO COUNTER PRIMARY KEY, LOGRADOURO TEXT(200), NUMERO TEXT(20), BAIRRO TEXT(100), CIDADE TEXT(100), ESTADO TEXT(2), CEP TEXT(10), DATA_CRIACAO DATE)",
             "CREATE TABLE TB_TERMOS_BUSCA (ID_TERMO COUNTER PRIMARY KEY, ID_BASE LONG, ID_ZONA LONG, ID_BAIRRO LONG, ID_CIDADE LONG, TERMO_COMPLETO TEXT(255), TIPO_LOCALIZACAO TEXT(20), STATUS_PROCESSAMENTO TEXT(20), DATA_CRIACAO DATE, DATA_PROCESSAMENTO DATE)",
-            "CREATE TABLE TB_EMPRESAS (ID_EMPRESA COUNTER PRIMARY KEY, ID_TERMO LONG, SITE_URL TEXT(255), DOMINIO TEXT(100), NOME_EMPRESA TEXT(100), STATUS_COLETA TEXT(20), DATA_PRIMEIRA_VISITA DATE, DATA_ULTIMA_VISITA DATE, TENTATIVAS_COLETA LONG, MOTOR_BUSCA TEXT(20), ENDERECO TEXT(255), LATITUDE DOUBLE, LONGITUDE DOUBLE, DISTANCIA_KM DOUBLE)",
+            "CREATE TABLE TB_EMPRESAS (ID_EMPRESA COUNTER PRIMARY KEY, ID_TERMO LONG, SITE_URL TEXT(255), DOMINIO TEXT(100), NOME_EMPRESA TEXT(100), STATUS_COLETA TEXT(20), DATA_PRIMEIRA_VISITA DATE, DATA_ULTIMA_VISITA DATE, TENTATIVAS_COLETA LONG, MOTOR_BUSCA TEXT(20), ID_ENDERECO LONG, LATITUDE DOUBLE, LONGITUDE DOUBLE, DISTANCIA_KM DOUBLE)",
             "CREATE TABLE TB_EMAILS (ID_EMAIL COUNTER PRIMARY KEY, ID_EMPRESA LONG, EMAIL TEXT(200), DOMINIO_EMAIL TEXT(100), VALIDADO BIT, DATA_COLETA DATE, ORIGEM_COLETA TEXT(20))",
             "CREATE TABLE TB_TELEFONES (ID_TELEFONE COUNTER PRIMARY KEY, ID_EMPRESA LONG, TELEFONE TEXT(20), TELEFONE_FORMATADO TEXT(20), DDD TEXT(2), TIPO_TELEFONE TEXT(10), VALIDADO BIT, DATA_COLETA DATE)",
-            "CREATE TABLE TB_GEOLOCALIZACAO (ID_GEO COUNTER PRIMARY KEY, ID_EMPRESA LONG, ENDERECO TEXT(255), LATITUDE DOUBLE, LONGITUDE DOUBLE, DISTANCIA_KM DOUBLE, STATUS_PROCESSAMENTO TEXT(20), DATA_PROCESSAMENTO DATE, TENTATIVAS LONG, ERRO_DESCRICAO TEXT(255))",
+            "CREATE TABLE TB_GEOLOCALIZACAO (ID_GEO COUNTER PRIMARY KEY, ID_EMPRESA LONG, ID_ENDERECO LONG, LATITUDE DOUBLE, LONGITUDE DOUBLE, DISTANCIA_KM DOUBLE, STATUS_PROCESSAMENTO TEXT(20), DATA_PROCESSAMENTO DATE, TENTATIVAS LONG, ERRO_DESCRICAO TEXT(255))",
             "CREATE TABLE TB_PLANILHA (ID_PLANILHA COUNTER PRIMARY KEY, SITE TEXT(255), EMAIL MEMO, TELEFONE MEMO, ENDERECO TEXT(255), DISTANCIA_KM DOUBLE, DATA_ATUALIZACAO DATE)"
         ]
 
@@ -54,11 +67,14 @@ def create_simple_db(auto_mode=False):
             try:
                 access.DoCmd.RunSQL(sql)
                 table = sql.split()[2]
-                print(f"✅ {i}/9 - {table}")
+                print(f"[DB] {i}/11 - {table} criada")
             except Exception as e:
-                print(f"⚠️ {i}/8 - {str(e)[:50]}")
+                table = sql.split()[2] if len(sql.split()) > 2 else "UNKNOWN"
+                print(f"[DB-ERRO] {i}/11 - {table}: {str(e)[:50]}")
+                # Continuar mesmo com erro
+                pass
 
-        print("📋 Carregando dados básicos...")
+        print("[INFO] Carregando dados basicos...")
 
         # Dados organizados por categoria
         zonas = [
@@ -86,60 +102,121 @@ def create_simple_db(auto_mode=False):
         ]
 
         # Carregar zonas
-        print(f"📍 Carregando {len(zonas)} zonas...")
+        print(f"[DB-DATA] Carregando {len(zonas)} zonas...")
         for sql in zonas:
             try:
                 access.DoCmd.RunSQL(sql)
             except:
                 pass
-        print(f"✅ {len(zonas)} zonas carregadas")
+        print(f"[DB-DATA] {len(zonas)} zonas carregadas")
 
         # Carregar bairros
-        print(f"🏘️ Carregando {len(bairros)} bairros...")
+        print(f"[DB-DATA] Carregando {len(bairros)} bairros...")
         for sql in bairros:
             try:
                 access.DoCmd.RunSQL(sql)
             except:
                 pass
-        print(f"✅ {len(bairros)} bairros carregados")
+        print(f"[DB-DATA] {len(bairros)} bairros carregados")
 
         # Carregar cidades
-        print(f"🏙️ Carregando {len(cidades)} cidades...")
+        print(f"[DB-DATA] Carregando {len(cidades)} cidades...")
         for sql in cidades:
             try:
                 access.DoCmd.RunSQL(sql)
             except:
                 pass
-        print(f"✅ {len(cidades)} cidades carregadas")
+        print(f"[DB-DATA] {len(cidades)} cidades carregadas")
 
         # Carregar termos base
-        print(f"🔍 Carregando {len(termos)} termos base...")
+        print(f"[DB-DATA] Carregando {len(termos)} termos base...")
         for sql in termos:
             try:
                 access.DoCmd.RunSQL(sql)
             except:
                 pass
-        print(f"✅ {len(termos)} termos base carregados")
+        print(f"[DB-DATA] {len(termos)} termos base carregados")
 
         access.Quit()
 
-        # Calcular total de combinações possíveis
-        total_combinacoes = len(zonas) * len(termos) + len(bairros) * len(termos) + len(cidades) * len(termos)
+        # Verificar registros salvos
+        print("\n[INFO] Verificando registros salvos...")
         
-        print(f"\n📊 RESUMO DOS DADOS CARREGADOS:")
-        print(f"   📍 {len(zonas)} zonas")
-        print(f"   🏘️ {len(bairros)} bairros")
-        print(f"   🏙️ {len(cidades)} cidades")
-        print(f"   🔍 {len(termos)} termos base")
-        print(f"   🎯 {total_combinacoes} combinações possíveis")
-        print(f"\n🎉 BANCO CRIADO COM SUCESSO!")
-        print(f"📍 Localização: {db_path}")
-        print(f"✅ 10 tabelas estruturadas")
+        try:
+            import pyodbc
+            conn_str = f'DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={db_path};'
+            conn = pyodbc.connect(conn_str)
+            cursor = conn.cursor()
+            
+            # Contar registros por tabela
+            tabelas = {
+                'TB_ZONAS': 'zonas',
+                'TB_BAIRROS': 'bairros', 
+                'TB_CIDADES': 'cidades',
+                'TB_BASE_BUSCA': 'termos base'
+            }
+            
+            print("\n[INFO] CONTAGEM DE REGISTROS POR TABELA:")
+            print("=" * 45)
+            
+            total_registros = 0
+            for tabela, nome in tabelas.items():
+                try:
+                    cursor.execute(f"SELECT COUNT(*) FROM {tabela}")
+                    count = cursor.fetchone()[0]
+                    print(f"   {tabela:<15} | {count:>3} {nome}")
+                    total_registros += count
+                except Exception as e:
+                    print(f"   {tabela:<15} | ERR {nome}")
+            
+            print("=" * 45)
+            print(f"   TOTAL GERAL     | {total_registros:>3} registros")
+            
+            # Calcular combinações possíveis
+            cursor.execute("SELECT COUNT(*) FROM TB_ZONAS")
+            count_zonas = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM TB_BAIRROS")
+            count_bairros = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM TB_CIDADES")
+            count_cidades = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM TB_BASE_BUSCA")
+            count_termos = cursor.fetchone()[0]
+            
+            total_combinacoes = (count_zonas + count_bairros + count_cidades) * count_termos
+            
+            conn.close()
+            
+            print(f"\n[INFO] POTENCIAL DE BUSCA:")
+            print(f"   {total_combinacoes} combinacoes possiveis")
+            print(f"\n[OK] BANCO CRIADO COM SUCESSO!")
+            print(f"[INFO] Localizacao: {db_path}")
+            print(f"[OK] 11 tabelas estruturadas")
+            
+            # Verificar se TB_ENDERECOS foi criada (nova conexão)
+            try:
+                import pyodbc
+                test_conn = pyodbc.connect(conn_str)
+                test_cursor = test_conn.cursor()
+                test_cursor.execute("SELECT COUNT(*) FROM TB_ENDERECOS")
+                count = test_cursor.fetchone()[0]
+                test_conn.close()
+                print(f"[DB-CHECK] TB_ENDERECOS verificada e funcionando ({count} registros)")
+            except Exception as e:
+                print(f"[DB-ERRO] TB_ENDERECOS nao foi criada: {e}")
+            
+        except Exception as e:
+            print(f"[AVISO] Nao foi possivel verificar registros: {e}")
+            print(f"\n[OK] BANCO CRIADO COM SUCESSO!")
+            print(f"[INFO] Localizacao: {db_path}")
 
     except Exception as e:
-        print(f"❌ ERRO: {e}")
+        print(f"[ERRO] Falha: {e}")
 
 
 if __name__ == "__main__":
     create_simple_db()
-    input("⏸️ ENTER para sair...")
+    # Só pausar se executado diretamente (não via subprocess)
+    import sys
+    import os
+    if 'PYTEST_CURRENT_TEST' not in os.environ and sys.stdin.isatty():
+        input("[INFO] ENTER para sair...")

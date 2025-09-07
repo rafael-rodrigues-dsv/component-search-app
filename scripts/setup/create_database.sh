@@ -1,15 +1,19 @@
 #!/bin/bash
-echo "CRIADOR AUTOMATICO DO BANCO ACCESS"
-echo "====================================="
-echo ""
+echo "CRIADOR DO BANCO ACCESS"
+echo "========================"
 
 cd "$(dirname "$0")/../.."
 
-echo "Instalando dependencias..."
-pip install pyodbc
+# Ativar ambiente virtual se existir
+if [ -f ".venv/bin/activate" ]; then
+    echo "[INFO] Ativando ambiente virtual..."
+    source .venv/bin/activate
+fi
+
+echo "[INFO] Instalando dependencias..."
+python -m pip install -q pyodbc pywin32
 
 echo ""
-echo "Criando banco Access..."
 python scripts/database/create_db_simple.py
 
 echo ""

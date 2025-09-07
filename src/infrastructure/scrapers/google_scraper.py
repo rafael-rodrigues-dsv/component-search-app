@@ -320,31 +320,60 @@ class GoogleScraper:
 
         return not any(pattern in url.lower() for pattern in invalid_patterns)
 
+    def _extract_emails_fast(self, html_content: str) -> list:
+        """Extração ultra-rápida de e-mails"""
+        emails = set()
+
+        try:
+            # Regex otimizada
+            import re
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            found_emails = re.findall(email_pattern, html_content)
+
+            for email in found_emails:
+                email_lower = email.lower()
+                if (len(email_lower) > 5 and
+                        '.' in email_lower.split('@')[1] and
+                        not any(bad in email_lower for bad in ['sentry.io', 'example.com'])):
+                    emails.add(email_lower)
+                    if len(emails) >= 3:
+                        break
+
+        except Exception:
+            pass
+
+        return list(emails)
+
     def _extract_phones_fast(self, page_source) -> list:
-        """Extração rápida de telefones"""
+        """Extração ultra-rápida de telefones"""
         phones = set()
 
         try:
-            # Padrões mais específicos de telefone brasileiro
+            # Padrão otimizado para telefones brasileiros
             import re
-            phone_patterns = [
-                r'\([1-9][1-9]\)\s?9\d{4}[-\s]?\d{4}',  # (11) 99999-9999
-                r'\([1-9][1-9]\)\s?[2-5]\d{3}[-\s]?\d{4}',  # (11) 3333-4444
-                r'[1-9][1-9]\s9\d{4}[-\s]?\d{4}',  # 11 99999-9999
-                r'[1-9][1-9]\s[2-5]\d{3}[-\s]?\d{4}',  # 11 3333-4444
-            ]
+            phone_pattern = r'(?:\([1-9][1-9]\)\s?|[1-9][1-9]\s)[9][0-9]{4}[-\s]?[0-9]{4}|(?:\([1-9][1-9]\)\s?|[1-9][1-9]\s)[2-5][0-9]{3}[-\s]?[0-9]{4}'
+            found_phones = re.findall(phone_pattern, page_source)
 
-            for pattern in phone_patterns:
-                found_phones = re.findall(pattern, page_source)
-                for phone in found_phones:
-                    clean_phone = re.sub(r'[^0-9]', '', phone)
-                    if self.validation_service.is_valid_phone(clean_phone):
-                        phones.add(clean_phone)
-                        if len(phones) >= MAX_PHONES_PER_SITE:
-                            break
-                if len(phones) >= MAX_PHONES_PER_SITE:
-                    break
-        except Exception as e:
-            print(f"    [DEBUG] Erro ao extrair telefones: {str(e)[:30]}")
+            for phone in found_phones:
+                clean_phone = re.sub(r'[^\d]', '', phone)
+                if len(clean_phone) in [10, 11] and clean_phone[:2] in ['11', '12', '13', '14', '15', '16', '17', '18',
+                                                                        '19', '21']:
+                    phones.add(phone)
+                    if len(phones) >= 2:
+                        break
+
+        except Exception:
+            pass
 
         return list(phones)
+    
+    def _get_company_name_fast(self, url: str) -> str:
+        """Extração rápida do nome da empresa"""
+        try:
+            title = self.driver.title or ""
+            if title.strip():
+                return title.strip()[:50]
+        except Exception as e:
+            print(f"[DEBUG] Erro ao obter nome da empresa: {str(e)[:30]}")
+
+        return self.validation_service.extract_domain_from_url(url)

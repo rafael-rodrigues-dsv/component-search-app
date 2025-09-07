@@ -5,6 +5,12 @@ echo  EXECUTANDO TESTES COM COBERTURA
 echo ========================================
 echo.
 
+REM Ativar ambiente virtual se existir
+if exist "../.venv/Scripts/activate.bat" (
+    echo [INFO] Ativando ambiente virtual...
+    call "../.venv/Scripts/activate.bat"
+)
+
 REM Detectar Python disponivel
 echo Verificando Python...
 py --version >nul 2>&1 && (

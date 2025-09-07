@@ -82,6 +82,16 @@ echo "[INFO] Verificando detalhes do Python..."
 PYTHON_EXE=$("$PYTHON_CMD" -c "import sys; print(sys.executable)")
 echo "[INFO] Executável Python: $PYTHON_EXE"
 
+# Criar e ativar ambiente virtual
+if [ ! -d ".venv" ]; then
+    echo "[INFO] Criando ambiente virtual..."
+    "$PYTHON_CMD" -m venv .venv
+fi
+if [ -f ".venv/bin/activate" ]; then
+    echo "[INFO] Ativando ambiente virtual..."
+    source .venv/bin/activate
+fi
+
 echo "[INFO] Verificando e instalando dependências..."
 if ! "$PYTHON_CMD" scripts/verification/verify_python_installation.py; then
     echo "[ERRO] Falha na verificação das dependências"

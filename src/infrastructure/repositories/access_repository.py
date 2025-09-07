@@ -10,15 +10,38 @@ import pyodbc
 
 class AccessRepository:
     """Repositório principal para banco Access"""
+    
+    _connection = None  # Singleton de conexão
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
-        self.db_path = Path(__file__).parent.parent.parent.parent / "data" / "pythonsearch.accdb"
+        if hasattr(self, '_initialized'):
+            return
+        
+        # Sempre usar pasta data do projeto (fora da virtualização)
+        project_root = Path.cwd()
+        self.db_path = project_root / "data" / "pythonsearch.accdb"
+        self.db_path = self.db_path.resolve()
         self.conn_str = f'DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={self.db_path};'
         self.logger = logging.getLogger(__name__)
+        self._initialized = True
 
     def _get_connection(self):
-        """Obtém conexão com o banco"""
-        return pyodbc.connect(self.conn_str)
+        """Obtém conexão singleton com o banco"""
+        if self._connection is None:
+            self._connection = pyodbc.connect(self.conn_str)
+        return self._connection
+    
+    def close_connection(self):
+        """Fecha conexão singleton"""
+        if self._connection:
+            self._connection.close()
+            self._connection = None
 
     # ===== EMPRESAS =====
 
@@ -29,18 +52,65 @@ class AccessRepository:
             cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE DOMINIO = ?", domain)
             return cursor.fetchone()[0] > 0
 
+    def save_endereco(self, address_model) -> int:
+        """Salva endereço estruturado e retorna ID"""
+        if not address_model or not address_model.is_valid():
+            return None
+            
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Verificar se tabela existe
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM TB_ENDERECOS")
+                except:
+                    print("[AVISO] Tabela TB_ENDERECOS não existe - pulando endereço")
+                    return None
+                
+                # Verificar se endereço já existe (por logradouro + numero)
+                cursor.execute("""
+                               SELECT ID_ENDERECO FROM TB_ENDERECOS 
+                               WHERE LOGRADOURO = ? AND NUMERO = ? AND BAIRRO = ?
+                               """, address_model.logradouro, address_model.numero, address_model.bairro)
+                existing = cursor.fetchone()
+                
+                if existing:
+                    return existing[0]
+                
+                # Inserir novo endereço
+                cursor.execute("""
+                               INSERT INTO TB_ENDERECOS (LOGRADOURO, NUMERO, BAIRRO, CIDADE, ESTADO, CEP, DATA_CRIACAO)
+                               VALUES (?, ?, ?, ?, ?, ?, Date())
+                               """, address_model.logradouro, address_model.numero, address_model.bairro, 
+                               address_model.cidade, address_model.estado, address_model.cep)
+                
+                cursor.execute("SELECT @@IDENTITY")
+                endereco_id = cursor.fetchone()[0]
+                conn.commit()
+                return endereco_id
+        except Exception as e:
+            print(f"[AVISO] Erro ao salvar endereço: {e} - continuando sem endereço")
+            return None
+
     def save_empresa(self, termo_id: int, site_url: str, domain: str, motor_busca: str,
-                     endereco: str = None, latitude: float = None, longitude: float = None,
+                     address_model = None, latitude: float = None, longitude: float = None,
                      distancia_km: float = None) -> int:
-        """Salva empresa completa (sempre com estrutura completa)"""
+        """Salva empresa com endereço estruturado"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Salvar endereço se houver
+            endereco_id = None
+            if address_model:
+                endereco_id = self.save_endereco(address_model)
+            
             cursor.execute("""
                            INSERT INTO TB_EMPRESAS (ID_TERMO, SITE_URL, DOMINIO, STATUS_COLETA,
                                                     DATA_PRIMEIRA_VISITA, TENTATIVAS_COLETA, MOTOR_BUSCA,
-                                                    ENDERECO, LATITUDE, LONGITUDE, DISTANCIA_KM)
+                                                    ID_ENDERECO, LATITUDE, LONGITUDE, DISTANCIA_KM)
                            VALUES (?, ?, ?, 'PENDENTE', Date (), 0, ?, ?, ?, ?, ?)
-                           """, termo_id, site_url, domain, motor_busca, endereco, latitude, longitude, distancia_km)
+                           """, termo_id, site_url, domain, motor_busca, endereco_id, latitude, longitude, distancia_km)
             cursor.execute("SELECT @@IDENTITY")
             empresa_id = cursor.fetchone()[0]
             conn.commit()
@@ -214,17 +284,47 @@ class AccessRepository:
     # ===== PLANILHA =====
 
     def save_to_final_sheet(self, site_url: str, emails_str: str, telefones_str: str,
-                            endereco: str = None, distancia_km: float = None):
-        """Salva/atualiza registro na tabela planilha"""
+                            distancia_km: float = None):
+        """Salva/atualiza registro na tabela planilha (endereço vem da TB_ENDERECOS)"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Buscar e concatenar endereço da empresa
+            cursor.execute("""
+                           SELECT e.LOGRADOURO, e.NUMERO, e.BAIRRO, e.CIDADE, e.ESTADO
+                           FROM TB_EMPRESAS emp 
+                           LEFT JOIN TB_ENDERECOS e ON emp.ID_ENDERECO = e.ID_ENDERECO 
+                           WHERE emp.SITE_URL = ?
+                           """, site_url)
+            endereco_result = cursor.fetchone()
+            
+            if endereco_result and endereco_result[0]:  # Se tem logradouro
+                logr, num, bairro, cidade, estado = endereco_result
+                parts = []
+                if logr:
+                    if num:
+                        parts.append(f"{logr}, {num}")
+                    else:
+                        parts.append(logr)
+                if bairro:
+                    parts.append(bairro)
+                if cidade:
+                    parts.append(cidade)
+                if estado:
+                    parts.append(estado)
+                endereco = ", ".join(parts)
+                # Garantir limite de 255 caracteres
+                if len(endereco) > 255:
+                    endereco = endereco[:252] + "..."
+            else:
+                endereco = ""
 
             # Verificar se já existe
             cursor.execute("SELECT ID_PLANILHA FROM TB_PLANILHA WHERE SITE = ?", site_url)
             existing = cursor.fetchone()
 
             if existing:
-                # Atualizar (preservar distância se não fornecida)
+                # Atualizar
                 if distancia_km is not None:
                     cursor.execute("""
                                    UPDATE TB_PLANILHA
@@ -245,7 +345,7 @@ class AccessRepository:
                                    WHERE SITE = ?
                                    """, emails_str, telefones_str, endereco, site_url)
             else:
-                # Inserir novo (sem distância se não fornecida)
+                # Inserir novo
                 if distancia_km is not None:
                     cursor.execute("""
                                    INSERT INTO TB_PLANILHA (SITE, EMAIL, TELEFONE, ENDERECO, DISTANCIA_KM, DATA_ATUALIZACAO)
@@ -261,29 +361,61 @@ class AccessRepository:
 
     # ===== GEOLOCALIZACAO =====
 
-    def create_geolocation_task(self, empresa_id: int, endereco: str):
-        """Cria tarefa de geolocalização para empresa"""
+    def create_geolocation_task(self, empresa_id: int, endereco_id: int):
+        """Cria tarefa de geolocalização usando ID do endereço"""
+        if not endereco_id:
+            return
+            
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                           INSERT INTO TB_GEOLOCALIZACAO (ID_EMPRESA, ENDERECO, STATUS_PROCESSAMENTO, TENTATIVAS)
-                           VALUES (?, ?, 'PENDENTE', 0)
-                           """, empresa_id, endereco)
-            conn.commit()
+            
+            # Verificar se já existe tarefa para este endereço
+            cursor.execute("SELECT ID_GEO FROM TB_GEOLOCALIZACAO WHERE ID_ENDERECO = ?", endereco_id)
+            existing = cursor.fetchone()
+            
+            if not existing:
+                cursor.execute("""
+                               INSERT INTO TB_GEOLOCALIZACAO (ID_EMPRESA, ID_ENDERECO, STATUS_PROCESSAMENTO, TENTATIVAS)
+                               VALUES (?, ?, 'PENDENTE', 0)
+                               """, empresa_id, endereco_id)
+                conn.commit()
 
     def get_pending_geolocation_tasks(self) -> List[Dict[str, Any]]:
-        """Obtém tarefas de geolocalização pendentes"""
+        """Obtém tarefas de geolocalização pendentes com dados estruturados"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                           SELECT g.ID_GEO, g.ID_EMPRESA, g.ENDERECO, e.SITE_URL
-                           FROM TB_GEOLOCALIZACAO g
-                           INNER JOIN TB_EMPRESAS e ON g.ID_EMPRESA = e.ID_EMPRESA
+                           SELECT g.ID_GEO, g.ID_EMPRESA, g.ID_ENDERECO, emp.SITE_URL,
+                                  end.LOGRADOURO, end.NUMERO, end.BAIRRO, end.CIDADE, end.ESTADO, end.CEP
+                           FROM (TB_GEOLOCALIZACAO g 
+                           INNER JOIN TB_EMPRESAS emp ON g.ID_EMPRESA = emp.ID_EMPRESA)
+                           INNER JOIN TB_ENDERECOS end ON g.ID_ENDERECO = end.ID_ENDERECO
                            WHERE g.STATUS_PROCESSAMENTO = 'PENDENTE'
                            ORDER BY g.ID_GEO
                            """)
-            return [{'id_geo': row[0], 'id_empresa': row[1], 'endereco': row[2], 'site_url': row[3]}
-                    for row in cursor.fetchall()]
+            
+            tasks = []
+            for row in cursor.fetchall():
+                # Criar AddressModel a partir dos dados
+                from src.domain.models.address_model import AddressModel
+                address = AddressModel(
+                    logradouro=row[4] or "",
+                    numero=row[5] or "",
+                    bairro=row[6] or "",
+                    cidade=row[7] or "São Paulo",
+                    estado=row[8] or "SP",
+                    cep=row[9] or ""
+                )
+                
+                tasks.append({
+                    'id_geo': row[0],
+                    'id_empresa': row[1], 
+                    'id_endereco': row[2],
+                    'site_url': row[3],
+                    'address_model': address
+                })
+            
+            return tasks
 
     def update_geolocation_result(self, id_geo: int, latitude: float, longitude: float, distancia_km: float):
         """Atualiza resultado da geolocalização"""
@@ -347,7 +479,7 @@ class AccessRepository:
             cursor = conn.cursor()
             
             # Total de empresas com endereço
-            cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE ENDERECO IS NOT NULL AND ENDERECO != ''")
+            cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE ID_ENDERECO IS NOT NULL")
             total_com_endereco = cursor.fetchone()[0]
             
             # Tarefas de geolocalização

@@ -112,42 +112,73 @@ class DuckDuckGoScraper:
     def extract_company_data(self, url: str, max_emails: int) -> CompanyModel:
         """Extração otimizada de dados da empresa"""
         try:
-            # Navegação direta (sem nova aba para velocidade)
-            self.driver_manager.driver.get(url)
+            print(f"    [INFO] Carregando site: {url}")
+            
+            # Timeout muito agressivo - 5 segundos máximo
+            self.driver_manager.driver.set_page_load_timeout(5)
+            
+            try:
+                self.driver_manager.driver.get(url)
+            except TimeoutException:
+                print(f"    [AVISO] Timeout no carregamento - continuando...")
+                # Continua mesmo com timeout
+                pass
+            
+            # Aguarda mínimo para HTML carregar
+            try:
+                WebDriverWait(self.driver_manager.driver, 2).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
+                )
+            except TimeoutException:
+                print(f"    [AVISO] Body não carregou - tentando extrair mesmo assim")
+                pass
 
-            # Timeout agressivo
-            WebDriverWait(self.driver_manager.driver, 3).until(
-                EC.presence_of_element_located((By.TAG_NAME, "html"))
-            )
-
-            # Para carregamento se demorar
+            # Para carregamento forçadamente
             try:
                 self.driver_manager.driver.execute_script("window.stop();")
             except:
                 pass
 
-            time.sleep(random.uniform(*self.delays["page_load"]))
+            time.sleep(1)  # Delay fixo mínimo
 
+            print(f"    [DEBUG] Fazendo scroll...")
             # Scroll mínimo
             self.driver_manager.driver.execute_script("window.scrollTo(0, 1000);")
-            time.sleep(random.uniform(*self.delays["scroll"]))
+            time.sleep(1)
 
+            print(f"    [DEBUG] Capturando HTML...")
             # Capturar HTML (limitado para performance)
             html_content = self.driver_manager.driver.page_source
             if len(html_content) > 100000:  # Limita a 100KB
                 html_content = html_content[:100000]
+            print(f"    [DEBUG] HTML capturado: {len(html_content)} chars")
 
+            print(f"    [DEBUG] Extraindo endereço...")
             # Extrair endereço formatado
-            from src.infrastructure.utils.address_extractor import AddressExtractor
-            endereco_formatado = AddressExtractor.extract_from_html(html_content)
+            try:
+                from src.infrastructure.utils.address_extractor import AddressExtractor
+                endereco_formatado = AddressExtractor.extract_from_html(html_content)
+                print(f"    [DEBUG] Endereço: {endereco_formatado.to_full_address()[:50] if endereco_formatado else 'Não encontrado'}")
+                
+            except Exception as e:
+                print(f"    [DEBUG] Erro na extração de endereço: {str(e)[:30]}")
+                endereco_formatado = None
 
+            print(f"    [DEBUG] Extraindo emails...")
             # Extrações otimizadas
             email_list = self._extract_emails_fast(html_content)[:max_emails]
             emails_string = self.validation_service.validate_and_join_emails(email_list)
+            print(f"    [DEBUG] Emails: {len(email_list)} encontrados")
+            
+            print(f"    [DEBUG] Extraindo telefones...")
             phone_list = self._extract_phones_fast(html_content)[:2]
             phones_string = self.validation_service.validate_and_join_phones(phone_list)
+            print(f"    [DEBUG] Telefones: {len(phone_list)} encontrados")
+            
+            print(f"    [DEBUG] Extraindo nome da empresa...")
             name = self._get_company_name_fast(url)
             domain = self.validation_service.extract_domain_from_url(url)
+            print(f"    [DEBUG] Nome: {name[:30]}... | Domain: {domain}")
 
             return CompanyModel(
                 name=name,

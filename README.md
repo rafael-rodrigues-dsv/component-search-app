@@ -1,6 +1,6 @@
-# 🤖 PYTHON SEARCH APP v3.0.0 - COLETOR DE E-MAILS E CONTATOS COM GEOLOCALIZAÇÃO
+# 🤖 PYTHON SEARCH APP v3.0.0 - COLETOR DE E-MAILS E CONTATOS COM ENDEREÇOS ESTRUTURADOS
 
-Aplicação Python para coleta de e-mails, telefones e localização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture** e **Sistema de Controle de Geolocalização**.
+Aplicação Python para coleta de e-mails, telefones e geolocalização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture** e **Endereços Estruturados Normalizados**.
 
 ## 📋 O que a Aplicação Faz
 
@@ -10,20 +10,22 @@ Aplicação Python para coleta de e-mails, telefones e localização de empresas
 | **🔍 Escolha do motor**        | Google ou DuckDuckGo (usuário escolhe)                        |
 | **🎯 Busca inteligente**       | Termos configuráveis por localização e segmento               |
 | **📧 Extração completa**       | E-mails, telefones formatados e dados da empresa              |
-| **📍 Geolocalização seletiva** | Extrai endereços reais do HTML e calcula distâncias precisas  |
+| **🏠 Endereços estruturados**  | TB_ENDERECOS normalizada com logradouro, número, bairro, etc  |
+| **📍 Geolocalização avançada** | Fallback progressivo: endereço → CEP → bairro → cidade        |
 | **✅ Validação rigorosa**       | Filtra e-mails/telefones inválidos automaticamente            |
-| **🚫 Controle de duplicatas**  | Evita revisitar sites e e-mails já coletados                  |
+| **🚫 Controle de duplicatas**  | Evita revisitar sites e endereços duplicados                  |
 | **📊 Planilha Excel**          | Formato SITE \| EMAIL \| TELEFONE \| ENDEREÇO \| DISTÂNCIA_KM |
 | **⚙️ Modo lote/completo**      | Processamento configurável pelo usuário                       |
 
 | **🔄 Reinício opcional**      | Continuar anterior ou começar do zero |
 
-## 🏗️ Arquitetura v3.0.0 - Clean Architecture + Controle de Geolocalização
+## 🏗️ Arquitetura v3.0.0 - Clean Architecture + Endereços Estruturados
 
 ```
 📁 PythonSearchApp/
 ├── 🔵 src/domain/                    # CAMADA DE DOMÍNIO
 │   ├── models/                       # Entidades e modelos
+│   │   ├── address_model.py          # Modelo de endereço estruturado
 │   │   ├── company_model.py          # Modelo de empresa
 │   │   ├── search_term_model.py      # Modelo de termo de busca
 │   │   ├── collection_result_model.py # Resultado da coleta
@@ -39,7 +41,10 @@ Aplicação Python para coleta de e-mails, telefones e localização de empresas
 │       └── email_domain_service.py   # Regras de negócio e validações
 ├── 🟢 src/application/               # CAMADA DE APLICAÇÃO
 │   └── services/                     # Serviços de aplicação
+│       ├── database_service.py       # Serviço de banco de dados
 │       ├── email_application_service.py  # Orquestração principal
+│       ├── excel_application_service.py  # Exportação Excel
+│       ├── geolocation_application_service.py # Processamento geolocalização
 │       └── user_config_service.py    # Configuração do usuário
 ├── 🟡 src/infrastructure/            # CAMADA DE INFRAESTRUTURA
 │   ├── config/                       # Gerenciamento de configuração
@@ -53,14 +58,17 @@ Aplicação Python para coleta de e-mails, telefones e localização de empresas
 │   ├── network/                      # Rede e retry
 │   │   └── retry_manager.py          # Gerenciador de retry com backoff
 │   ├── repositories/                 # Persistência
-│   │   └── access_repository.py      # Banco Access
+│   │   ├── access_repository.py      # Banco Access (Singleton)
+│   │   └── data_repository.py        # Repositório de dados
 │   ├── scrapers/                     # Web scraping
 │   │   ├── duckduckgo_scraper.py     # Scraper DuckDuckGo
 │   │   └── google_scraper.py         # Scraper Google
-│   └── storage/                      # Gerenciamento de arquivos
-│       └── data_storage.py           # Limpeza de dados
-├── 🌐 src/infrastructure/services/   # Serviços de infraestrutura
-│   └── geolocation_service.py        # Serviço de geolocalização
+│   ├── services/                     # Serviços de infraestrutura
+│   │   └── geolocation_service.py    # Serviço de geolocalização
+│   ├── storage/                      # Gerenciamento de arquivos
+│   │   └── data_storage.py           # Limpeza de dados
+│   └── utils/                        # Utilitários
+│       └── address_extractor.py      # Extrator de endereços estruturados
 ├── 📜 src/resources/                 # Recursos e configurações
 │   └── application.yaml              # Configuração principal YAML
 ├── 📌 src/__version__.py               # Controle de versão dinâmico
@@ -70,11 +78,23 @@ Aplicação Python para coleta de e-mails, telefones e localização de empresas
 │   └── pythonsearch.accdb            # Banco Access principal
 ├── 📊 output/                        # Arquivos de saída (ignorado no Git)
 │   └── empresas.xlsx                 # Planilha Excel
+├── 📜 scripts/                       # Scripts utilitários
+│   ├── database/                     # Scripts de banco
+│   │   ├── create_db_simple.py       # Criação do banco Access
+│   │   └── load_initial_data.py      # Carregamento de dados iniciais
+│   ├── monitoring/                   # Monitores
+│   │   ├── advanced_monitor.py       # Monitor avançado
+│   │   └── realtime_monitor.py       # Monitor em tempo real
+│   ├── setup/                        # Scripts de instalação
+│   ├── utils/                        # Utilitários
+│   └── verification/                 # Scripts de verificação
 ├── 🧪 tests/                         # Testes unitários (95% coverage)
 │   ├── unit/                         # Testes por camada
-│   │   └── infrastructure/services/  # Testes do GeolocationService
+│   │   ├── domain/                   # Testes de domínio
+│   │   ├── application/              # Testes de aplicação
+│   │   └── infrastructure/           # Testes de infraestrutura
 │   ├── reports/                      # Relatórios de coverage
-│   ├── run_tests.bat                # Script de execução de testes
+│   └── run_tests.bat                # Script de execução de testes
 
 ├── 📋 pyproject.toml                 # Gerenciamento de dependências
 └── 🚀 main.py                        # Ponto de entrada
@@ -92,34 +112,27 @@ Aplicação Python para coleta de e-mails, telefones e localização de empresas
 
 ### Instalação e Execução
 
-**1️⃣ Primeiro: Criar Banco Access**
-
-```cmd
-scripts\setup\create_database.bat (Windows)
-scripts/setup/create_database.sh (Linux/macOS)
-```
-
-[![Criar Banco](https://img.shields.io/badge/🗄️-Criar%20Banco%20Access-orange?style=for-the-badge)](scripts/setup/create_database.bat)
-
-**2️⃣ Carregar Dados Iniciais (Opcional)**
-
-```cmd
-python scripts\database\load_initial_data.py
-```
-
-**3️⃣ Configurar CEP de Referência (Opcional)**
-
-Edite `config/settings.py`:
-
-```python
-# CEP de referência para cálculo de distâncias
-REFERENCE_CEP = "01310-100"  # Seu CEP de referência
-```
-
-**4️⃣ Executar Robô**
+**1️⃣ Executar Robô (Criação Automática)**
 
 ```cmd
 iniciar_robo_simples.bat
+```
+
+[![Executar Robô](https://img.shields.io/badge/▶️-Executar%20Robô-blue?style=for-the-badge)](iniciar_robo_simples.bat)
+
+**2️⃣ Configurar CEP de Referência (Opcional)**
+
+Edite `src/resources/application.yaml`:
+
+```yaml
+geolocation:
+  reference_cep: "01310-100"  # Seu CEP de referência
+```
+
+**3️⃣ Carregar Dados Iniciais (Opcional)**
+
+```cmd
+python scripts\database\load_initial_data.py
 ```
 
 [![Executar Robô](https://img.shields.io/badge/▶️-Executar%20Robô-blue?style=for-the-badge)](iniciar_robo_simples.bat)
@@ -145,17 +158,21 @@ run_tests.bat
 A aplicação:
 
 1. **🌐 Verifica navegadores**: Detecta automaticamente Chrome e/ou Brave
-2. **📋 Menu principal**: Escolha da funcionalidade desejada
-   - **[1] Coleta de dados** (e-mails e telefones)
-   - **[2] Geolocalização** das empresas
-   - **[3] Exportar Excel** com dados completos
-3. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
-4. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
+2. **🗄️ Cria banco automaticamente**: Se não existir, cria com 11 tabelas estruturadas
+3. **📋 Menu principal**: Escolha da funcionalidade desejada
+   - **[1] Processar coleta de dados** (e-mails e telefones)
+   - **[2] Processar geolocalização** das empresas
+   - **[3] Extrair planilha Excel** com dados completos
+   - **[4] Sair**
+4. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
+5. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
 
 ### Configurações
 
-- **Modo teste**: Edite `IS_TEST_MODE = True` em `config/settings.py`
-- **CEP referência**: Configure `REFERENCE_CEP` em `config/settings.py`
+- **Arquivo principal**: `src/resources/application.yaml`
+- **Modo teste**: `mode.is_test: true/false`
+- **CEP referência**: `geolocation.reference_cep`
+- **Delays**: Configuráveis por motor de busca
 - **ChromeDriver**: Download automático da versão compatível
 
 ## 🛠️ Tecnologias Utilizadas
@@ -168,9 +185,8 @@ A aplicação:
 | **Selenium**           | Automação de navegadores web                         | ≥4.0.0        |
 | **OpenPyXL**           | Manipulação de arquivos Excel (.xlsx)                | ≥3.0.0        |
 | **TLDExtract**         | Extração e processamento de domínios                 | ≥3.0.0        |
-| **Requests**           | Cliente HTTP para download de drivers                | ≥2.25.0       |
+| **Requests**           | Cliente HTTP para APIs e download de drivers         | ≥2.25.0       |
 | **PyYAML**             | Parser e gerador de arquivos YAML                    | ≥6.0          |
-| **Requests**           | Cliente HTTP para APIs de geolocalização             | ≥2.32.4       |
 | **Pytest**             | Framework de testes unitários                        | ≥7.0.0        |
 | **Pytest-Cov**         | Plugin de coverage para pytest                       | ≥4.0.0        |
 | **Coverage**           | Medição de cobertura de código                       | ≥7.0.0        |
@@ -205,12 +221,13 @@ A aplicação gera:
 
 ### 🗄️ **Banco Access v3.0.0 (Principal)**
 
-- Dados normalizados em **10 tabelas** (incluindo TB_GEOLOCALIZACAO)
-- **Controle de geolocalização independente** com status e histórico
-- Coordenadas geográficas e cálculo de distâncias
+- Dados normalizados em **11 tabelas** (incluindo TB_ENDERECOS)
+- **Endereços estruturados** com logradouro, número, bairro, cidade, estado, CEP
+- **Geolocalização com fallback progressivo** usando campos estruturados
+- **Singleton de conexão** para máxima performance
 - **Replicação automática** entre tabelas
 - Consultas avançadas e relatórios
-- Auditoria completa e logs detalhados
+- Auditoria completa e logs categorizados
 
 ### 📋 **Excel (Compatibilidade)**
 
@@ -222,7 +239,14 @@ A aplicação gera:
 
 - **E-mails**: `email1@domain.com;email2@domain.com;`
 - **Telefones**: `(11) 99999-8888;(11) 3333-4444;`
-- **Endereços**: `Rua Augusta, 123, Consolação, São Paulo, SP`
+- **Endereços Estruturados**: 
+  - `LOGRADOURO`: "Rua Augusta"
+  - `NUMERO`: "123"
+  - `BAIRRO`: "Consolação"
+  - `CIDADE`: "São Paulo"
+  - `ESTADO`: "SP"
+  - `CEP`: "01310-100"
+- **Endereço Concatenado**: `Rua Augusta, 123, Consolação, São Paulo, SP`
 - **Distâncias**: `5.2` (em quilômetros do ponto de referência)
 - **Validação**: Filtra e-mails/telefones inválidos automaticamente
 
@@ -266,22 +290,27 @@ A aplicação gera:
 - **DuckDuckGo**: Para coletas rápidas e grandes volumes (50+ empresas)
 - **Google**: Para qualidade máxima e proteção contra detecção prolongada
 
-### 🌍 Precisão da Geolocalização
+### 🌍 Precisão da Geolocalização com Fallback Progressivo
 
-| Cenário               | Precisão | Exemplo                               |
-|-----------------------|----------|---------------------------------------|
-| **Endereço completo** | ±10-50m  | "Rua Augusta, 123, Consolação, SP"    |
-| **Cidade/bairro**     | ±2-5km   | "Moema, São Paulo" (centro do bairro) |
-| **Sem endereço**      | -        | Não geocodifica (sem fallback)        |
+| Tentativa             | Precisão | Exemplo                               | API Nominatim |
+|-----------------------|----------|---------------------------------------|---------------|
+| **1. Endereço completo** | ±10-50m  | `street="Rua Augusta, 123" city="São Paulo"` | Estruturada |
+| **2. Só CEP**         | ±10-50m  | `postalcode="01310-100"`              | Estruturada |
+| **3. Bairro + Cidade** | ±2-5km   | `city="Moema, São Paulo"`             | Estruturada |
+| **4. Só Cidade**      | ±10-20km | `city="São Paulo" state="SP"`         | Estruturada |
+| **5. Sem dados**      | -        | Não geocodifica                       | - |
 
-## 📝 Logs
+## 📝 Logs Categorizados
 
 - `[INFO]`: Informações gerais e progresso
 - `[OK]`: Operações bem-sucedidas
 - `[ERRO]`: Falhas na execução
-- `[VISITA]`: Acessando novo site
-- `[PULAR]`: Site já visitado
-- `[GEO]`: Processando geolocalização
+- `[DB]`: Criação de tabelas (`[DB] 1/11 - TB_ZONAS criada`)
+- `[DB-DATA]`: Carregamento de dados iniciais
+- `[DB-CHECK]`: Verificações de integridade
+- `[DB-ERRO]`: Erros específicos de banco
+- `[GEO]`: Processamento de geolocalização
+- `[DEBUG]`: Informações detalhadas de debug
 
 ## 📄 Licença
 

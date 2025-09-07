@@ -18,15 +18,21 @@ echo [3] Sair
 echo.
 set /p opcao="Digite sua opcao (1-3): "
 
+cd /d "%~dp0"
+
+REM Ativar ambiente virtual se existir
+if exist ".venv\Scripts\activate.bat" (
+    echo [INFO] Ativando ambiente virtual...
+    call .venv\Scripts\activate.bat
+)
+
 if "%opcao%"=="1" (
     echo.
     echo Iniciando Monitor Simples...
-    cd /d "%~dp0"
     python scripts\monitoring\realtime_monitor.py
 ) else if "%opcao%"=="2" (
     echo.
     echo Iniciando Monitor Avancado...
-    cd /d "%~dp0"
     python scripts\monitoring\advanced_monitor.py
 ) else if "%opcao%"=="3" (
     echo.

@@ -3,6 +3,7 @@ Extrator e formatador de endereços - Responsabilidade única
 """
 import re
 from typing import Optional
+from ...domain.models.address_model import AddressModel
 
 
 class AddressExtractor:
@@ -38,22 +39,97 @@ class AddressExtractor:
     STREET_TYPES = ['rua', 'av.', 'avenida', 'alameda', 'travessa', 'praça']
 
     @classmethod
-    def extract_from_html(cls, html_content: str) -> Optional[str]:
-        """Extrai e formata endereço do HTML"""
+    def extract_from_html(cls, html_content: str) -> Optional[AddressModel]:
+        """Extrai endereço estruturado do HTML (otimizado)"""
         if not html_content:
             return None
 
-        # Tentar endereço completo primeiro
-        endereco = cls._extract_complete_address(html_content)
-        if endereco:
-            return cls._format_address(endereco)
+        # Limitar HTML para performance (primeiros 50KB)
+        if len(html_content) > 50000:
+            html_content = html_content[:50000]
 
-        # Fallback para cidade/bairro
-        endereco = cls._extract_partial_address(html_content)
-        if endereco:
-            return cls._format_address(endereco)
+        # Tentar extrair endereço estruturado
+        address = cls._extract_structured_address(html_content)
+        if address and address.is_valid():
+            return address
 
         return None
+    
+    @classmethod
+    def _extract_structured_address(cls, html_content: str) -> Optional[AddressModel]:
+        """Extrai endereço em formato estruturado"""
+        html_lower = html_content.lower()
+        
+        # Buscar componentes do endereço
+        logradouro = cls._extract_street(html_lower)
+        numero = cls._extract_number(html_lower)
+        bairro = cls._extract_neighborhood(html_lower)
+        cep = cls._extract_cep(html_lower)
+        
+        return AddressModel(
+            logradouro=logradouro,
+            numero=numero,
+            bairro=bairro,
+            cidade="São Paulo",
+            estado="SP",
+            cep=cep
+        )
+    
+    @classmethod
+    def _extract_street(cls, html_lower: str) -> str:
+        """Extrai logradouro completo (tipo + nome)"""
+        patterns = [
+            r'((?:rua|av\.|avenida|alameda|travessa|praça)\s+[^,\n\d]{3,40})',
+            r'endereço[^>]*([^,\n]*(?:rua|avenida|alameda)[^,\n]{5,50})',
+            r'((?:r\.|av\.)\s+[^,\n\d]{3,30})'
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, html_lower)
+            if matches:
+                street = matches[0].strip()
+                # Limpar e normalizar
+                street = re.sub(r'\s+', ' ', street)
+                street = street.replace('av.', 'avenida').replace('r.', 'rua')
+                if len(street) > 3:
+                    return street.title()
+        return ""
+    
+    @classmethod
+    def _extract_number(cls, html_lower: str) -> str:
+        """Extrai número"""
+        patterns = [
+            r'(?:rua|avenida)[^\d]*?(\d{1,5})(?:\s|,|$)',
+            r'número[^\d]*(\d{1,5})'
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, html_lower)
+            if matches:
+                return matches[0]
+        return ""
+    
+    @classmethod
+    def _extract_neighborhood(cls, html_lower: str) -> str:
+        """Extrai bairro"""
+        neighborhoods = [
+            'moema', 'vila mariana', 'pinheiros', 'itaim', 'jardins',
+            'centro', 'liberdade', 'bela vista', 'consolacao', 'higienopolis'
+        ]
+        
+        for neighborhood in neighborhoods:
+            if neighborhood in html_lower:
+                return neighborhood.title()
+        return ""
+    
+    @classmethod
+    def _extract_cep(cls, html_lower: str) -> str:
+        """Extrai CEP"""
+        pattern = r'(\d{5}-?\d{3})'
+        matches = re.findall(pattern, html_lower)
+        if matches:
+            return matches[0]
+        return ""
 
     @classmethod
     def _extract_complete_address(cls, html_content: str) -> Optional[str]:

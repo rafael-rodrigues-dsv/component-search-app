@@ -50,31 +50,33 @@ class DatabaseService:
                           termo_busca: str = None) -> bool:
         """Salva dados completos da empresa"""
         try:
-            # Extrair apenas endereço do HTML (sem geocodificação)
-            endereco = None
+            # Extrair endereço estruturado do HTML
+            address_model = None
 
             if html_content:
                 try:
                     from src.infrastructure.utils.address_extractor import AddressExtractor
-                    endereco = AddressExtractor.extract_from_html(html_content)
+                    address_model = AddressExtractor.extract_from_html(html_content)
 
-                    if endereco:
-                        self.logger.debug(f"[ADDR] Endereco extraido: {endereco[:50]}...")
+                    if address_model and address_model.is_valid():
+                        self.logger.debug(f"[ADDR] Endereco extraido: {address_model.to_full_address()[:50]}...")
                     else:
                         self.logger.debug("[ADDR] Nenhum endereco encontrado no HTML")
 
                 except Exception as e:
                     self.logger.error(f"[ADDR] Erro na extração: {str(e)[:50]}... - continuando sem endereco")
-                    endereco = None
+                    address_model = None
 
             # Salvar empresa completa (coordenadas serão preenchidas depois)
             latitude, longitude, distancia_km = None, None, None
             empresa_id = self.repository.save_empresa(termo_id, site_url, domain, motor_busca,
-                                                      endereco, latitude, longitude, distancia_km)
+                                                      address_model, latitude, longitude, distancia_km)
             
             # Criar tarefa de geolocalização se houver endereço
-            if endereco and endereco.strip():
-                self.repository.create_geolocation_task(empresa_id, endereco)
+            if address_model and address_model.is_valid():
+                endereco_id = self.repository.save_endereco(address_model)
+                if endereco_id:
+                    self.repository.create_geolocation_task(empresa_id, endereco_id)
 
             # Salvar e-mails se houver
             if emails:
@@ -93,7 +95,7 @@ class DatabaseService:
             if emails or telefones:
                 emails_str = ';'.join(emails) + ';' if emails else ''
                 telefones_str = ';'.join([t['formatted'] for t in telefones]) + ';' if telefones else ''
-                self.repository.save_to_final_sheet(site_url, emails_str, telefones_str, endereco, None)
+                self.repository.save_to_final_sheet(site_url, emails_str, telefones_str, None)
 
             return True
 

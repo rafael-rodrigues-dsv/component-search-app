@@ -30,21 +30,29 @@ def verificar_versao_python():
 
 def verificar_dependencias():
     """Verifica se as dependências estão instaladas"""
-    dependencias = ['selenium', 'openpyxl', 'tldextract', 'requests', 'pyodbc', 'pyyaml']
+    # Mapeamento: nome_pacote -> nome_import
+    dependencias = {
+        'selenium': 'selenium',
+        'openpyxl': 'openpyxl', 
+        'tldextract': 'tldextract',
+        'requests': 'requests',
+        'pyodbc': 'pyodbc',
+        'pyyaml': 'yaml'
+    }
 
     # Adicionar pywin32 apenas no Windows
     import platform
     if platform.system() == 'Windows':
-        dependencias.append('win32com.client')
+        dependencias['pywin32'] = 'win32com.client'
 
     print("[INFO] Verificando dependências...")
 
-    for dep in dependencias:
+    for nome_pacote, nome_import in dependencias.items():
         try:
-            __import__(dep)
-            print(f"[OK] {dep} instalado")
+            __import__(nome_import)
+            print(f"[OK] {nome_pacote} instalado")
         except ImportError:
-            print(f"[AVISO] {dep} não encontrado")
+            print(f"[AVISO] {nome_pacote} não encontrado")
             return False
 
     print("[OK] Todas as dependências estão instaladas")
@@ -59,25 +67,38 @@ def instalar_dependencias():
         subprocess.run([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'],
                        check=True, capture_output=True)
 
-        # Tentar instalar usando pyproject.toml primeiro
-        try:
-            subprocess.run([sys.executable, '-m', 'pip', 'install', '-e', '.'],
+        # Instalar dependências individuais com tratamento especial para pyodbc
+        deps = ['selenium>=4.0.0', 'openpyxl>=3.0.0', 'tldextract>=3.0.0',
+                'requests>=2.25.0', 'pyyaml>=6.0']
+
+        for dep in deps:
+            subprocess.run([sys.executable, '-m', 'pip', 'install', dep],
                            check=True, capture_output=True)
-            print("[OK] Dependências instaladas via pyproject.toml")
-            return True
+
+        # Instalar pyodbc com tratamento especial
+        print("[INFO] Instalando pyodbc...")
+        try:
+            subprocess.run([sys.executable, '-m', 'pip', 'install', 'pyodbc>=4.0.0'],
+                           check=True, capture_output=True)
+            print("[OK] pyodbc instalado")
         except subprocess.CalledProcessError:
-            print("[AVISO] Falha no pyproject.toml, instalando individualmente...")
-
-            # Instalar individualmente se pyproject.toml falhar
-            deps = ['selenium>=4.0.0', 'openpyxl>=3.0.0', 'tldextract>=3.0.0',
-                    'requests>=2.25.0', 'pyyaml>=6.0', 'pyodbc>=4.0.0']
-
-            for dep in deps:
-                subprocess.run([sys.executable, '-m', 'pip', 'install', dep],
+            print("[AVISO] Falha na instalação do pyodbc, tentando alternativa...")
+            subprocess.run([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'pyodbc'],
+                           check=True, capture_output=True)
+        
+        # Instalar pywin32 no Windows
+        import platform
+        if platform.system() == 'Windows':
+            print("[INFO] Instalando pywin32...")
+            try:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'pywin32>=306'],
                                check=True, capture_output=True)
+                print("[OK] pywin32 instalado")
+            except subprocess.CalledProcessError:
+                print("[AVISO] Falha na instalação do pywin32")
 
-            print("[OK] Dependências instaladas individualmente")
-            return True
+        print("[OK] Dependências instaladas")
+        return True
 
     except subprocess.CalledProcessError as e:
         print(f"[ERRO] Falha na instalação: {e}")

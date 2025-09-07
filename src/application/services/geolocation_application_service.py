@@ -35,13 +35,13 @@ class GeolocationApplicationService:
                 processadas += 1
                 id_geo = tarefa['id_geo']
                 empresa_id = tarefa['id_empresa']
-                endereco = tarefa['endereco']
+                address_model = tarefa['address_model']
                 site_url = tarefa['site_url']
 
                 self.logger.info(f"[GEO] Processando {processadas}/{len(tarefas)} | Tarefa: {id_geo}")
 
-                # Geocodificar endereço
-                result = self.geo_service.geocodificar_endereco(endereco)
+                # Geocodificar endereço estruturado
+                result = self.geo_service.geocodificar_endereco_estruturado(address_model)
 
                 if result.success and result.latitude and result.longitude:
                     # Calcular distância
@@ -62,7 +62,8 @@ class GeolocationApplicationService:
                     self.logger.info(f"[GEO] ✅ Geocodificada: {result.latitude}, {result.longitude} - {distancia_km}km")
                 else:
                     # Registrar erro na tabela de controle
-                    erro_msg = f"Falha na geocodificação: {endereco[:100]}"
+                    endereco_str = address_model.to_full_address()
+                    erro_msg = f"Falha na geocodificação: {endereco_str[:100]}"
                     self.repository.update_geolocation_error(id_geo, erro_msg)
                     self.logger.debug(f"[GEO] ❌ {erro_msg}")
 

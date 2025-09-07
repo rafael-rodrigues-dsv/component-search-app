@@ -28,37 +28,17 @@ def _check_browser_availability(browser: str) -> bool:
 def _create_database_automatically() -> bool:
     """Cria o banco Access automaticamente"""
     try:
-        import subprocess
+        from scripts.database.create_db_simple import create_simple_db
         
-        # Executar script de criação do banco via subprocess
-        script_path = Path("scripts/database/create_db_simple.py")
+        # Executar criação diretamente
+        create_simple_db(auto_mode=True)
         
-        # Executar script diretamente
-        result = subprocess.run([sys.executable, str(script_path)], 
-                              capture_output=True, text=True, input="\n", 
-                              encoding='utf-8', errors='ignore')
-        
-        if result.returncode != 0:
-            print(f"[ERRO] Falha ao criar banco: {result.stderr}")
-            return False
-
-        # Carregar dados iniciais
-        try:
-            script_path = Path("scripts/database/load_initial_data.py")
-            result = subprocess.run([sys.executable, str(script_path)], 
-                                  capture_output=True, text=True,
-                                  encoding='utf-8', errors='ignore')
-            if result.returncode != 0:
-                print(f"[AVISO] Erro ao carregar dados iniciais: {result.stderr}")
-                print("[INFO] Continuando com dados basicos ja carregados...")
-            return True
-        except Exception as e:
-            print(f"[AVISO] Falha ao executar load_initial_data: {e}")
-            print("[INFO] Continuando com dados basicos ja carregados...")
-            return True
-
+        # Verificar se banco foi criado
+        db_path = Path("data/pythonsearch.accdb")
+        return db_path.exists()
+            
     except Exception as e:
-        print(f"[ERRO] Falha na criação automática: {e}")
+        print(f"[ERRO] Falha na criação: {e}")
         return False
 
 
@@ -148,14 +128,44 @@ def main():
 
     # Inicializar banco de dados
     print("[INFO] Inicializando banco de dados...")
-    db_service = DatabaseService()
-
-    terms_count = db_service.initialize_search_terms()
-
-    if terms_count == 0:
-        print("[ERRO] Falha ao inicializar banco de dados")
-        input("Pressione Enter para sair...")
-        return 1
+    print("[INFO] Conectando ao banco Access...")
+    
+    try:
+        # Inicializar singleton de banco no início
+        from src.infrastructure.repositories.access_repository import AccessRepository
+        db_repository = AccessRepository()  # Cria singleton
+        
+        db_service = DatabaseService()
+        print("[OK] Conexão singleton estabelecida com sucesso")
+        
+        print("[INFO] Gerando termos de busca...")
+        terms_count = db_service.initialize_search_terms()
+        
+        if terms_count == 0:
+            print("[ERRO] Falha ao inicializar termos de busca")
+            input("Pressione Enter para sair...")
+            return 1
+        
+        print(f"[OK] {terms_count} termos de busca gerados")
+        
+    except Exception as e:
+        print(f"[ERRO] Falha ao conectar com banco: {e}")
+        print("[INFO] Tentando recriar banco...")
+        
+        # Tentar recriar banco
+        if _create_database_automatically():
+            try:
+                db_service = DatabaseService()
+                terms_count = db_service.initialize_search_terms()
+                print(f"[OK] Banco recriado com {terms_count} termos")
+            except Exception as e2:
+                print(f"[ERRO] Falha mesmo após recriar: {e2}")
+                input("Pressione Enter para sair...")
+                return 1
+        else:
+            print("[ERRO] Não foi possível recriar o banco")
+            input("Pressione Enter para sair...")
+            return 1
 
     # Escolher modo de operação
     print("\n=== PYTHON SEARCH APP ===")
@@ -241,6 +251,15 @@ def main():
                 print(f"{i}")
                 time.sleep(1)
             print("[INFO] Finalizando...")
+            
+            # Fechar conexão singleton
+            try:
+                from src.infrastructure.repositories.access_repository import AccessRepository
+                AccessRepository().close_connection()
+                print("[OK] Conexão singleton fechada")
+            except:
+                pass
+            
             return 0
         else:
             print("[ERRO] Falha na execução da aplicação")
@@ -249,10 +268,22 @@ def main():
 
     except KeyboardInterrupt:
         print("\n[INFO] Aplicação interrompida pelo usuário")
+        # Fechar conexão singleton
+        try:
+            from src.infrastructure.repositories.access_repository import AccessRepository
+            AccessRepository().close_connection()
+        except:
+            pass
         return 0
 
     except Exception as e:
         print(f"[ERRO] Erro inesperado: {e}")
+        # Fechar conexão singleton
+        try:
+            from src.infrastructure.repositories.access_repository import AccessRepository
+            AccessRepository().close_connection()
+        except:
+            pass
         return 1
 
 
