@@ -82,26 +82,6 @@ class UserConfigService:
 
     @staticmethod
     def get_processing_mode() -> int:
-        """Obtém modo de processamento"""
-        while True:
-            try:
-                mode = input("\n🔍 Processamento em lote ou completo? (l/c - padrão: c): ").lower().strip()
-                if not mode or mode == 'c':
-                    return 999999
-                elif mode == 'l':
-                    while True:
-                        try:
-                            limit = input("Quantos resultados por termo? (padrão: 10): ")
-                            if not limit.strip():
-                                return 10
-                            limit = int(limit)
-                            if limit > 0:
-                                return limit
-                            else:
-                                print("[ERRO] Digite um número maior que zero")
-                        except ValueError:
-                            print("[ERRO] Digite um número válido")
-                else:
-                    print("[ERRO] Digite 'l' para lote ou 'c' para completo")
-            except:
-                print("[ERRO] Entrada inválida")
+        """Retorna modo completo (sempre coleta tudo)"""
+        print("\n🔍 Modo de processamento: COMPLETO (coleta todos os resultados)")
+        return 999999

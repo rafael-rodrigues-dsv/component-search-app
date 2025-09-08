@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Search App - Dashboard</title>
+    <!-- AdminLTE CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <style>
+        .content-wrapper { margin-left: 0 !important; }
+        .main-sidebar { display: none; }
+        .navbar-nav .nav-link { color: #fff !important; }
+        .navbar-dark { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+        .small-box { border-radius: 10px; }
+        .card { border-radius: 10px; }
+        .progress { height: 8px; }
+        .info-box { border-radius: 10px; }
+    </style>
+</head>
+<body class="hold-transition layout-top-nav">
+<div class="wrapper">
+    <!-- Navbar -->
+    <nav class="main-header navbar navbar-expand-md navbar-dark">
+        <div class="container">
+            <a href="#" class="navbar-brand">
+                <i class="fas fa-robot"></i>
+                <span class="brand-text font-weight-light">Python Search App</span>
+            </a>
+            
+            <div class="navbar-nav ml-auto">
+                <div class="nav-item">
+                    <span class="nav-link" id="connection-status">
+                        <i class="fas fa-circle text-danger"></i> Conectando...
+                    </span>
+                </div>
+                <div class="nav-item dropdown">
+                    <select class="form-control form-control-sm" id="flow-select" style="background: rgba(255,255,255,0.1); border: none; color: white;">
+                        <option value="all">📊 Todos os Fluxos</option>
+                        <option value="coleta">📧 Coleta de Dados</option>
+                        <option value="cep">🏠 Enriquecimento CEP</option>
+                        <option value="geo">🌍 Geolocalização</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Content Wrapper -->
+    <div class="content-wrapper">
+        <div class="content-header">
+            <div class="container">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1 class="m-0">Dashboard de Monitoramento</h1>
+                    </div>
+                    <div class="col-sm-6">
+                        <ol class="breadcrumb float-sm-right">
+                            <li class="breadcrumb-item active">Tempo Real</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main content -->
+        <section class="content">
+            <div class="container">
+                <!-- Info boxes -->
+                <div class="row">
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-info elevation-1"><i class="fas fa-search"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Termos Processados</span>
+                                <span class="info-box-number" id="termos-processados">0/0</span>
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" id="progress-termos" style="width: 0%"></div>
+                                </div>
+                                <span class="progress-description" id="progress-termos-text">0% Completo</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-success elevation-1"><i class="fas fa-percentage"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Empresas</span>
+                                <span class="info-box-number" id="taxa-coleta">0%</span>
+                                <span class="progress-description">
+                                    <span id="empresas-coletadas">0</span> de <span id="empresas-visitadas">0</span> empresas
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-envelope"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">E-mails</span>
+                                <span class="info-box-number" id="emails-total">0</span>
+                                <span class="progress-description">Empresas</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <div class="info-box">
+                            <span class="info-box-icon bg-danger elevation-1"><i class="fas fa-phone"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Telefones</span>
+                                <span class="info-box-number" id="telefones-total">0</span>
+                                <span class="progress-description">Empresas</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Small boxes (Stat box) -->
+                <div class="row" id="flow-cards">
+                    <!-- Coleta de Dados -->
+                    <div class="col-lg-4 col-6 flow-card" data-flow="coleta">
+                        <div class="small-box bg-info">
+                            <div class="inner">
+                                <h3 id="empresas-coletadas-box">0</h3>
+                                <p>Empresas Coletadas</p>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar" id="progress-coleta" style="width: 0%"></div>
+                                </div>
+                                <small>Taxa de Sucesso: <span id="taxa-coleta-box">0%</span> | Visitadas: <span id="empresas-visitadas-box">0</span></small>
+                            </div>
+                            <div class="icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CEP Enrichment -->
+                    <div class="col-lg-4 col-6 flow-card" data-flow="cep">
+                        <div class="small-box bg-success">
+                            <div class="inner">
+                                <h3 id="cep-concluidos">0</h3>
+                                <p>CEPs Enriquecidos</p>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar" id="progress-cep" style="width: 0%"></div>
+                                </div>
+                                <small>Taxa de Sucesso: <span id="cep-taxa-box">0%</span> | Pendentes: <span id="cep-pendentes">0</span></small>
+                            </div>
+                            <div class="icon">
+                                <i class="fas fa-home"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Geolocation -->
+                    <div class="col-lg-4 col-6 flow-card" data-flow="geo">
+                        <div class="small-box bg-warning">
+                            <div class="inner">
+                                <h3 id="geo-concluidos">0</h3>
+                                <p>Endereços Geocodificados</p>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar" id="progress-geo" style="width: 0%"></div>
+                                </div>
+                                <small>Taxa de Sucesso: <span id="geo-taxa-box">0%</span> | Pendentes: <span id="geo-pendentes">0</span></small>
+                            </div>
+                            <div class="icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chart -->
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-chart-line mr-1"></i>
+                                    Progresso em Tempo Real
+                                </h3>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="progressChart" height="100"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Export Excel -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-file-excel mr-1"></i>
+                                    Exportar Dados
+                                </h3>
+                            </div>
+                            <div class="card-body text-center">
+                                <button class="btn btn-success btn-lg" onclick="exportExcel()" id="export-btn">
+                                    <i class="fas fa-download mr-2"></i>
+                                    Gerar Planilha Excel
+                                </button>
+                                <div id="export-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer info -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <small class="text-muted">
+                                    Última atualização: <span id="last-update">--</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+    <script>
+        // Configuração do Socket.IO
+        const socket = io();
+        
+        // Configuração do gráfico
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        const progressChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Empresas Visitadas',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Empresas Coletadas',
+                        data: [],
+                        borderColor: '#48bb78',
+                        backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Empresas Não Coletadas',
+                        data: [],
+                        borderColor: '#f56565',
+                        backgroundColor: 'rgba(245, 101, 101, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+        
+        // Eventos do Socket.IO
+        socket.on('connect', function() {
+            document.getElementById('connection-status').innerHTML = '<i class="fas fa-circle text-success"></i> Conectado';
+        });
+        
+        socket.on('disconnect', function() {
+            document.getElementById('connection-status').innerHTML = '<i class="fas fa-circle text-danger"></i> Desconectado';
+        });
+        
+        socket.on('stats_update', function(data) {
+            updateDashboard(data);
+        });
+        
+        // Evento específico para progresso do CEP em tempo real
+        socket.on('cep_progress', function(data) {
+            // Atualizar apenas os elementos do CEP
+            document.getElementById('cep-concluidos').textContent = data.enriquecidas || 0;
+            document.getElementById('cep-pendentes').textContent = data.pendentes || 0;
+            document.getElementById('cep-taxa-box').textContent = `${data.percentual || 0}%`;
+            document.getElementById('progress-cep').style.width = `${data.percentual || 0}%`;
+            
+            // Mostrar progresso atual no console (opcional)
+            console.log(`CEP Progress: ${data.processadas}/${data.total} (${data.enriquecidas} enriquecidas)`);
+        });
+        
+        // Evento específico para progresso da geolocalização em tempo real
+        socket.on('geo_progress', function(data) {
+            // Atualizar apenas os elementos da geolocalização
+            document.getElementById('geo-concluidos').textContent = data.geocodificadas || 0;
+            document.getElementById('geo-pendentes').textContent = data.pendentes || 0;
+            document.getElementById('geo-taxa-box').textContent = `${data.percentual || 0}%`;
+            document.getElementById('progress-geo').style.width = `${data.percentual || 0}%`;
+            
+            // Mostrar progresso atual no console (opcional)
+            console.log(`GEO Progress: ${data.processadas}/${data.total} (${data.geocodificadas} geocodificadas)`);
+        });
+        
+        // Função para atualizar dashboard
+        function updateDashboard(data) {
+            // Coleta de dados
+            const coleta = data.coleta;
+            document.getElementById('termos-processados').textContent = 
+                `${coleta.termos_concluidos}/${coleta.termos_total}`;
+            document.getElementById('progress-termos').style.width = `${coleta.progresso_pct}%`;
+            document.getElementById('progress-termos-text').textContent = `${coleta.progresso_pct}% Completo`;
+            // Estatísticas de empresas
+            document.getElementById('empresas-visitadas').textContent = coleta.empresas_visitadas || 0;
+            document.getElementById('empresas-coletadas').textContent = coleta.empresas_coletadas || 0;
+            document.getElementById('taxa-coleta').textContent = `${coleta.taxa_coleta_pct || 0}%`;
+            document.getElementById('emails-total').textContent = coleta.emails_total;
+            document.getElementById('telefones-total').textContent = coleta.telefones_total;
+            
+            // Box de coleta
+            document.getElementById('empresas-coletadas-box').textContent = coleta.empresas_coletadas || 0;
+            document.getElementById('empresas-visitadas-box').textContent = coleta.empresas_visitadas || 0;
+            document.getElementById('taxa-coleta-box').textContent = `${coleta.taxa_coleta_pct || 0}%`;
+            document.getElementById('progress-coleta').style.width = `${coleta.taxa_coleta_pct || 0}%`;
+            
+            // CEP
+            const cep = data.cep;
+            document.getElementById('progress-cep').style.width = `${cep.percentual}%`;
+            document.getElementById('cep-concluidos').textContent = cep.concluidos || 0;
+            document.getElementById('cep-pendentes').textContent = cep.pendentes || 0;
+            document.getElementById('cep-taxa-box').textContent = `${cep.percentual || 0}%`;
+            
+            // Geolocalização
+            const geo = data.geo;
+            document.getElementById('progress-geo').style.width = `${geo.percentual}%`;
+            document.getElementById('geo-concluidos').textContent = geo.geocodificadas || 0;
+            document.getElementById('geo-pendentes').textContent = geo.pendentes || 0;
+            document.getElementById('geo-taxa-box').textContent = `${geo.percentual || 0}%`;
+            
+            // Timestamp
+            const timestamp = new Date(data.timestamp).toLocaleString('pt-BR');
+            document.getElementById('last-update').textContent = timestamp;
+            
+            // Atualizar visibilidade dos cards
+            updateCardVisibility();
+            
+            // Atualizar gráfico
+            updateChart(data);
+        }
+        
+        // Função para controlar visibilidade dos cards
+        function updateCardVisibility() {
+            const selectedFlow = document.getElementById('flow-select').value;
+            const flowCards = document.querySelectorAll('.flow-card');
+            
+            flowCards.forEach(card => {
+                const cardFlow = card.getAttribute('data-flow');
+                if (selectedFlow === 'all' || selectedFlow === cardFlow) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        // Event listener para o combo
+        document.getElementById('flow-select').addEventListener('change', updateCardVisibility);
+        
+        // Função para atualizar gráfico
+        function updateChart(data) {
+            const now = new Date().toLocaleTimeString();
+            
+            // Manter apenas os últimos 20 pontos
+            if (progressChart.data.labels.length >= 20) {
+                progressChart.data.labels.shift();
+                progressChart.data.datasets.forEach(dataset => {
+                    dataset.data.shift();
+                });
+            }
+            
+            progressChart.data.labels.push(now);
+            progressChart.data.datasets[0].data.push(data.coleta.empresas_visitadas || 0);
+            progressChart.data.datasets[1].data.push(data.coleta.empresas_coletadas || 0);
+            progressChart.data.datasets[2].data.push(data.coleta.empresas_nao_coletadas || 0);
+            
+            progressChart.update('none');
+        }
+        
+        // Carregar dados iniciais
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => updateDashboard(data))
+            .catch(error => console.error('Erro ao carregar dados:', error));
+        
+        // Função para exportar Excel
+        function exportExcel() {
+            const btn = document.getElementById('export-btn');
+            const result = document.getElementById('export-result');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Gerando...';
+            result.innerHTML = '';
+            
+            fetch('/api/export-excel')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        result.innerHTML = `<div class="alert alert-success">
+                            <i class="fas fa-check mr-2"></i>
+                            ${data.message}
+                        </div>`;
+                    } else {
+                        result.innerHTML = `<div class="alert alert-danger">
+                            <i class="fas fa-times mr-2"></i>
+                            Erro: ${data.message}
+                        </div>`;
+                    }
+                })
+                .catch(error => {
+                    result.innerHTML = `<div class="alert alert-danger">
+                        <i class="fas fa-times mr-2"></i>
+                        Erro: ${error.message}
+                    </div>`;
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-download mr-2"></i>Gerar Planilha Excel';
+                });
+        }
+        
+        // Inicializar visibilidade dos cards
+        updateCardVisibility();
+    </script>
+<!-- AdminLTE JS -->
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+<!-- Bootstrap -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

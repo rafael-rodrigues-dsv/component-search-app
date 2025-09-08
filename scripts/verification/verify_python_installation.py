@@ -37,7 +37,9 @@ def verificar_dependencias():
         'tldextract': 'tldextract',
         'requests': 'requests',
         'pyodbc': 'pyodbc',
-        'pyyaml': 'yaml'
+        'pyyaml': 'yaml',
+        'flask': 'flask',
+        'flask-socketio': 'flask_socketio'
     }
 
     # Adicionar pywin32 apenas no Windows
@@ -69,7 +71,7 @@ def instalar_dependencias():
 
         # Instalar dependências individuais com tratamento especial para pyodbc
         deps = ['selenium>=4.0.0', 'openpyxl>=3.0.0', 'tldextract>=3.0.0',
-                'requests>=2.25.0', 'pyyaml>=6.0']
+                'requests>=2.25.0', 'pyyaml>=6.0', 'flask>=3.0.0', 'flask-socketio>=5.3.0']
 
         for dep in deps:
             subprocess.run([sys.executable, '-m', 'pip', 'install', dep],

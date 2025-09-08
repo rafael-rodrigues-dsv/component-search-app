@@ -209,28 +209,31 @@ class AccessRepository:
             conn.commit()
 
     def generate_search_terms(self):
-        """Método estático REMOVIDO - agora usa descoberta dinâmica"""
-        # Este método foi substituído por save_dynamic_search_terms()
-        # que é chamado pelo sistema de descoberta dinâmica
-        print("[AVISO] Método estático removido - use descoberta dinâmica")
+        """Método legado - não faz nada (descoberta dinâmica substituiu)"""
+        print("[INFO] Termos serão gerados dinamicamente durante a coleta")
         return 0
 
     # ===== RESET =====
 
     def reset_collected_data(self):
-        """Reset seletivo - limpa dados coletados, preserva descoberta dinâmica"""
+        """Reset rápido - limpa apenas dados de coleta, CEP e geolocalização"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
-            # Limpar dados de coleta
-            cursor.execute("DELETE FROM TB_CEP_ENRICHMENT")
-            cursor.execute("DELETE FROM TB_GEOLOCALIZACAO")
-            cursor.execute("DELETE FROM TB_TELEFONES")
-            cursor.execute("DELETE FROM TB_EMAILS")
-            cursor.execute("DELETE FROM TB_EMPRESAS")
-            cursor.execute("DELETE FROM TB_PLANILHA")
+            # Limpar apenas as 6 tabelas de dados coletados
+            tables = [
+                "TB_CEP_ENRICHMENT",
+                "TB_GEOLOCALIZACAO", 
+                "TB_TELEFONES",
+                "TB_EMAILS",
+                "TB_EMPRESAS",
+                "TB_PLANILHA"
+            ]
             
-            # Resetar status dos termos (para reprocessar)
+            for table in tables:
+                cursor.execute(f"DELETE FROM {table}")
+            
+            # Resetar status dos termos para reprocessar
             cursor.execute("UPDATE TB_TERMOS_BUSCA SET STATUS_PROCESSAMENTO = 'PENDENTE', DATA_PROCESSAMENTO = NULL")
             
             conn.commit()
@@ -500,10 +503,14 @@ class AccessRepository:
                 cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
                 pendentes = cursor.fetchone()[0]
                 
+                cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'ERRO'")
+                erros = cursor.fetchone()[0]
+                
                 return {
                     'total_com_endereco': total_com_endereco,
                     'geocodificadas': geocodificadas,
                     'pendentes': pendentes,
+                    'erros': erros,
                     'percentual': round((geocodificadas / max(total_com_endereco, 1)) * 100, 1)
                 }
         except Exception as e:
@@ -513,6 +520,7 @@ class AccessRepository:
                 'total_com_endereco': 0,
                 'geocodificadas': 0,
                 'pendentes': 0,
+                'erros': 0,
                 'percentual': 0
             }
 
@@ -929,3 +937,39 @@ class AccessRepository:
             else:
                 cursor.execute(query)
             return cursor.fetchone()
+    
+    def get_company_collection_statistics(self) -> Dict[str, int]:
+        """Obtém estatísticas detalhadas de coleta de empresas"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Empresas visitadas (total de empresas na TB_EMPRESAS)
+                cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS")
+                visitadas = cursor.fetchone()[0]
+                
+                # Empresas coletadas (com dados)
+                cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE STATUS_COLETA = 'COLETADO'")
+                coletadas = cursor.fetchone()[0]
+                
+                # Empresas não coletadas
+                cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE STATUS_COLETA = 'NAO_COLETADO'")
+                nao_coletadas = cursor.fetchone()[0]
+                
+                # Taxa de coleta
+                taxa_coleta_pct = round((coletadas / max(visitadas, 1)) * 100, 1)
+                
+                return {
+                    'visitadas': visitadas,
+                    'coletadas': coletadas,
+                    'nao_coletadas': nao_coletadas,
+                    'taxa_coleta_pct': taxa_coleta_pct
+                }
+        except Exception as e:
+            print(f"[AVISO] Erro ao obter estatísticas de empresas: {e}")
+            return {
+                'visitadas': 0,
+                'coletadas': 0,
+                'nao_coletadas': 0,
+                'taxa_coleta_pct': 0
+            }

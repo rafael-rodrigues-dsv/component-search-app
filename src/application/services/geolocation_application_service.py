@@ -2,6 +2,7 @@
 Serviço de aplicação para processamento de geolocalização
 """
 import logging
+import time
 from typing import Dict
 
 from ...domain.services.geolocation_domain_service import GeolocationDomainService
@@ -57,6 +58,9 @@ class GeolocationApplicationService:
 
                 print(f"[GEO] 🔄 Processando {processadas}/{len(tarefas)} | Tarefa ID: {id_geo} | Empresa: {empresa_id}")
                 print(f"      📍 Endereço: {address_model.to_full_address()}")
+                
+                # Emitir atualização WebSocket em tempo real
+                self._emit_progress_update(processadas, len(tarefas), geocodificadas)
 
                 # Processar geocodificação via Domain Service
                 result = self.domain_service.process_single_geolocation(tarefa)
@@ -66,8 +70,14 @@ class GeolocationApplicationService:
                     print(f"[GEO] ✅ Sucesso: {result['latitude']}, {result['longitude']} - {result['distancia_km']}km")
                     if result.get('address_corrected'):
                         print(f"      🔧 Endereço foi corrigido durante o processo")
+                    
+                    # Emitir atualização WebSocket após geocodificação
+                    self._emit_progress_update(processadas, len(tarefas), geocodificadas)
                 else:
                     print(f"[GEO] ❌ Falha: {result['error']}")
+                
+                # Pequena pausa para não sobrecarregar
+                time.sleep(0.1)
 
             self.logger.info(f"🎯 Geolocalização concluída: {geocodificadas}/{processadas} tarefas processadas")
 
@@ -111,3 +121,25 @@ class GeolocationApplicationService:
     def get_geolocation_stats(self) -> Dict[str, int]:
         """Obtém estatísticas de geolocalização da tabela de controle"""
         return self.domain_service.get_geolocation_statistics()
+    
+    def _emit_progress_update(self, processadas: int, total: int, geocodificadas: int):
+        """Emite atualização de progresso via WebSocket"""
+        try:
+            # Importar aqui para evitar dependência circular
+            from ...web.dashboard_server import _dashboard_server
+            
+            if _dashboard_server and _dashboard_server.is_running:
+                # Obter estatísticas atualizadas
+                stats = self.get_geolocation_stats()
+                
+                # Emitir via WebSocket
+                _dashboard_server.socketio.emit('geo_progress', {
+                    'processadas': processadas,
+                    'total': total,
+                    'geocodificadas': geocodificadas,
+                    'percentual': stats.get('percentual', 0),
+                    'pendentes': stats.get('pendentes', 0)
+                })
+        except Exception:
+            # Falha silenciosa - não interromper processamento
+            pass

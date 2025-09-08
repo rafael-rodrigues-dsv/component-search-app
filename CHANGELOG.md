@@ -4,6 +4,81 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
 ## [4.0.0] - 2024-12-19
 
+### 🚀 **ATUALIZAÇÃO RECENTE: Interface Otimizada e Simplificada**
+
+#### **Menu Console Simplificado**
+- **Removido**: Opção [4] "Extrair planilha Excel" do console
+- **Novo Menu**: Apenas 4 opções (1-3 + sair) para foco no processamento
+- **Redirecionamento**: Mensagem orientando usar dashboard para Excel
+- **UX Melhorada**: Console mais limpo e direto ao ponto
+
+#### **Excel Integrado no Dashboard**
+- **Botão Dedicado**: "Gerar Planilha Excel" no dashboard web
+- **API Integrada**: `/api/export-excel` para processamento
+- **Feedback Visual**: Loading, sucesso e erro em tempo real
+- **Acessível**: Disponível durante qualquer processamento
+
+#### **Modo Completo Obrigatório**
+- **Removido**: Modo lote/parcial (pergunta l/c)
+- **Sempre Completo**: Coleta todos os resultados automaticamente
+- **Simplificação**: Menos configurações, mais eficiência
+- **Performance**: Foco na qualidade máxima dos dados
+
+#### **Reset Otimizado**
+- **Mais Rápido**: DELETE direto nas 6 tabelas principais
+- **Sem Script**: Removido carregamento desnecessário de dados
+- **Preservação**: Mantém descoberta geográfica dinâmica
+- **Performance**: ~2-5s em vez de 30-60s
+
+#### **Monitoramento Tempo Real Completo**
+- **CEP Progress**: Atualizações WebSocket durante enriquecimento
+- **GEO Progress**: Atualizações WebSocket durante geocodificação
+- **Dashboard Responsivo**: Todos os processos monitorados em tempo real
+- **Feedback Instantâneo**: Usuário vê progresso de cada tarefa
+
+### 📊 **NOVA FUNCIONALIDADE: Dashboard Web Integrado com AdminLTE**
+
+#### **Interface Profissional AdminLTE**
+- **Dashboard Automático**: Inicia automaticamente durante processamento (opções 1-3)
+- **Design Responsivo**: Interface AdminLTE 3.2.0 profissional e moderna
+- **Servidor Flask Integrado**: WebSocket para atualizações em tempo real
+- **URL Local**: Acesso via http://localhost:5000 durante execução
+- **Logs Silenciosos**: Flask configurado para não interferir no console principal
+
+#### **Três Fluxos Unificados**
+- **Coleta de Dados**: Box azul com empresas coletadas e taxa de sucesso
+- **CEP Enrichment**: Box verde com CEPs enriquecidos e progresso
+- **Geolocalização**: Box amarelo com endereços geocodificados e estatísticas
+- **Layout Uniforme**: Três colunas idênticas (col-lg-4) com métricas consistentes
+
+#### **Métricas Detalhadas em Tempo Real**
+- **Empresas Coletadas**: Total visitadas, coletadas, não coletadas
+- **Taxa de Sucesso**: Percentual de sucesso para cada processo
+- **Progresso Visual**: Barras de progresso e indicadores coloridos
+- **Atualização Automática**: WebSocket atualiza dados a cada 2 segundos
+- **Estatísticas Avançadas**: Métricas de performance e cobertura
+
+#### **Integração Perfeita**
+- **Inicialização Inteligente**: Só inicia após inputs do usuário
+- **Sem Instalação**: Plug-and-play, sem configuração adicional
+- **Compatibilidade**: Funciona com todos os processos existentes
+- **Performance**: Não impacta velocidade do processamento principal
+
+#### **Arquivos do Dashboard Web**
+```
+src/web/
+├── dashboard_server.py       # Servidor Flask com WebSocket
+├── templates/
+│   └── dashboard.html        # Interface AdminLTE responsiva
+└── static/
+    └── dashboard.css         # Estilos customizados
+```
+
+#### **Dependências Adicionadas**
+- **Flask ≥3.0.0**: Servidor web leve e eficiente
+- **Flask-SocketIO ≥5.3.0**: Comunicação WebSocket em tempo real
+- **AdminLTE 3.2.0**: Template via CDN (sem download local)
+
 ### 🚀 **NOVA FUNCIONALIDADE: Descoberta Geográfica Dinâmica 100% Automática**
 
 #### **DynamicGeographicDiscoveryService - Revolução na Descoberta de Localizações**
@@ -70,14 +145,20 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Rebuild Automático**: Cache recriado quando necessário
 - **Integração com Repository**: Usa AccessRepository para persistência
 
-### 🎛️ **Menu Interativo Expandido**
+### 🎛️ **Menu Interativo Expandido com Dashboard Integrado**
 
-#### **Novas Opções de Menu**
-- **[1] Processar coleta de dados** - Coleta de e-mails e telefones (mantido)
-- **[2] Enriquecer endereços (ViaCEP)** - NOVO: Processamento dedicado de CEP
-- **[3] Processar geolocalização (Nominatim)** - NOVO: Geocodificação separada
-- **[4] Extrair planilha Excel** - Exportação (mantido)
-- **[5] Sair** - Sair da aplicação
+#### **Opções de Menu Otimizadas**
+- **[1] Processar coleta de dados** - Coleta + Dashboard automático
+- **[2] Enriquecer endereços (ViaCEP)** - CEP Enrichment + Dashboard
+- **[3] Processar geolocalização (Nominatim)** - Geocodificação + Dashboard
+- **[4] Sair** - Sair da aplicação
+
+#### **Dashboard Integrado**
+- **Opções 1-3**: Dashboard inicia automaticamente após configurações
+- **URL Automática**: http://localhost:5000 abre no navegador
+- **Sincronização**: Dados atualizados em tempo real via WebSocket
+- **Excel Integrado**: Botão "Gerar Planilha Excel" no dashboard
+- **Encerramento**: Dashboard fecha automaticamente ao finalizar processo
 
 #### **Estatísticas Detalhadas por Processo**
 - **CEP Enrichment**: Mostra tarefas totais, processadas, pendentes e erros
@@ -108,6 +189,14 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
 ### 🎯 **Benefícios da Versão 4.0.0**
 
+- ✅ **Dashboard Profissional**: Interface AdminLTE integrada automaticamente
+- ✅ **Métricas em Tempo Real**: Acompanhamento visual do progresso via WebSocket
+- ✅ **Dashboard Profissional**: Interface AdminLTE integrada automaticamente
+- ✅ **Excel Integrado**: Geração de planilha direto no dashboard web
+- ✅ **Menu Simplificado**: Console focado em processamento essencial
+- ✅ **Modo Completo**: Sempre coleta todos os resultados (sem modo lote)
+- ✅ **Reset Otimizado**: Limpeza rápida sem recarregamento desnecessário
+- ✅ **Métricas em Tempo Real**: Acompanhamento visual do progresso via WebSocket
 - ✅ **Descoberta 100% Automática**: Não precisa mais configurar cidades/bairros manualmente
 - ✅ **Processamento Separado**: Cada etapa pode ser executada independentemente
 - ✅ **Performance Otimizada**: Cache local e rate limiting inteligente
@@ -119,18 +208,25 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
 ### ⚠️ **Breaking Changes**
 
-- **Menu Expandido**: Agora tem 5 opções em vez de 4
+- **Dashboard Automático**: Opções 1-3 agora iniciam dashboard web automaticamente
+- **Menu Simplificado**: Agora tem 4 opções (removida opção Excel do console)
+- **Excel Integrado**: Geração de planilha movida para o dashboard web
+- **Modo Completo**: Removido modo lote/parcial - sempre coleta tudo
+- **Reset Otimizado**: Reset mais rápido sem recarregamento de dados
+- **Novas Dependências**: Flask e Flask-SocketIO adicionadas ao requirements.txt
 - **Processamento Separado**: CEP enrichment e geolocalização são processos distintos
 - **Novas Tabelas**: TB_CEP_ENRICHMENT, TB_CIDADES, TB_BAIRROS adicionadas
 - **Configuração YAML**: Nova seção geographic_discovery obrigatória
-- **Fluxo de Trabalho**: Recomenda-se executar: Coleta → CEP → Geolocalização → Excel
+- **Fluxo de Trabalho**: Console: Coleta → CEP → Geolocalização | Dashboard: Excel
 
 ### 🔄 **Migração para 4.0.0**
 
-1. **Atualizar Configuração**: Adicionar seção geographic_discovery no application.yaml
-2. **Executar Aplicação**: Novas tabelas serão criadas automaticamente
-3. **Testar Descoberta**: Executar coleta para ver descoberta automática funcionando
-4. **Processar em Etapas**: Usar menu expandido para processar cada etapa separadamente
+1. **Instalar Dependências**: `pip install flask flask-socketio` (ou usar requirements.txt)
+2. **Atualizar Configuração**: Adicionar seção geographic_discovery no application.yaml
+3. **Executar Aplicação**: Novas tabelas e dashboard serão criados automaticamente
+4. **Testar Dashboard**: Executar opção 1-3 e acessar http://localhost:5000
+5. **Gerar Excel**: Usar botão no dashboard (não mais no console)
+6. **Processar em Etapas**: Menu simplificado com dashboard integrado
 
 ---
 

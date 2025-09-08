@@ -101,3 +101,7 @@ class DatabaseDomainService:
     def export_to_excel(self, excel_path: str) -> int:
         """Exporta dados para Excel"""
         return self.repository.export_to_excel(excel_path)
+    
+    def get_company_collection_statistics(self) -> Dict[str, int]:
+        """Obtém estatísticas detalhadas de coleta de empresas"""
+        return self.repository.get_company_collection_statistics()

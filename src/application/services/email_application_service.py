@@ -37,20 +37,18 @@ class EmailApplicationService(EmailCollectorInterface):
         self.config = ConfigManager()
         self.performance_tracker = PerformanceTracker() if self.config.performance_tracking_enabled else None
 
-        # Configurações do usuário
-        self.browser: str = UserConfigService.get_browser()
-        self.search_engine: str = UserConfigService.get_search_engine()
-
         # Serviço de banco de dados
         self.db_service = DatabaseService()
 
-        # Inicialização de componentes
+        # Configurações do usuário (inputs do console)
+        self.browser: str = UserConfigService.get_browser()
+        self.search_engine: str = UserConfigService.get_search_engine()
+        self.top_results_total: int = UserConfigService.get_processing_mode()
+
+        # Inicialização de componentes DEPOIS dos inputs
         self.driver_manager: WebDriverManager = WebDriverManager()
         self.scraper: ScraperProtocol = self._setup_scraper()
         self._setup_services()
-
-        # Configuração final
-        self.top_results_total: int = UserConfigService.get_processing_mode()
 
     def _setup_scraper(self) -> ScraperProtocol:
         """Configura scraper baseado na escolha do usuário"""
@@ -106,7 +104,7 @@ class EmailApplicationService(EmailCollectorInterface):
 
         self.logger.info("Iniciando coleta",
                          terms_count=len(terms),
-                         mode="completo" if self.top_results_total > COMPLETE_MODE_THRESHOLD else "lote")
+                         mode="completo")
 
         for i, (term, term_data) in enumerate(zip(terms, terms_data), 1):
             if not self._execute_search_for_term(term, i, len(terms)):
@@ -123,20 +121,15 @@ class EmailApplicationService(EmailCollectorInterface):
 
     def _initialize_collection_stats(self, terms: List[SearchTermModel]) -> CollectionStatsModel:
         """Inicializa estatísticas da coleta"""
-        if self.top_results_total > COMPLETE_MODE_THRESHOLD:
-            total_expected = len(terms) * RESULTS_PER_TERM_LIMIT
-        else:
-            total_expected = len(terms) * self.top_results_total
-
+        total_expected = len(terms) * RESULTS_PER_TERM_LIMIT
         return CollectionStatsModel(start_time=time.time())
 
     def _execute_search_for_term(self, term: SearchTermModel, current: int, total: int) -> bool:
         """Executa busca para um termo específico"""
-        mode_text = "completo" if self.top_results_total > COMPLETE_MODE_THRESHOLD else f"lote ({self.top_results_total})"
         self.logger.info("Processando termo",
                          term=self.logger._sanitize_input(term.query),
                          progress=f"{current}/{total}",
-                         mode=mode_text)
+                         mode="completo")
 
         # Verificar se driver ainda está ativo
         if not self._check_driver_health():
@@ -206,16 +199,11 @@ class EmailApplicationService(EmailCollectorInterface):
         results_processed = 0
 
         for page in range(term.pages):
-            if results_processed >= self.top_results_total:
-                break
-
             links = self.scraper.get_result_links(BLACKLIST_HOSTS)
             if not links:
                 break
 
             for link in links:
-                if results_processed >= self.top_results_total:
-                    break
 
                 results_processed += 1
                 global_processed += 1
@@ -244,7 +232,7 @@ class EmailApplicationService(EmailCollectorInterface):
                 time.sleep(random.uniform(*SEARCH_DWELL))
 
             # Próxima página
-            if page < term.pages - 1 and results_processed < self.top_results_total:
+            if page < term.pages - 1:
                 if hasattr(self.scraper, 'go_to_next_page'):
                     if not self.scraper.go_to_next_page():
                         self.logger.info("Não há mais páginas", term=self.logger._sanitize_input(term.query))

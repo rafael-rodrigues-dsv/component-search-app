@@ -1,6 +1,7 @@
 """
 Application Service para enriquecimento de endereços via CEP (separado)
 """
+import time
 from typing import Dict
 
 from ...domain.services.address_enrichment_service import AddressEnrichmentService
@@ -47,6 +48,9 @@ class CepEnrichmentApplicationService:
             print(f"      📍 Endereço: {address_model.to_full_address()}")
             print(f"      🏠 CEP: {address_model.cep}")
             
+            # Emitir atualização WebSocket em tempo real
+            self._emit_progress_update(processadas, len(tasks), enriquecidas)
+            
             try:
                 # Validar CEP antes de processar
                 if not address_model.cep or address_model.cep.strip() == '':
@@ -76,6 +80,9 @@ class CepEnrichmentApplicationService:
                         enriquecidas += 1
                         
                         print(f"      ✅ Empresa {empresa_id} enriquecida com sucesso")
+                        
+                        # Emitir atualização WebSocket após enriquecimento
+                        self._emit_progress_update(processadas, len(tasks), enriquecidas)
                     else:
                         print(f"      ⚠️ CEP não melhorou o endereço (sem diferenças significativas)")
                         self.repository.update_cep_enrichment_error(id_cep_enrichment, "CEP não melhorou o endereço")
@@ -86,6 +93,9 @@ class CepEnrichmentApplicationService:
             except Exception as e:
                 print(f"      ❌ Erro: {e}")
                 self.repository.update_cep_enrichment_error(id_cep_enrichment, str(e)[:255])
+            
+            # Pequena pausa para não sobrecarregar
+            time.sleep(0.1)
         
         print(f"[CEP] 🎯 Processamento concluído:")
         print(f"      📋 {processadas} tarefas processadas")
@@ -126,3 +136,25 @@ class CepEnrichmentApplicationService:
     def get_cep_enrichment_stats(self) -> Dict[str, int]:
         """Obtém estatísticas de enriquecimento CEP"""
         return self.repository.get_cep_enrichment_stats()
+    
+    def _emit_progress_update(self, processadas: int, total: int, enriquecidas: int):
+        """Emite atualização de progresso via WebSocket"""
+        try:
+            # Importar aqui para evitar dependência circular
+            from ...web.dashboard_server import _dashboard_server
+            
+            if _dashboard_server and _dashboard_server.is_running:
+                # Obter estatísticas atualizadas
+                stats = self.get_cep_enrichment_stats()
+                
+                # Emitir via WebSocket
+                _dashboard_server.socketio.emit('cep_progress', {
+                    'processadas': processadas,
+                    'total': total,
+                    'enriquecidas': enriquecidas,
+                    'percentual': stats.get('percentual', 0),
+                    'pendentes': stats.get('pendentes', 0)
+                })
+        except Exception:
+            # Falha silenciosa - não interromper processamento
+            pass

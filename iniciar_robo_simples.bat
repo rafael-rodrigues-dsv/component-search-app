@@ -153,6 +153,13 @@ echo [INFO] Verificando e instalando dependencias...
   exit /b 1
 )
 
+echo [INFO] Verificando dependencias do dashboard web...
+%PYTHON_CMD% -c "import flask, flask_socketio" >nul 2>nul || (
+  echo [INFO] Instalando Flask para dashboard web...
+  %PYTHON_CMD% -m pip install flask>=3.0.0 flask-socketio>=5.3.0 --quiet
+  echo [OK] Flask instalado com sucesso!
+)
+
 echo [INFO] Verificando ChromeDriver...
 %PYTHON_CMD% scripts\verification\verify_chromedriver.py || (
   echo [ERRO] ChromeDriver nao disponivel

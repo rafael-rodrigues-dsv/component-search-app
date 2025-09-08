@@ -42,14 +42,18 @@ performance:
   tracking_enabled: true
   metrics_retention_hours: 24
 
+dashboard:
+  enabled: true
+  port: 5000
+  auto_open_browser: true
+  update_interval_seconds: 2
+
 mode:
-  is_test: true
+  is_test: false
   complete_threshold: 1000
 
 geolocation:
-#  reference_cep: "01310-100" # CEP de referência para cálculo de distâncias
-  reference_cep: "18015-000"  # CEP de referência para cálculo de distâncias
-
+ reference_cep: "04761-000" # CEP de referência para cálculo de distâncias
 
 geographic_discovery:
   enabled: true
@@ -78,8 +82,8 @@ geographic_discovery:
   # Perfis de descoberta baseados na localização
   profiles:
     metropolitan:
-      radius_km: 50
-      min_city_population: 500000
+      radius_km: 100
+      min_city_population: 100000
       target_large_cities: 10
       exclude_rural_areas: true
       focus_metropolitan_area: true

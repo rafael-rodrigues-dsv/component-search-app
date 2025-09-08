@@ -214,3 +214,11 @@ class DatabaseService:
         except Exception as e:
             self.logger.error(f"Erro ao obter estatísticas: {e}")
             return None
+    
+    def get_company_collection_stats(self) -> dict:
+        """Obtém estatísticas detalhadas de coleta de empresas"""
+        try:
+            return self.domain_service.get_company_collection_statistics()
+        except Exception as e:
+            self.logger.error(f"Erro ao obter estatísticas de empresas: {e}")
+            return {'visitadas': 0, 'coletadas': 0, 'nao_coletadas': 0, 'taxa_coleta_pct': 0}

@@ -5,11 +5,13 @@ Python Search App - Coletor de E-mails e Contatos
 Ponto de entrada principal da aplicação
 """
 import sys
+import webbrowser
 from pathlib import Path
 
 from src.__version__ import __version__
 from src.application.services.database_service import DatabaseService
 from src.application.services.email_application_service import EmailApplicationService
+from src.web.dashboard_server import start_dashboard, stop_dashboard
 
 
 def _check_browser_availability(browser: str) -> bool:
@@ -65,15 +67,6 @@ def _handle_reset_option(db_service) -> bool:
                 elif opcao == 'R':
                     print("[INFO] Resetando todos os dados...")
                     db_service.reset_data(confirm=True)
-
-                    # Recarregar dados iniciais
-                    print("[INFO] Recarregando dados iniciais...")
-                    import subprocess
-                    
-                    script_path = Path("scripts/database/load_initial_data.py")
-                    subprocess.run([sys.executable, str(script_path)], 
-                                 capture_output=True, encoding='utf-8', errors='ignore')
-
                     print("[OK] Reset concluído! Começando do zero...")
                     return True
                 else:
@@ -179,18 +172,36 @@ def main():
     print("[1] Processar coleta de dados (e-mails e telefones)")
     print("[2] Enriquecer endereços (ViaCEP)")
     print("[3] Processar geolocalização (Nominatim)")
-    print("[4] Extrair planilha Excel")
-    print("[5] Sair")
+    print("[4] Sair")
+    print("\n📊 Para gerar planilha Excel, use o dashboard web durante o processamento")
 
     while True:
-        opcao = input("\nEscolha uma opção (1-5): ").strip()
+        opcao = input("\nEscolha uma opção (1-4): ").strip()
 
         if opcao == '1':
             # Verificar se precisa resetar ou continuar APENAS para coleta
             if not _handle_reset_option(db_service):
                 break
             print("\n[INFO] Iniciando coleta de dados otimizada...")
+            
             collector_service = EmailApplicationService()
+            
+            # Iniciar dashboard web DEPOIS dos inputs do usuário
+            try:
+                print("[INFO] Iniciando dashboard web...")
+                dashboard = start_dashboard()
+                
+                if dashboard:
+                    # Abrir browser automaticamente
+                    try:
+                        webbrowser.open('http://127.0.0.1:5000')
+                        print("[OK] Dashboard aberto no navegador")
+                    except:
+                        print("[AVISO] Não foi possível abrir o navegador automaticamente")
+                        print("[INFO] Acesse manualmente: http://127.0.0.1:5000")
+            except Exception as e:
+                print(f"[AVISO] Dashboard web não disponível: {e}")
+            
             success = collector_service.execute()
             break
         elif opcao == '2':
@@ -218,6 +229,22 @@ def main():
                         success = False
                         break
                 
+                # Iniciar dashboard web DEPOIS das verificações
+                try:
+                    print("[INFO] Iniciando dashboard web...")
+                    dashboard = start_dashboard()
+                    
+                    if dashboard:
+                        # Abrir browser automaticamente
+                        try:
+                            webbrowser.open('http://127.0.0.1:5000')
+                            print("[OK] Dashboard aberto no navegador")
+                        except:
+                            print("[AVISO] Não foi possível abrir o navegador automaticamente")
+                            print("[INFO] Acesse manualmente: http://127.0.0.1:5000")
+                except Exception as e:
+                    print(f"[AVISO] Dashboard web não disponível: {e}")
+                
                 result = cep_service.process_cep_enrichment()
                 success = result['processadas'] > 0
                 print(f"\n[OK] Processamento concluído: {result['enriquecidas']}/{result['total']} enriquecidas")
@@ -237,37 +264,31 @@ def main():
                 print("\n[OK] Todas as empresas já foram geocodificadas!")
                 success = True
             else:
+                # Iniciar dashboard web DEPOIS das verificações
+                try:
+                    print("[INFO] Iniciando dashboard web...")
+                    dashboard = start_dashboard()
+                    
+                    if dashboard:
+                        # Abrir browser automaticamente
+                        try:
+                            webbrowser.open('http://127.0.0.1:5000')
+                            print("[OK] Dashboard aberto no navegador")
+                        except:
+                            print("[AVISO] Não foi possível abrir o navegador automaticamente")
+                            print("[INFO] Acesse manualmente: http://127.0.0.1:5000")
+                except Exception as e:
+                    print(f"[AVISO] Dashboard web não disponível: {e}")
+                
                 result = geo_service.process_geolocation()
                 success = result['geocodificadas'] > 0
                 print(f"\n[OK] Processamento concluído: {result['geocodificadas']}/{result['total']} geocodificadas")
             break
         elif opcao == '4':
-            print("\n[INFO] Extraindo planilha Excel...")
-            from src.application.services.excel_application_service import ExcelApplicationService
-            excel_service = ExcelApplicationService()
-
-            # Mostrar estatísticas antes
-            stats = excel_service.get_export_stats()
-            print(f"\n[INFO] Empresas disponíveis: {stats['empresas_disponiveis']}")
-            print(f"[INFO] E-mails disponíveis: {stats['emails_disponiveis']}")
-            print(f"[INFO] Telefones disponíveis: {stats['telefones_disponiveis']}")
-
-            if not stats['pode_exportar']:
-                print("\n[AVISO] Nenhuma empresa com dados coletados encontrada!")
-                success = False
-            else:
-                result = excel_service.export_excel()
-                success = result['success']
-                if success:
-                    print(f"\n[OK] {result['message']} em {result['path']}")
-                else:
-                    print(f"\n[ERRO] {result['message']}")
-            break
-        elif opcao == '5':
             print("\n[INFO] Saindo...")
             return 0
         else:
-            print("[ERRO] Opção inválida. Digite 1, 2, 3, 4 ou 5.")
+            print("[ERRO] Opção inválida. Digite 1, 2, 3 ou 4.")
 
     try:
         # Mostrar estatísticas finais
@@ -305,6 +326,12 @@ def main():
         else:
             print("[ERRO] Falha na execução da aplicação")
             
+        # Parar dashboard se estiver rodando
+        try:
+            stop_dashboard()
+        except:
+            pass
+        
         # Fechar conexão singleton
         try:
             from src.infrastructure.repositories.access_repository import AccessRepository
@@ -318,6 +345,11 @@ def main():
 
     except KeyboardInterrupt:
         print("\n[INFO] Aplicação interrompida pelo usuário")
+        # Parar dashboard
+        try:
+            stop_dashboard()
+        except:
+            pass
         # Fechar conexão singleton
         try:
             from src.infrastructure.repositories.access_repository import AccessRepository
@@ -328,6 +360,11 @@ def main():
 
     except Exception as e:
         print(f"[ERRO] Erro inesperado: {e}")
+        # Parar dashboard
+        try:
+            stop_dashboard()
+        except:
+            pass
         # Fechar conexão singleton
         try:
             from src.infrastructure.repositories.access_repository import AccessRepository

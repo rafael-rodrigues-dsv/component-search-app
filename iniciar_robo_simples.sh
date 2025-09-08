@@ -117,6 +117,13 @@ if ! "$PYTHON_CMD" scripts/verification/verify_python_installation.py; then
     exit 1
 fi
 
+echo "[INFO] Verificando dependências do dashboard web..."
+if ! "$PYTHON_CMD" -c "import flask, flask_socketio" &> /dev/null; then
+    echo "[INFO] Instalando Flask para dashboard web..."
+    "$PYTHON_CMD" -m pip install flask>=3.0.0 flask-socketio>=5.3.0 --quiet
+    echo "[OK] Flask instalado com sucesso!"
+fi
+
 echo "[INFO] Verificando ChromeDriver..."
 if ! "$PYTHON_CMD" scripts/verification/verify_chromedriver.py; then
     echo "[ERRO] ChromeDriver não disponível"

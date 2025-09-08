@@ -18,8 +18,9 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 | **✅ Validação rigorosa**       | Filtra e-mails/telefones inválidos automaticamente            |
 | **🚫 Controle de duplicatas**  | Evita revisitar sites e endereços duplicados                  |
 | **📊 Planilha Excel**          | Formato SITE \| EMAIL \| TELEFONE \| ENDEREÇO \| DISTÂNCIA_KM |
-| **🎛️ Menu expandido**        | **NOVO**: 5 opções com processamento separado por etapa     |
-| **⚙️ Modo lote/completo**      | Processamento configurável pelo usuário                       |
+| **🎛️ Menu otimizado**        | **NOVO**: 4 opções focadas + dashboard integrado            |
+| **📊 Dashboard Web Integrado** | **NOVO**: Interface AdminLTE com métricas em tempo real     |
+| **⚙️ Modo completo**           | Processamento completo de todos os resultados                |
 | **🔄 Reinício opcional**      | Continuar anterior ou começar do zero                        |
 
 ## 🏗️ Arquitetura v4.0.0 - Clean Architecture + Descoberta Geográfica Dinâmica
@@ -78,8 +79,14 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 │   │   └── geolocation_service.py        # Serviço de geolocalização
 │   ├── storage/                      # Gerenciamento de arquivos
 │   │   └── data_storage.py           # Limpeza de dados
-│   └── utils/                        # Utilitários
-│       └── address_extractor.py      # Extrator de endereços estruturados
+│   ├── utils/                        # Utilitários
+│   │   └── address_extractor.py      # Extrator de endereços estruturados
+│   └── web/                          # **NOVO**: Dashboard Web
+│       ├── dashboard_server.py       # Servidor Flask com WebSocket
+│       ├── templates/
+│       │   └── dashboard.html        # Interface AdminLTE
+│       └── static/
+│           └── dashboard.css         # Estilos customizados
 ├── 📜 src/resources/                 # Recursos e configurações
 │   └── application.yaml              # Configuração principal YAML
 ├── 📌 src/__version__.py               # Controle de versão dinâmico
@@ -125,15 +132,26 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 - **Validação Inteligente**: Só processa quando há melhoria real nos dados
 - **Dados Oficiais**: Sempre prioriza informações oficiais do ViaCEP
 
-### 🎛️ **Menu Expandido**
-- **5 Opções**: Processamento separado por etapa para máximo controle
+### 🎛️ **Menu Otimizado**
+- **4 Opções**: Console focado em processamento + dashboard integrado
 - **Estatísticas Detalhadas**: Cada opção mostra progresso específico
 - **Fluxo Flexível**: Execute apenas as etapas que precisar
+- **Excel Integrado**: Geração de planilha direto no dashboard
 
 ### 🏛️ **Validação de CEP de Capital**
 - **Validação Dinâmica**: Verifica se CEP é de capital via APIs
 - **Sugestões Inteligentes**: Mostra capital do estado para CEPs não-capital
 - **Cobertura Completa**: Suporta todas as 27 capitais brasileiras
+
+### 📊 **Dashboard Web Integrado**
+- **Interface AdminLTE**: Dashboard profissional com design responsivo
+- **Métricas em Tempo Real**: Estatísticas atualizadas via WebSocket
+- **Três Fluxos Unificados**: Coleta, CEP Enrichment e Geolocalização
+- **Boxes Informativos**: Empresas coletadas, CEPs enriquecidos, endereços geocodificados
+- **Taxa de Sucesso**: Percentual de sucesso para cada processo
+- **Gráficos e Progresso**: Barras de progresso e indicadores visuais
+- **Inicialização Automática**: Inicia automaticamente durante processamento
+- **Exportação Integrada**: Botão para gerar Excel diretamente no dashboard
 
 ---
 
@@ -201,11 +219,12 @@ A aplicação:
    - **[1] Processar coleta de dados** (e-mails e telefones)
    - **[2] Enriquecer endereços (ViaCEP)** - **NOVO**: Processamento separado
    - **[3] Processar geolocalização (Nominatim)** - **NOVO**: Geocodificação separada
-   - **[4] Extrair planilha Excel** com dados completos
-   - **[5] Sair**
-5. **📊 Estatísticas detalhadas**: Cada opção mostra progresso e estatísticas específicas
-6. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
-7. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
+   - **[4] Sair**
+   - **📊 Gerar Excel**: Integrado no dashboard web
+5. **📊 Dashboard web automático**: Interface AdminLTE inicia automaticamente durante processamento
+6. **📈 Estatísticas detalhadas**: Cada opção mostra progresso e estatísticas específicas
+7. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
+8. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
 
 ### Configurações v4.0.0
 
@@ -242,6 +261,9 @@ A aplicação:
 | **ViaCEP API**         | Consulta de CEPs brasileiros                         | Gratuita      |
 | **Clean Architecture** | Padrão arquitetural                                  | -             |
 | **SOLID Principles**   | Princípios de design de software                     | -             |
+| **Flask**              | Servidor web para dashboard integrado                 | ≥3.0.0        |
+| **Flask-SocketIO**     | Comunicação em tempo real via WebSocket              | ≥5.3.0        |
+| **AdminLTE**           | Template profissional para dashboard web             | 3.2.0 (CDN)   |
 | **Type Hints**         | Tipagem estática para Python                         | Built-in      |
 | **Dataclasses**        | Classes de dados estruturadas                        | Built-in      |
 
@@ -303,7 +325,7 @@ A aplicação gera:
 1. **[1] Processar coleta de dados** - Coleta e-mails, telefones e endereços
 2. **[2] Enriquecer endereços (ViaCEP)** - Melhora dados de endereço com CEP
 3. **[3] Processar geolocalização (Nominatim)** - Geocodifica endereços enriquecidos
-4. **[4] Extrair planilha Excel** - Gera planilha final com todos os dados
+4. **📊 Dashboard**: Gerar planilha Excel via interface web
 
 ### Execução Flexível
 - **Independente**: Cada etapa pode ser executada separadamente
@@ -318,12 +340,15 @@ A aplicação gera:
 
 - **Descoberta dinâmica**: Cidades e bairros descobertos automaticamente via CEP
 - **Termos gerados**: Baseados nas localizações descobertas dinamicamente
-- **Processamento**: Completo ou em lotes configuráveis
+- **Processamento**: Sempre completo (todos os resultados)
+- **Interface**: Console simplificado + dashboard web completo
 
 ### Modo Teste
 
-- **Termos de busca**: 2 termos apenas
+- **Termos de busca**: 2 termos apenas (modo teste)
 - **Execução rápida**: Para desenvolvimento e validação
+- **Processamento**: Sempre completo independente do modo
+- **Excel**: Gerado via dashboard web (não mais no console)
 
 ### Validações
 
