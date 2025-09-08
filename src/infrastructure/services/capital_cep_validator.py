@@ -16,7 +16,7 @@ class CapitalCepValidator:
         self.config = ConfigManager()
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'PythonSearchApp/3.0.0 (CEP Validator)'
+            'User-Agent': 'PythonSearchApp/4.0.0 (CEP Validator)'
         })
 
     def validate_capital_cep(self, cep: str) -> Dict:

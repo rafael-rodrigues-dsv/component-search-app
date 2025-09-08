@@ -2,6 +2,138 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [4.0.0] - 2024-12-19
+
+### 🚀 **NOVA FUNCIONALIDADE: Descoberta Geográfica Dinâmica 100% Automática**
+
+#### **DynamicGeographicDiscoveryService - Revolução na Descoberta de Localizações**
+- **Descoberta Automática**: Sistema 100% dinâmico que descobre cidades e bairros baseado no CEP de referência
+- **Detecção de Perfil Inteligente**: Detecta automaticamente se é região metropolitana ou rural baseado no CEP
+- **APIs Integradas**: ViaCEP + IBGE + Nominatim trabalhando em conjunto
+- **Fallback Progressivo**: Múltiplas estratégias para garantir máxima cobertura
+- **Performance Otimizada**: Rate limiting inteligente e cache local
+- **Configuração YAML**: Perfis metropolitano/rural configuráveis com raios e populações mínimas
+
+#### **Perfis de Descoberta Automática**
+- **Perfil Metropolitano**: Detectado automaticamente para CEPs de grandes centros
+  - Raio: 50km | População mínima: 500.000 hab | Foco em grandes cidades
+  - CEPs suportados: SP (01-08), RJ (20-24), BH (30-31), Salvador (40-41), etc.
+- **Perfil Rural/Interior**: Para demais regiões
+  - Raio: 20km | População mínima: 10.000 hab | Inclui cidades menores
+- **Configuração Flexível**: 96 prefixos de CEP metropolitanos pré-configurados
+
+#### **Descoberta Inteligente de Cidades**
+- **API IBGE Otimizada**: Uma única requisição por estado com dados de população
+- **Filtro por População**: Só processa cidades que atendem critério mínimo
+- **Geocodificação Seletiva**: Só geocodifica cidades grandes (economia massiva de API calls)
+- **Ordenação por Proximidade**: Cidades ordenadas por distância do ponto de referência
+- **Fallback Inteligente**: Se não encontrar cidades grandes, usa top 15 do estado
+
+#### **Descoberta Completa de Bairros**
+- **Sem Filtro de Distância**: Inclui TODOS os bairros das cidades descobertas
+- **API IBGE Distritos**: Usa dados oficiais de distritos por município
+- **Processamento Massivo**: Capaz de descobrir centenas de bairros automaticamente
+- **Integração com Banco**: Salva automaticamente na TB_CIDADES e TB_BAIRROS
+
+### 🏠 **NOVA FUNCIONALIDADE: Enriquecimento de Endereços Separado**
+
+#### **CepEnrichmentApplicationService - Processamento Dedicado**
+- **Serviço Separado**: Enriquecimento via ViaCEP agora é processo independente
+- **TB_CEP_ENRICHMENT**: Nova tabela para controle de tarefas de enriquecimento
+- **Processamento em Lote**: Processa todas as empresas com CEP de uma vez
+- **Controle de Status**: Rastreamento completo (pendente/concluído/erro)
+- **Validação Inteligente**: Só processa CEPs válidos e verifica melhorias reais
+- **Atualização Automática**: TB_ENDERECOS atualizada com dados oficiais do ViaCEP
+
+#### **AddressEnrichmentService - Lógica de Domínio Avançada**
+- **Estratégia Agressiva**: Sempre prioriza dados oficiais do ViaCEP quando disponíveis
+- **Validação de Melhorias**: Verifica se ViaCEP realmente melhorou os dados
+- **Fallback para CEPs Similares**: Tenta CEPs genéricos (terminados em 0, 00, 000)
+- **Normalização Automática**: Corrige CEPs mal formatados automaticamente
+- **Logs Detalhados**: Mostra exatamente quais campos foram melhorados
+
+### 🏛️ **NOVA FUNCIONALIDADE: Validação de CEP de Capital**
+
+#### **CapitalCepValidator - Validação 100% Dinâmica**
+- **Validação via APIs**: Usa ViaCEP + IBGE para validar se CEP é de capital
+- **Sem Hardcode**: Nenhuma lista fixa - tudo via APIs oficiais
+- **Sugestões Inteligentes**: Mostra capital do estado quando CEP não é de capital
+- **Cobertura Completa**: Suporta todas as 27 capitais brasileiras
+- **Integração com Configuração**: Pode ser habilitado/desabilitado via YAML
+
+### 🗄️ **NOVA FUNCIONALIDADE: Cache Local de Cidades**
+
+#### **CitiesCacheService - Performance Máxima**
+- **Cache SQLite Local**: Base de dados local para máxima velocidade
+- **Download Automático**: Primeira execução baixa todas as cidades do Brasil
+- **Estimativa de População**: Algoritmo inteligente baseado em códigos IBGE
+- **Rebuild Automático**: Cache recriado quando necessário
+- **Integração com Repository**: Usa AccessRepository para persistência
+
+### 🎛️ **Menu Interativo Expandido**
+
+#### **Novas Opções de Menu**
+- **[1] Processar coleta de dados** - Coleta de e-mails e telefones (mantido)
+- **[2] Enriquecer endereços (ViaCEP)** - NOVO: Processamento dedicado de CEP
+- **[3] Processar geolocalização (Nominatim)** - NOVO: Geocodificação separada
+- **[4] Extrair planilha Excel** - Exportação (mantido)
+- **[5] Sair** - Sair da aplicação
+
+#### **Estatísticas Detalhadas por Processo**
+- **CEP Enrichment**: Mostra tarefas totais, processadas, pendentes e erros
+- **Geolocalização**: Mostra empresas com endereço, geocodificadas e pendentes
+- **Excel Export**: Mostra empresas, e-mails e telefones disponíveis
+- **Criação Automática de Tarefas**: Sistema cria tarefas automaticamente quando necessário
+
+### 🔧 **Melhorias Técnicas e Arquiteturais**
+
+#### **Separação de Responsabilidades**
+- **Domain Services**: AddressEnrichmentService com lógica de negócio pura
+- **Application Services**: CepEnrichmentApplicationService para orquestração
+- **Infrastructure Services**: DynamicGeographicDiscoveryService, CapitalCepValidator, CitiesCacheService
+- **Clean Architecture**: Separação clara entre camadas
+
+#### **Configuração YAML Expandida**
+- **geographic_discovery**: Seção completa para descoberta geográfica
+- **Perfis Configuráveis**: metropolitan/rural com parâmetros específicos
+- **Auto Profile Detection**: Detecção automática baseada em prefixos de CEP
+- **APIs Configuráveis**: URLs e habilitação de ViaCEP, IBGE e Nominatim
+- **Rate Limiting**: Controle de velocidade configurável
+
+#### **Novas Tabelas de Banco**
+- **TB_CEP_ENRICHMENT**: Controle de tarefas de enriquecimento CEP
+- **TB_CIDADES**: Cache de cidades descobertas dinamicamente
+- **TB_BAIRROS**: Cache de bairros descobertos dinamicamente
+- **Integração Completa**: Todas as tabelas integradas com sistema existente
+
+### 🎯 **Benefícios da Versão 4.0.0**
+
+- ✅ **Descoberta 100% Automática**: Não precisa mais configurar cidades/bairros manualmente
+- ✅ **Processamento Separado**: Cada etapa pode ser executada independentemente
+- ✅ **Performance Otimizada**: Cache local e rate limiting inteligente
+- ✅ **Dados Oficiais**: Integração com APIs governamentais (IBGE, ViaCEP)
+- ✅ **Flexibilidade Total**: Configuração via YAML para diferentes cenários
+- ✅ **Escalabilidade**: Suporta desde pequenas cidades até regiões metropolitanas
+- ✅ **Controle Granular**: Estatísticas e controle detalhado de cada processo
+- ✅ **Robustez**: Múltiplos fallbacks e tratamento de erros avançado
+
+### ⚠️ **Breaking Changes**
+
+- **Menu Expandido**: Agora tem 5 opções em vez de 4
+- **Processamento Separado**: CEP enrichment e geolocalização são processos distintos
+- **Novas Tabelas**: TB_CEP_ENRICHMENT, TB_CIDADES, TB_BAIRROS adicionadas
+- **Configuração YAML**: Nova seção geographic_discovery obrigatória
+- **Fluxo de Trabalho**: Recomenda-se executar: Coleta → CEP → Geolocalização → Excel
+
+### 🔄 **Migração para 4.0.0**
+
+1. **Atualizar Configuração**: Adicionar seção geographic_discovery no application.yaml
+2. **Executar Aplicação**: Novas tabelas serão criadas automaticamente
+3. **Testar Descoberta**: Executar coleta para ver descoberta automática funcionando
+4. **Processar em Etapas**: Usar menu expandido para processar cada etapa separadamente
+
+---
+
 ## [3.0.0] - 2024-12-19
 
 ### 🏗️ **BREAKING CHANGE: Endereços Estruturados + Geolocalização Avançada**

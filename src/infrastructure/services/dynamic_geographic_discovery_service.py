@@ -18,7 +18,7 @@ class DynamicGeographicDiscoveryService:
         self.config = ConfigManager()
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'PythonSearchApp/3.0.0 (Geographic Discovery)'
+            'User-Agent': 'PythonSearchApp/4.0.0 (Geographic Discovery)'
         })
 
     def discover_locations_from_config(self) -> Dict:

@@ -1,6 +1,6 @@
-# 🤖 PYTHON SEARCH APP v3.0.0 - COLETOR DE E-MAILS E CONTATOS COM ENDEREÇOS ESTRUTURADOS
+# 🤖 PYTHON SEARCH APP v4.0.0 - COLETOR DE E-MAILS E CONTATOS COM DESCOBERTA GEOGRÁFICA DINÂMICA
 
-Aplicação Python para coleta de e-mails, telefones e geolocalização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture** e **Endereços Estruturados Normalizados**.
+Aplicação Python para coleta de e-mails, telefones e geolocalização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture**, **Endereços Estruturados Normalizados** e **Descoberta Geográfica 100% Automática**.
 
 ## 📋 O que a Aplicação Faz
 
@@ -8,18 +8,21 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 |--------------------------------|---------------------------------------------------------------|
 | **🌐 Detecção automática**     | Verifica Chrome e Brave instalados automaticamente            |
 | **🔍 Escolha do motor**        | Google ou DuckDuckGo (usuário escolhe)                        |
-| **🎯 Busca inteligente**       | Termos configuráveis por localização e segmento               |
+| **🚀 Descoberta geográfica**   | **NOVO**: Descobre cidades e bairros automaticamente via CEP  |
+| **🏛️ Perfis inteligentes**    | **NOVO**: Detecta região metropolitana/rural automaticamente  |
+| **🎯 Busca inteligente**       | Termos gerados dinamicamente por localização descoberta      |
 | **📧 Extração completa**       | E-mails, telefones formatados e dados da empresa              |
 | **🏠 Endereços estruturados**  | TB_ENDERECOS normalizada com logradouro, número, bairro, etc  |
+| **🎆 Enriquecimento CEP**      | **NOVO**: Processo separado para enriquecer via ViaCEP       |
 | **📍 Geolocalização avançada** | Fallback progressivo: endereço → CEP → bairro → cidade        |
 | **✅ Validação rigorosa**       | Filtra e-mails/telefones inválidos automaticamente            |
 | **🚫 Controle de duplicatas**  | Evita revisitar sites e endereços duplicados                  |
 | **📊 Planilha Excel**          | Formato SITE \| EMAIL \| TELEFONE \| ENDEREÇO \| DISTÂNCIA_KM |
+| **🎛️ Menu expandido**        | **NOVO**: 5 opções com processamento separado por etapa     |
 | **⚙️ Modo lote/completo**      | Processamento configurável pelo usuário                       |
+| **🔄 Reinício opcional**      | Continuar anterior ou começar do zero                        |
 
-| **🔄 Reinício opcional**      | Continuar anterior ou começar do zero |
-
-## 🏗️ Arquitetura v3.0.0 - Clean Architecture + Endereços Estruturados
+## 🏗️ Arquitetura v4.0.0 - Clean Architecture + Descoberta Geográfica Dinâmica
 
 ```
 📁 PythonSearchApp/
@@ -38,14 +41,19 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 │   ├── protocols/                    # Interfaces e contratos
 │   │   └── scraper_protocol.py       # Interface para scrapers
 │   └── services/                     # Serviços de domínio
-│       └── email_domain_service.py   # Regras de negócio e validações
+│       ├── address_enrichment_service.py # **NOVO**: Enriquecimento de endereços
+│       ├── database_domain_service.py    # Serviços de banco de domínio
+│       ├── email_domain_service.py       # Regras de negócio e validações
+│       └── geolocation_domain_service.py # Serviços de geolocalização
 ├── 🟢 src/application/               # CAMADA DE APLICAÇÃO
 │   └── services/                     # Serviços de aplicação
-│       ├── database_service.py       # Serviço de banco de dados
-│       ├── email_application_service.py  # Orquestração principal
-│       ├── excel_application_service.py  # Exportação Excel
-│       ├── geolocation_application_service.py # Processamento geolocalização
-│       └── user_config_service.py    # Configuração do usuário
+│       ├── address_enrichment_application_service.py # **NOVO**: Enriquecimento de endereços
+│       ├── cep_enrichment_application_service.py    # **NOVO**: Enriquecimento via CEP
+│       ├── database_service.py                      # Serviço de banco de dados
+│       ├── email_application_service.py             # Orquestração principal
+│       ├── excel_application_service.py             # Exportação Excel
+│       ├── geolocation_application_service.py      # Processamento geolocalização
+│       └── user_config_service.py                   # Configuração do usuário
 ├── 🟡 src/infrastructure/            # CAMADA DE INFRAESTRUTURA
 │   ├── config/                       # Gerenciamento de configuração
 │   │   └── config_manager.py         # ConfigManager YAML/JSON
@@ -64,7 +72,10 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 │   │   ├── duckduckgo_scraper.py     # Scraper DuckDuckGo
 │   │   └── google_scraper.py         # Scraper Google
 │   ├── services/                     # Serviços de infraestrutura
-│   │   └── geolocation_service.py    # Serviço de geolocalização
+│   │   ├── capital_cep_validator.py      # **NOVO**: Validador de CEP de capital
+│   │   ├── cities_cache_service.py       # **NOVO**: Cache local de cidades
+│   │   ├── dynamic_geographic_discovery_service.py # **NOVO**: Descoberta geográfica
+│   │   └── geolocation_service.py        # Serviço de geolocalização
 │   ├── storage/                      # Gerenciamento de arquivos
 │   │   └── data_storage.py           # Limpeza de dados
 │   └── utils/                        # Utilitários
@@ -99,6 +110,32 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 ├── 📋 pyproject.toml                 # Gerenciamento de dependências
 └── 🚀 main.py                        # Ponto de entrada
 ```
+
+## 🆕 Novidades da Versão 4.0.0
+
+### 🚀 **Descoberta Geográfica Dinâmica**
+- **100% Automática**: Descobre cidades e bairros baseado no seu CEP de referência
+- **Perfis Inteligentes**: Detecta automaticamente se é região metropolitana ou rural
+- **APIs Oficiais**: Integração com ViaCEP, IBGE e Nominatim
+- **Cache Local**: Performance otimizada com cache SQLite de cidades brasileiras
+
+### 🎆 **Enriquecimento CEP Separado**
+- **Processo Independente**: Enriquecimento via ViaCEP agora é etapa separada
+- **Controle de Tarefas**: Nova tabela TB_CEP_ENRICHMENT para rastreamento
+- **Validação Inteligente**: Só processa quando há melhoria real nos dados
+- **Dados Oficiais**: Sempre prioriza informações oficiais do ViaCEP
+
+### 🎛️ **Menu Expandido**
+- **5 Opções**: Processamento separado por etapa para máximo controle
+- **Estatísticas Detalhadas**: Cada opção mostra progresso específico
+- **Fluxo Flexível**: Execute apenas as etapas que precisar
+
+### 🏛️ **Validação de CEP de Capital**
+- **Validação Dinâmica**: Verifica se CEP é de capital via APIs
+- **Sugestões Inteligentes**: Mostra capital do estado para CEPs não-capital
+- **Cobertura Completa**: Suporta todas as 27 capitais brasileiras
+
+---
 
 ## 🚀 Como Executar
 
@@ -153,25 +190,33 @@ python scripts\utils\reset_data.py
 run_tests.bat
 ```
 
-### Fluxo Interativo v3.0.0
+### Fluxo Interativo v4.0.0
 
 A aplicação:
 
 1. **🌐 Verifica navegadores**: Detecta automaticamente Chrome e/ou Brave
-2. **🗄️ Cria banco automaticamente**: Se não existir, cria com 11 tabelas estruturadas
-3. **📋 Menu principal**: Escolha da funcionalidade desejada
+2. **🗄️ Cria banco automaticamente**: Se não existir, cria com 14 tabelas estruturadas
+3. **🚀 Descoberta geográfica**: Descobre automaticamente cidades e bairros baseado no CEP
+4. **🎛️ Menu principal expandido**: Escolha da funcionalidade desejada
    - **[1] Processar coleta de dados** (e-mails e telefones)
-   - **[2] Processar geolocalização** das empresas
-   - **[3] Extrair planilha Excel** com dados completos
-   - **[4] Sair**
-4. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
-5. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
+   - **[2] Enriquecer endereços (ViaCEP)** - **NOVO**: Processamento separado
+   - **[3] Processar geolocalização (Nominatim)** - **NOVO**: Geocodificação separada
+   - **[4] Extrair planilha Excel** com dados completos
+   - **[5] Sair**
+5. **📊 Estatísticas detalhadas**: Cada opção mostra progresso e estatísticas específicas
+6. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
+7. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
 
-### Configurações
+### Configurações v4.0.0
 
 - **Arquivo principal**: `src/resources/application.yaml`
 - **Modo teste**: `mode.is_test: true/false`
 - **CEP referência**: `geolocation.reference_cep`
+- **Descoberta geográfica**: `geographic_discovery.*` - **NOVO**
+  - **Perfis**: `profiles.metropolitan` e `profiles.rural`
+  - **APIs**: `apis.viacep`, `apis.ibge`, `apis.nominatim`
+  - **Detecção automática**: `auto_profile_detection.enabled`
+  - **Prefixos metropolitanos**: Lista de 96 prefixos de CEP
 - **Delays**: Configuráveis por motor de busca
 - **ChromeDriver**: Download automático da versão compatível
 
@@ -219,10 +264,12 @@ A aplicação gera:
 - **output/empresas.xlsx**: Planilha com `SITE | EMAIL | TELEFONE | ENDEREÇO | DISTÂNCIA_KM` (ordenada por proximidade)
 - **Logs detalhados**: Progresso em tempo real com informações de geolocalização
 
-### 🗄️ **Banco Access v3.0.0 (Principal)**
+### 🗄️ **Banco Access v4.0.0 (Principal)**
 
-- Dados normalizados em **11 tabelas** (incluindo TB_ENDERECOS)
+- Dados normalizados em **14 tabelas** (incluindo TB_ENDERECOS, TB_CEP_ENRICHMENT, TB_CIDADES, TB_BAIRROS)
 - **Endereços estruturados** com logradouro, número, bairro, cidade, estado, CEP
+- **Descoberta geográfica dinâmica** com cache local de cidades e bairros
+- **Enriquecimento CEP separado** com controle de tarefas na TB_CEP_ENRICHMENT
 - **Geolocalização com fallback progressivo** usando campos estruturados
 - **Singleton de conexão** para máxima performance
 - **Replicação automática** entre tabelas
@@ -250,11 +297,27 @@ A aplicação gera:
 - **Distâncias**: `5.2` (em quilômetros do ponto de referência)
 - **Validação**: Filtra e-mails/telefones inválidos automaticamente
 
+## 🔄 Fluxo de Trabalho Recomendado v4.0.0
+
+### Sequência Otimizada
+1. **[1] Processar coleta de dados** - Coleta e-mails, telefones e endereços
+2. **[2] Enriquecer endereços (ViaCEP)** - Melhora dados de endereço com CEP
+3. **[3] Processar geolocalização (Nominatim)** - Geocodifica endereços enriquecidos
+4. **[4] Extrair planilha Excel** - Gera planilha final com todos os dados
+
+### Execução Flexível
+- **Independente**: Cada etapa pode ser executada separadamente
+- **Estatísticas**: Progresso detalhado para cada processo
+- **Continuação**: Pode parar e continuar em qualquer etapa
+
+---
+
 ## 🎯 Especificações Técnicas
 
 ### Modo Produção
 
-- **Termos de busca**: 6 bases x (1 capital + 5 zonas + 30 bairros + 20 cidades) = 336 termos
+- **Descoberta dinâmica**: Cidades e bairros descobertos automaticamente via CEP
+- **Termos gerados**: Baseados nas localizações descobertas dinamicamente
 - **Processamento**: Completo ou em lotes configuráveis
 
 ### Modo Teste
