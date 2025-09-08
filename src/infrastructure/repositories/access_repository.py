@@ -423,12 +423,12 @@ class AccessRepository:
             
             return tasks
 
-    def update_geolocation_result(self, id_geo: int, latitude: float, longitude: float, distancia_km: float):
-        """Atualiza resultado da geolocalização"""
+    def update_geolocation_success(self, id_geo: int, latitude: float, longitude: float, distancia_km: float):
+        """Atualiza resultado da geolocalização com sucesso"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
-            # Atualizar tabela de controle
+            # Atualizar tabela de controle com status CONCLUIDO
             cursor.execute("""
                            UPDATE TB_GEOLOCALIZACAO
                            SET LATITUDE = ?, LONGITUDE = ?, DISTANCIA_KM = ?,
@@ -449,6 +449,10 @@ class AccessRepository:
                            """, latitude, longitude, distancia_km, empresa_id)
             
             conn.commit()
+    
+    def update_geolocation_result(self, id_geo: int, latitude: float, longitude: float, distancia_km: float):
+        """Método legado - usar update_geolocation_success"""
+        self.update_geolocation_success(id_geo, latitude, longitude, distancia_km)
 
     def update_geolocation_error(self, id_geo: int, erro_descricao: str):
         """Atualiza erro na geolocalização"""
@@ -769,7 +773,6 @@ class AccessRepository:
                            INNER JOIN TB_EMPRESAS emp ON c.ID_EMPRESA = emp.ID_EMPRESA)
                            INNER JOIN TB_ENDERECOS end ON c.ID_ENDERECO = end.ID_ENDERECO
                            WHERE c.STATUS_PROCESSAMENTO = 'PENDENTE'
-                           AND end.CEP IS NOT NULL AND end.CEP <> ''
                            ORDER BY c.ID_CEP_ENRICHMENT
                            """)
             

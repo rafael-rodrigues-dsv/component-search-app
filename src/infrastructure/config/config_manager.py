@@ -181,9 +181,7 @@ class ConfigManager:
                 'error': f'Erro na validação: {e}'
             }
     
-    @property
-    def discovery_radius_km(self) -> int:
-        return self.get('geolocation.discovery_radius_km', 50)
+
     
     # Propriedades de descoberta geográfica
     @property

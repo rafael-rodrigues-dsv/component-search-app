@@ -53,7 +53,6 @@ geolocation:
 
 geographic_discovery:
   enabled: true
-  radius_km: 50  # Raio único para descoberta de cidades E bairros
   
   # Validação de CEP de capital (DESABILITADO)
   capital_validation:
@@ -76,8 +75,57 @@ geographic_discovery:
   request_delay_seconds: 1.0
   max_retries: 3
   
-  # Filtros de qualidade
-  min_city_population: 50000   # Reduzido para incluir cidades menores
-  target_large_cities: 20      # Aumentado para incluir mais cidades
-  exclude_rural_areas: false   # Incluir áreas rurais
-  focus_metropolitan_area: false  # Não focar apenas em regiões metropolitanas
+  # Perfis de descoberta baseados na localização
+  profiles:
+    metropolitan:
+      radius_km: 50
+      min_city_population: 500000
+      target_large_cities: 10
+      exclude_rural_areas: true
+      focus_metropolitan_area: true
+    rural:
+      radius_km: 20
+      min_city_population: 10000
+      target_large_cities: 10
+      exclude_rural_areas: false
+      focus_metropolitan_area: false
+  
+  # Detecção automática de perfil baseada no CEP
+  auto_profile_detection:
+    enabled: true
+    # CEPs de regiões metropolitanas (primeiros 5 dígitos)
+    metropolitan_cep_prefixes:
+      - "01"    # São Paulo - SP (centro)
+      - "02"    # São Paulo - SP (zona norte)
+      - "03"    # São Paulo - SP (zona leste)
+      - "04"    # São Paulo - SP (zona sul)
+      - "05"    # São Paulo - SP (zona oeste)
+      - "08"    # São Paulo - SP (região metropolitana)
+      - "20"    # Rio de Janeiro - RJ (centro/zona sul)
+      - "21"    # Rio de Janeiro - RJ (zona norte)
+      - "22"    # Rio de Janeiro - RJ (barra/recreio)
+      - "23"    # Rio de Janeiro - RJ (zona oeste)
+      - "24"    # Niterói/São Gonçalo - RJ
+      - "30"    # Belo Horizonte - MG (centro)
+      - "31"    # Belo Horizonte - MG (região metropolitana)
+      - "40"    # Salvador - BA (centro)
+      - "41"    # Salvador - BA (região metropolitana)
+      - "50"    # Recife - PE (centro)
+      - "51"    # Recife - PE (região metropolitana)
+      - "52"    # Recife - PE (região metropolitana)
+      - "60"    # Fortaleza - CE (centro)
+      - "61"    # Fortaleza - CE (região metropolitana)
+      - "70"    # Brasília - DF
+      - "71"    # Brasília - DF
+      - "72"    # Brasília - DF
+      - "73"    # Brasília - DF
+      - "80"    # Curitiba - PR (centro)
+      - "81"    # Curitiba - PR (região metropolitana)
+      - "82"    # Curitiba - PR (região metropolitana)
+      - "90"    # Porto Alegre - RS (centro)
+      - "91"    # Porto Alegre - RS (região metropolitana)
+      - "92"    # Porto Alegre - RS (região metropolitana)
+      - "93"    # Porto Alegre - RS (região metropolitana)
+      - "94"    # Porto Alegre - RS (região metropolitana)
+      - "95"    # Porto Alegre - RS (região metropolitana)
+      - "96"    # Porto Alegre - RS (região metropolitana)

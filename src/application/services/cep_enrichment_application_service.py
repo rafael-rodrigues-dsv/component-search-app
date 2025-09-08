@@ -48,10 +48,20 @@ class CepEnrichmentApplicationService:
             print(f"      🏠 CEP: {address_model.cep}")
             
             try:
+                # Validar CEP antes de processar
+                if not address_model.cep or address_model.cep.strip() == '':
+                    print(f"      ⚠️ CEP vazio ou nulo")
+                    self.repository.update_cep_enrichment_error(id_cep_enrichment, "CEP vazio ou nulo")
+                    continue
+                
                 # Enriquecer com dados do CEP
-                if address_model.cep and len(address_model.cep.strip()) >= 8:
+                if len(address_model.cep.strip()) >= 8:
                     print(f"      🔍 Consultando ViaCEP...")
                     enriched_address = self.domain_service.enrich_address_with_cep(address_model)
+                    
+                    # Debug: comparar endereços
+                    print(f"      🔍 ANTES: {address_model.to_full_address()}")
+                    print(f"      🔍 DEPOIS: {enriched_address.to_full_address()}")
                     
                     # Verificar se houve enriquecimento
                     if self.domain_service.address_was_enriched(address_model, enriched_address):
@@ -67,7 +77,7 @@ class CepEnrichmentApplicationService:
                         
                         print(f"      ✅ Empresa {empresa_id} enriquecida com sucesso")
                     else:
-                        print(f"      ⚠️ CEP não melhorou o endereço")
+                        print(f"      ⚠️ CEP não melhorou o endereço (sem diferenças significativas)")
                         self.repository.update_cep_enrichment_error(id_cep_enrichment, "CEP não melhorou o endereço")
                 else:
                     print(f"      ⚠️ CEP inválido")

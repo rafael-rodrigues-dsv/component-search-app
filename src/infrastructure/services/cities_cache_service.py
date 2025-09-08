@@ -65,7 +65,7 @@ class CitiesCacheService:
             # Tentar Brasil API primeiro (mais rápida)
             from ...config.config_manager import ConfigManager
             config = ConfigManager()
-            ibge_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('ibge', {}).get('url', 'https://servicodados.ibge.gov.br/api/v1/localidades')
+            ibge_url = config.get('geographic_discovery.apis.ibge.url', 'https://servicodados.ibge.gov.br/api/v1/localidades')
             url = f"{ibge_url}/estados/{uf}/municipios"
             response = self.session.get(url, timeout=10)
             
@@ -83,7 +83,7 @@ class CitiesCacheService:
         try:
             from ...config.config_manager import ConfigManager
             config = ConfigManager()
-            ibge_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('ibge', {}).get('url', 'https://servicodados.ibge.gov.br/api/v1/localidades')
+            ibge_url = config.get('geographic_discovery.apis.ibge.url', 'https://servicodados.ibge.gov.br/api/v1/localidades')
             url = f"{ibge_url}/estados/{uf}/municipios"
             response = self.session.get(url, timeout=15)
             response.raise_for_status()

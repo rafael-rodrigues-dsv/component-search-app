@@ -144,7 +144,7 @@ class GeolocationService:
         try:
             from src.infrastructure.config.config_manager import ConfigManager
             config = ConfigManager()
-            nominatim_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('nominatim', {}).get('url', 'https://nominatim.openstreetmap.org')
+            nominatim_url = config.get('geographic_discovery.apis.nominatim.url', 'https://nominatim.openstreetmap.org')
             
             params.update({
                 'format': 'json',
@@ -193,7 +193,7 @@ class GeolocationService:
 
             from src.infrastructure.config.config_manager import ConfigManager
             config = ConfigManager()
-            nominatim_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('nominatim', {}).get('url', 'https://nominatim.openstreetmap.org')
+            nominatim_url = config.get('geographic_discovery.apis.nominatim.url', 'https://nominatim.openstreetmap.org')
             
             response = self.session.get(
                 f"{nominatim_url}/search",
@@ -233,7 +233,7 @@ class GeolocationService:
 
                 from src.infrastructure.config.config_manager import ConfigManager
                 config = ConfigManager()
-                nominatim_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('nominatim', {}).get('url', 'https://nominatim.openstreetmap.org')
+                nominatim_url = config.get('geographic_discovery.apis.nominatim.url', 'https://nominatim.openstreetmap.org')
                 
                 response = self.session.get(
                     f"{nominatim_url}/search",
@@ -311,7 +311,7 @@ class GeolocationService:
 
             from src.infrastructure.config.config_manager import ConfigManager
             config = ConfigManager()
-            viacep_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('viacep', {}).get('url', 'https://viacep.com.br/ws')
+            viacep_url = config.get('geographic_discovery.apis.viacep.url', 'https://viacep.com.br/ws')
             
             response = self.session.get(f"{viacep_url}/{cep_limpo}/json/", timeout=5)
             response.raise_for_status()

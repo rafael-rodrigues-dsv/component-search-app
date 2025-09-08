@@ -44,7 +44,7 @@ class GeolocationDomainService:
             
             # Atualizar resultado na tabela de controle
             print(f"      💾 Atualizando TB_GEOLOCALIZACAO com sucesso...")
-            self.repository.update_geolocation_result(id_geo, result.latitude, result.longitude, distancia_km)
+            self.repository.update_geolocation_success(id_geo, result.latitude, result.longitude, distancia_km)
             
             # Atualizar planilha final
             print(f"      💾 Atualizando TB_PLANILHA com distância...")
@@ -77,7 +77,7 @@ class GeolocationDomainService:
                     self.repository.update_endereco_corrected(endereco_id, corrected_address)
                     
                     # Atualizar resultado na tabela de controle
-                    self.repository.update_geolocation_result(id_geo, result.latitude, result.longitude, distancia_km)
+                    self.repository.update_geolocation_success(id_geo, result.latitude, result.longitude, distancia_km)
                     
                     # Atualizar planilha final
                     self.repository.update_planilha_distance_by_empresa(empresa_id, distancia_km)

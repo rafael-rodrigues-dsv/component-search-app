@@ -22,11 +22,18 @@ class DynamicGeographicDiscoveryService:
         })
 
     def discover_locations_from_config(self) -> Dict:
-        """Descobre localizações baseado na configuração YAML (QUALQUER CEP)"""
+        """Descobre localizações baseado na configuração YAML com perfil automático"""
         cep = self.config.reference_cep
-        radius_km = self.config.get_config_value('geographic_discovery.radius_km', 50)
+        
+        # Detectar perfil automaticamente baseado no CEP
+        profile = self._detect_profile_from_cep(cep)
+        profile_name = "metropolitana" if profile == "metropolitan" else "rural"
+        
+        # Obter radius_km do perfil detectado
+        radius_km = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.radius_km', 50)
         
         print(f"[GEO] 🚀 Descobrindo região ao redor do CEP {cep}")
+        print(f"[GEO] 🏙️ Perfil detectado: {profile_name.upper()}")
         print(f"[GEO] 📍 Raio de busca: {radius_km}km")
         
         # 1. Obter coordenadas do CEP base
@@ -96,8 +103,12 @@ class DynamicGeographicDiscoveryService:
             # 1. Obter municípios com população via IBGE
             municipalities_with_pop = self._get_state_municipalities_with_population(base_info['uf'])
             
-            # 2. Filtrar por população ANTES de geocodificar (economia massiva)
-            min_population = self.config.get_config_value('geographic_discovery.min_city_population', 500000)
+            # 2. Obter configurações do perfil detectado
+            profile = self._detect_profile_from_cep(self.config.reference_cep)
+            min_population = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.min_city_population', 500000)
+            target_cities = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.target_large_cities', 10)
+            
+            # 3. Filtrar por população ANTES de geocodificar (economia massiva)
             large_cities = [m for m in municipalities_with_pop if m.get('population', 0) >= min_population]
             
             # Tratamento quando API IBGE não encontra cidades com população mínima
@@ -216,7 +227,9 @@ class DynamicGeographicDiscoveryService:
         print(f"[GEO] 📊 Consultando população de {len(cities)} cidades da região {region_name}...")
         
         cities_with_pop = []
-        min_population = self.config.get_config_value('geographic_discovery.min_city_population', 500000)
+        # Detectar perfil e usar configurações correspondentes
+        profile = self._detect_profile_from_cep(self.config.reference_cep)
+        min_population = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.min_city_population', 500000)
         
         for i, city in enumerate(cities, 1):
             try:
@@ -344,8 +357,9 @@ class DynamicGeographicDiscoveryService:
             # Ordenar por população (maiores primeiro)
             formatted_cities.sort(key=lambda x: x['population'], reverse=True)
             
-            # Filtrar cidades grandes
-            min_population = self.config.get_config_value('geographic_discovery.min_city_population', 500000)
+            # Usar perfil detectado para população mínima
+            profile = self._detect_profile_from_cep(self.config.reference_cep)
+            min_population = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.min_city_population', 500000)
             large_cities = [c for c in formatted_cities if c['population'] >= min_population]
             
             if not large_cities:
@@ -564,3 +578,25 @@ class DynamicGeographicDiscoveryService:
         r = 6371
         
         return c * r
+    
+    def _detect_profile_from_cep(self, cep: str) -> str:
+        """Detecta perfil (metropolitan/rural) baseado no CEP"""
+        if not self.config.get_config_value('geographic_discovery.auto_profile_detection.enabled', True):
+            return 'rural'  # Padrão se detecção desabilitada
+        
+        # Limpar CEP e obter primeiros 2 dígitos
+        cep_clean = cep.replace('-', '').replace('.', '')
+        if len(cep_clean) < 2:
+            return 'rural'
+        
+        cep_prefix = cep_clean[:2]
+        
+        # Obter lista de prefixos metropolitanos
+        metro_prefixes = self.config.get_config_value('geographic_discovery.auto_profile_detection.metropolitan_cep_prefixes', [])
+        
+        if cep_prefix in metro_prefixes:
+            print(f"[GEO] 🏙️ CEP {cep} detectado como REGIÃO METROPOLITANA (prefixo {cep_prefix})")
+            return 'metropolitan'
+        else:
+            print(f"[GEO] 🌾 CEP {cep} detectado como REGIÃO RURAL/INTERIOR (prefixo {cep_prefix})")
+            return 'rural'

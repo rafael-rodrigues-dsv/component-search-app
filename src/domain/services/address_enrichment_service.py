@@ -30,14 +30,14 @@ class AddressEnrichmentService:
         if not cep_data:
             return address
             
-        # Criar novo endereço enriquecido mantendo dados originais quando possível
+        # Criar novo endereço enriquecido combinando dados de forma inteligente
         return AddressModel(
-            logradouro=address.logradouro or cep_data.get('logradouro', ''),
+            logradouro=self._choose_best_value(address.logradouro, cep_data.get('logradouro', '')),
             numero=address.numero,  # Manter número original
             complemento=address.complemento,  # Manter complemento original
-            bairro=address.bairro or cep_data.get('bairro', ''),
-            cidade=address.cidade or cep_data.get('localidade', ''),
-            estado=address.estado or cep_data.get('uf', ''),
+            bairro=self._choose_best_value(address.bairro, cep_data.get('bairro', '')),
+            cidade=self._choose_best_value(address.cidade, cep_data.get('localidade', '')),
+            estado=self._choose_best_value(address.estado, cep_data.get('uf', '')),
             cep=address.cep
         )
     
@@ -70,24 +70,44 @@ class AddressEnrichmentService:
     
     def address_was_enriched(self, original: AddressModel, enriched: AddressModel) -> bool:
         """
-        Verifica se o endereço foi realmente enriquecido (regra de negócio)
-        
-        Args:
-            original: AddressModel original
-            enriched: AddressModel enriquecido
-            
-        Returns:
-            True se houve enriquecimento
+        Verifica se ViaCEP realmente melhorou os dados
         """
-        # Verificar se campos foram preenchidos/melhorados
-        improvements = [
-            not original.logradouro and enriched.logradouro,
-            not original.bairro and enriched.bairro,
-            not original.cidade and enriched.cidade,
-            not original.estado and enriched.estado
-        ]
+        # Verificar se houve melhoria real nos dados
+        improvements = []
         
-        return any(improvements)
+        # Campo foi preenchido
+        if (not original.logradouro or original.logradouro.strip() == '') and enriched.logradouro and enriched.logradouro.strip():
+            improvements.append('logradouro')
+        if (not original.bairro or original.bairro.strip() == '') and enriched.bairro and enriched.bairro.strip():
+            improvements.append('bairro')
+        if (not original.cidade or original.cidade.strip() == '') and enriched.cidade and enriched.cidade.strip():
+            improvements.append('cidade')
+        if (not original.estado or original.estado.strip() == '') and enriched.estado and enriched.estado.strip():
+            improvements.append('estado')
+            
+        # Campo foi corrigido
+        if original.cidade and enriched.cidade and enriched.cidade.strip() != original.cidade.strip():
+            improvements.append('cidade_corrigida')
+        if original.estado and enriched.estado and enriched.estado.strip() != original.estado.strip():
+            improvements.append('estado_corrigido')
+        
+        if improvements:
+            print(f"      ✨ Melhorias: {', '.join(improvements)}")
+            return True
+        else:
+            print(f"      ⚠️ Sem melhorias detectadas")
+            return False
+    
+    def _choose_best_value(self, original: str, viacep: str) -> str:
+        """
+        ESTRATÉGIA AGRESSIVA: Sempre priorizar ViaCEP quando disponível
+        """
+        # Se ViaCEP tem dados, SEMPRE usar (dados oficiais)
+        if viacep and viacep.strip():
+            return viacep.strip()
+            
+        # Caso contrário, manter original
+        return original or ''
     
     def _fetch_cep_data(self, cep: str) -> Optional[dict]:
         """
@@ -106,9 +126,18 @@ class AddressEnrichmentService:
             # Limpar CEP (remover caracteres não numéricos)
             cep_clean = re.sub(r'\D', '', cep)
             
-            # Validar CEP (deve ter 8 dígitos)
+            # Tentar corrigir CEPs mal formatados
+            if len(cep_clean) < 8:
+                cep_clean = cep_clean.zfill(8)
+            elif len(cep_clean) > 8:
+                cep_clean = cep_clean[:8]
+            
+            # Validar CEP final
             if len(cep_clean) != 8 or not cep_clean.isdigit():
+                print(f"      ❌ CEP inválido: {cep} (limpo: {cep_clean})")
                 return None
+                
+            print(f"      🔧 CEP processado: {cep} -> {cep_clean}")
             
             # Formatar CEP com hífen
             cep_formatted = f"{cep_clean[:5]}-{cep_clean[5:]}"
@@ -116,9 +145,37 @@ class AddressEnrichmentService:
             # Obter URL do ViaCEP da configuração
             from ...infrastructure.config.config_manager import ConfigManager
             config = ConfigManager()
-            base_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('viacep', {}).get('url', 'https://viacep.com.br/ws')
+            base_url = config.get('geographic_discovery.apis.viacep.url', 'https://viacep.com.br/ws')
             
-            # Consultar ViaCEP
+            # Tentar CEP original
+            data = self._try_viacep_request(base_url, cep_formatted)
+            if data:
+                return data
+                
+            # Fallback: CEPs similares
+            print(f"      🔄 Tentando CEPs similares...")
+            similar_ceps = self._generate_similar_ceps(cep_clean)
+            
+            for similar_cep in similar_ceps[:2]:
+                similar_formatted = f"{similar_cep[:5]}-{similar_cep[5:]}"
+                print(f"      🔍 CEP similar: {similar_formatted}")
+                
+                data = self._try_viacep_request(base_url, similar_formatted)
+                if data:
+                    print(f"      ✅ CEP similar funcionou: {data}")
+                    return data
+                else:
+                    print(f"      ❌ CEP similar falhou")
+            
+            return None
+            
+        except Exception:
+            return None
+    
+    def _try_viacep_request(self, base_url: str, cep_formatted: str) -> Optional[dict]:
+        """Tenta requisição no ViaCEP"""
+        try:
+            import requests
             url = f"{base_url}/{cep_formatted}/json/"
             response = requests.get(url, timeout=5)
             
@@ -127,11 +184,29 @@ class AddressEnrichmentService:
                 
             data = response.json()
             
-            # Verificar se CEP é válido (ViaCEP retorna erro: true para CEPs inválidos)
             if data.get('erro'):
                 return None
                 
             return data
-            
         except Exception:
             return None
+    
+
+    
+    def _generate_similar_ceps(self, cep_clean: str) -> List[str]:
+        """Gera CEPs similares para fallback"""
+        similar_ceps = []
+        
+        # Tentar com último dígito 0 (CEPs genéricos)
+        if cep_clean[-1] != '0':
+            similar_ceps.append(cep_clean[:-1] + '0')
+            
+        # Tentar com últimos 2 dígitos 00
+        if not cep_clean.endswith('00'):
+            similar_ceps.append(cep_clean[:-2] + '00')
+            
+        # Tentar com últimos 3 dígitos 000
+        if not cep_clean.endswith('000'):
+            similar_ceps.append(cep_clean[:-3] + '000')
+            
+        return similar_ceps

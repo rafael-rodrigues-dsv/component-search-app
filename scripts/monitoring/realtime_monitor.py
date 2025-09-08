@@ -142,7 +142,7 @@ class MonitorTempoReal:
                     
                     barra = "█" * int(progresso / 2) + "░" * (50 - int(progresso / 2))
                     print(f"\n🌍 PROGRESSO GEO: {progresso:.1f}%")
-                    print(f"[{barra}] {concluidos}/{total} geocodificados")
+                    print(f"[{barra}] {concluidos}/{total} concluídas")
                 except Exception as e:
                     print(f"\n🌍 GEO: Erro - {e}")
             else:  # GERAL
@@ -181,7 +181,9 @@ class MonitorTempoReal:
                     print(f"   Erro ao obter dados CEP: {e}")
             elif self.recurso_monitorado == "GEOLOCALIZACAO":
                 try:
-                    with self.db_service.repository._get_connection() as conn:
+                    from src.infrastructure.repositories.access_repository import AccessRepository
+                    repo = AccessRepository()
+                    with repo._get_connection() as conn:
                         cursor = conn.cursor()
                         cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
                         concluidos = cursor.fetchone()[0]
@@ -193,12 +195,13 @@ class MonitorTempoReal:
                         dist_media = cursor.fetchone()[0] or 0
                         total = concluidos + pendentes + erros
                     print(f"   Total de Tarefas:   {total:,}")
-                    print(f"   Geocodificadas:     {concluidos:,}")
-                    print(f"   Pendentes:          {pendentes:,}")
-                    print(f"   Erros:              {erros:,}")
-                    print(f"   Distância Média:    {dist_media:.1f} km")
-                except:
-                    print(f"   Erro ao obter dados GEO")
+                    print(f"   Concluídas:         {concluidos:,} (✅ sucesso)")
+                    print(f"   Pendentes:          {pendentes:,} (⏳ aguardando)")
+                    print(f"   Erros:              {erros:,} (❌ falha)")
+                    if concluidos > 0:
+                        print(f"   Distância Média:    {dist_media:.1f} km")
+                except Exception as e:
+                    print(f"   Erro ao obter dados GEO: {e}")
             else:  # GERAL
                 print(f"   Termos Processados: {stats.get('termos_concluidos', 0):,} / {stats.get('termos_total', 0):,}")
                 print(f"   Empresas Visitadas: {stats.get('empresas_total', 0):,}")
@@ -247,7 +250,9 @@ class MonitorTempoReal:
                     print(f"   Erro CEP taxa: {e}")
             elif self.recurso_monitorado == "GEOLOCALIZACAO":
                 try:
-                    with self.db_service.repository._get_connection() as conn:
+                    from src.infrastructure.repositories.access_repository import AccessRepository
+                    repo = AccessRepository()
+                    with repo._get_connection() as conn:
                         cursor = conn.cursor()
                         cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
                         concluidos = cursor.fetchone()[0]
@@ -256,8 +261,8 @@ class MonitorTempoReal:
                         if total > 0:
                             taxa_sucesso = (concluidos / total) * 100
                             print(f"\n✅ TAXA DE SUCESSO GEO: {taxa_sucesso:.1f}%")
-                except:
-                    pass
+                except Exception as e:
+                    print(f"   Erro GEO taxa: {e}")
 
             # Estimativa de Conclusão específica por recurso
             if self.recurso_monitorado == "COLETA" and vel_termos > 0 and stats.get('termos_pendentes', 0) > 0:
