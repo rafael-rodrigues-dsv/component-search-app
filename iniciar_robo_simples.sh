@@ -20,12 +20,12 @@ check_python_version() {
             echo "[OK] Python $version encontrado via '$python_cmd' - compatível"
             PYTHON_CMD="$python_cmd"
             return 0
-        elif [[ "$major" -eq 3 && "$minor" -eq 13 && "$patch" -ge 7 ]]; then
+        elif [[ "$major" -eq 3 && "$minor" -eq 13 && "$patch" -ge 0 ]]; then
             echo "[OK] Python $version encontrado via '$python_cmd' - compatível"
             PYTHON_CMD="$python_cmd"
             return 0
         else
-            echo "[ERRO] Python $version incompatível - necessário 3.13.7+"
+            echo "[ERRO] Python $version incompatível - necessário 3.13.0+"
             return 1
         fi
     fi
@@ -36,7 +36,7 @@ check_python_version() {
 if check_python_version "python3" || check_python_version "python"; then
     echo "[OK] Python compatível encontrado"
 else
-    echo "[INFO] Python 3.13.7+ não encontrado. Tentando instalação automática..."
+    echo "[INFO] Python 3.13.0+ não encontrado. Tentando instalação automática..."
     
     # Detectar sistema operacional
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -64,7 +64,7 @@ else
         fi
     else
         echo "[ERRO] Sistema não suportado para instalação automática"
-        echo "[INFO] Instale Python 3.13.7+ manualmente e execute novamente"
+        echo "[INFO] Instale Python 3.13.0+ manualmente e execute novamente"
         exit 1
     fi
     

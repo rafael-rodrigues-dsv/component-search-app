@@ -17,7 +17,7 @@ py --version >nul 2>nul && (
         set PYTHON_CMD=py
         goto :run_program
       ) else if !minor! EQU 13 (
-        if !patch! GEQ 7 (
+        if !patch! GEQ 0 (
           echo [OK] Python %%a.%%b.%%c encontrado via 'py' - compativel
           set PYTHON_CMD=py
           goto :run_program
@@ -28,7 +28,7 @@ py --version >nul 2>nul && (
       set PYTHON_CMD=py
       goto :run_program
     )
-    echo [ERRO] Python %%a.%%b.%%c incompativel - necessario 3.13.7+
+    echo [ERRO] Python %%a.%%b.%%c incompativel - necessario 3.13.0+
     goto :install_python
   )
 )
@@ -44,7 +44,7 @@ python --version >nul 2>nul && (
         set PYTHON_CMD=python
         goto :run_program
       ) else if !minor! EQU 13 (
-        if !patch! GEQ 7 (
+        if !patch! GEQ 0 (
           echo [OK] Python %%a.%%b.%%c encontrado via 'python' - compativel
           set PYTHON_CMD=python
           goto :run_program
@@ -55,7 +55,7 @@ python --version >nul 2>nul && (
       set PYTHON_CMD=python
       goto :run_program
     )
-    echo [ERRO] Python %%a.%%b.%%c incompativel - necessario 3.13.7+
+    echo [ERRO] Python %%a.%%b.%%c incompativel - necessario 3.13.0+
     goto :install_python
   )
 )
@@ -80,16 +80,16 @@ py --version >nul 2>nul && (
 )
 
 REM Fallback para PowerShell se nao tem Python
-echo [INFO] Baixando Python 3.13.7 via PowerShell...
+echo [INFO] Baixando Python 3.13 (mais recente) via PowerShell...
 if not exist "drivers" mkdir drivers
-powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.7/python-3.13.7-amd64.exe' -OutFile 'drivers\python-installer.exe'}"
+powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $releases = Invoke-RestMethod 'https://api.github.com/repos/python/cpython/releases'; $latest = ($releases | Where-Object {$_.tag_name -match '^v3\.13\.'} | Select-Object -First 1).tag_name.TrimStart('v'); Invoke-WebRequest -Uri \"https://www.python.org/ftp/python/$latest/python-$latest-amd64.exe\" -OutFile 'drivers\python-installer.exe'}"
 if not exist "drivers\python-installer.exe" (
   echo [ERRO] Falha no download do Python. Verifique sua conexao.
   pause & exit /b 1
 )
-echo [INFO] Instalando Python 3.13.7 com PATH automatico...
+echo [INFO] Instalando Python 3.13 (mais recente) com PATH automatico...
 drivers\python-installer.exe /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0
-echo [OK] Python 3.13.7 instalado com sucesso!
+echo [OK] Python 3.13 (mais recente) instalado com sucesso!
 echo [INFO] Atualizando PATH da sessao atual...
 for /f "skip=2 tokens=2*" %%a in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set USER_PATH=%%b
 for /f "skip=2 tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v PATH 2^>nul') do set SYSTEM_PATH=%%b

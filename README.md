@@ -159,7 +159,7 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 
 ### Pré-requisitos
 
-- Python 3.13+ (baixa automaticamente se necessário)
+- Python 3.13.0+ (baixa automaticamente se necessário)
 - **Microsoft Access** (para banco de dados)
 - **Pelo menos um navegador suportado:**
     - Google Chrome **OU** Brave Browser
@@ -243,7 +243,7 @@ A aplicação:
 
 | Tecnologia             | Descrição                                            | Versão        |
 |------------------------|------------------------------------------------------|---------------|
-| **Python**             | Linguagem de programação principal                   | 3.13+         |
+| **Python**             | Linguagem de programação principal                   | 3.13.0+       |
 | **PyODBC**             | Conector para Microsoft Access                       | ≥4.0.0        |
 | **Microsoft Access**   | Sistema de banco de dados                            | 2016+         |
 | **Selenium**           | Automação de navegadores web                         | ≥4.0.0        |
