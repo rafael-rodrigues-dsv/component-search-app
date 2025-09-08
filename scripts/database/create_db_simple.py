@@ -1,7 +1,6 @@
 """
 Criador simples do banco Access - Funciona garantido
 """
-import os
 from pathlib import Path
 
 

@@ -2,6 +2,7 @@
 Domain Service para operações de banco de dados
 """
 from typing import Dict, List
+
 from ...infrastructure.repositories.access_repository import AccessRepository
 
 

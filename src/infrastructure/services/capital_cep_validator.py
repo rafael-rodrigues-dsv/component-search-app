@@ -2,8 +2,9 @@
 Validador de CEP de Capital - 100% Dinâmico via APIs
 Valida se CEP é de capital brasileira usando apenas APIs externas
 """
-import requests
 from typing import Dict, Optional
+
+import requests
 
 from ...infrastructure.config.config_manager import ConfigManager
 

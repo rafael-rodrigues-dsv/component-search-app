@@ -1,7 +1,8 @@
 """
 Application Service para enriquecimento de endereços durante geolocalização
 """
-from typing import List, Tuple
+from typing import Tuple
+
 from ...domain.services.address_enrichment_service import AddressEnrichmentService
 
 

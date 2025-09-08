@@ -2,7 +2,7 @@
 Serviço de aplicação para processamento de geolocalização
 """
 import logging
-from typing import List, Dict
+from typing import Dict
 
 from ...domain.services.geolocation_domain_service import GeolocationDomainService
 

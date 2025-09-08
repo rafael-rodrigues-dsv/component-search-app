@@ -2,6 +2,7 @@
 Application Service para enriquecimento de endereços via CEP (separado)
 """
 from typing import Dict
+
 from ...domain.services.address_enrichment_service import AddressEnrichmentService
 from ...infrastructure.repositories.access_repository import AccessRepository
 

@@ -2,6 +2,7 @@
 Domain Service para enriquecimento de endereços via CEP
 """
 from typing import Optional, List, Tuple
+
 from ..models.address_model import AddressModel
 
 
@@ -90,32 +91,47 @@ class AddressEnrichmentService:
     
     def _fetch_cep_data(self, cep: str) -> Optional[dict]:
         """
-        Busca dados do CEP usando infraestrutura existente
+        Busca dados do CEP usando ViaCEP API
         
         Args:
-            cep: CEP limpo (8 dígitos)
+            cep: CEP (8 dígitos ou com hífen)
             
         Returns:
             Dados do CEP ou None se falhar
         """
         try:
-            # Usar infraestrutura existente do CapitalCepValidator
-            from ...infrastructure.services.capital_cep_validator import CapitalCepValidator
-            validator = CapitalCepValidator()
+            import requests
+            import re
             
-            # Usar método interno do validator que já tem toda a lógica
-            cep_info = validator._get_cep_info(cep)
+            # Limpar CEP (remover caracteres não numéricos)
+            cep_clean = re.sub(r'\D', '', cep)
             
-            if not cep_info:
+            # Validar CEP (deve ter 8 dígitos)
+            if len(cep_clean) != 8 or not cep_clean.isdigit():
+                return None
+            
+            # Formatar CEP com hífen
+            cep_formatted = f"{cep_clean[:5]}-{cep_clean[5:]}"
+            
+            # Obter URL do ViaCEP da configuração
+            from ...infrastructure.config.config_manager import ConfigManager
+            config = ConfigManager()
+            base_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('viacep', {}).get('url', 'https://viacep.com.br/ws')
+            
+            # Consultar ViaCEP
+            url = f"{base_url}/{cep_formatted}/json/"
+            response = requests.get(url, timeout=5)
+            
+            if response.status_code != 200:
                 return None
                 
-            # Converter para formato esperado pelo ViaCEP
-            return {
-                'logradouro': '',  # ViaCEP pode não ter logradouro específico
-                'bairro': '',      # ViaCEP pode não ter bairro específico  
-                'localidade': cep_info['cidade'],
-                'uf': cep_info['uf']
-            }
+            data = response.json()
+            
+            # Verificar se CEP é válido (ViaCEP retorna erro: true para CEPs inválidos)
+            if data.get('erro'):
+                return None
+                
+            return data
             
         except Exception:
             return None

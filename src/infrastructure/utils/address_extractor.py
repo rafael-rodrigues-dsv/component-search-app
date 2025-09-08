@@ -3,6 +3,7 @@ Extrator e formatador de endereços - Responsabilidade única
 """
 import re
 from typing import Optional
+
 from ...domain.models.address_model import AddressModel
 
 

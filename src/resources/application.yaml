@@ -47,8 +47,8 @@ mode:
   complete_threshold: 1000
 
 geolocation:
-  reference_cep: "01310-100"  # CEP de referência para cálculo de distâncias
-#  reference_cep: "18015-000"  # CEP de referência para cálculo de distâncias
+#  reference_cep: "01310-100" # CEP de referência para cálculo de distâncias
+  reference_cep: "18015-000"  # CEP de referência para cálculo de distâncias
 
 
 geographic_discovery:
@@ -77,7 +77,7 @@ geographic_discovery:
   max_retries: 3
   
   # Filtros de qualidade
-  min_city_population: 500000
-  target_large_cities: 10  # Parar busca quando encontrar este número de cidades grandes
-  exclude_rural_areas: true
-  focus_metropolitan_area: true
+  min_city_population: 50000   # Reduzido para incluir cidades menores
+  target_large_cities: 20      # Aumentado para incluir mais cidades
+  exclude_rural_areas: false   # Incluir áreas rurais
+  focus_metropolitan_area: false  # Não focar apenas em regiões metropolitanas

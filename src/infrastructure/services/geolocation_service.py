@@ -142,6 +142,10 @@ class GeolocationService:
     def _try_geocode_with_params(self, params: dict, tipo: str) -> GeoResult:
         """Tenta geocodificar com parâmetros específicos"""
         try:
+            from src.infrastructure.config.config_manager import ConfigManager
+            config = ConfigManager()
+            nominatim_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('nominatim', {}).get('url', 'https://nominatim.openstreetmap.org')
+            
             params.update({
                 'format': 'json',
                 'limit': 1,
@@ -149,7 +153,7 @@ class GeolocationService:
             })
 
             response = self.session.get(
-                "https://nominatim.openstreetmap.org/search",
+                f"{nominatim_url}/search",
                 params=params,
                 timeout=5
             )
@@ -187,8 +191,12 @@ class GeolocationService:
                 'addressdetails': 0
             }
 
+            from src.infrastructure.config.config_manager import ConfigManager
+            config = ConfigManager()
+            nominatim_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('nominatim', {}).get('url', 'https://nominatim.openstreetmap.org')
+            
             response = self.session.get(
-                "https://nominatim.openstreetmap.org/search",
+                f"{nominatim_url}/search",
                 params=params,
                 timeout=5
             )
@@ -223,8 +231,12 @@ class GeolocationService:
                     'addressdetails': 0
                 }
 
+                from src.infrastructure.config.config_manager import ConfigManager
+                config = ConfigManager()
+                nominatim_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('nominatim', {}).get('url', 'https://nominatim.openstreetmap.org')
+                
                 response = self.session.get(
-                    "https://nominatim.openstreetmap.org/search",
+                    f"{nominatim_url}/search",
                     params=params,
                     timeout=5
                 )
@@ -297,7 +309,11 @@ class GeolocationService:
             # Rate limiting para ViaCEP
             time.sleep(0.3)
 
-            response = self.session.get(f"https://viacep.com.br/ws/{cep_limpo}/json/", timeout=5)
+            from src.infrastructure.config.config_manager import ConfigManager
+            config = ConfigManager()
+            viacep_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('viacep', {}).get('url', 'https://viacep.com.br/ws')
+            
+            response = self.session.get(f"{viacep_url}/{cep_limpo}/json/", timeout=5)
             response.raise_for_status()
 
             data = response.json()

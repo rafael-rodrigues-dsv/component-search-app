@@ -12,8 +12,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from src.infrastructure.config.delay_config import get_scraper_delays
 from src.infrastructure.config.config_manager import ConfigManager
+from src.infrastructure.config.delay_config import get_scraper_delays
 from ..drivers.web_driver import WebDriverManager
 from ..network.retry_manager import RetryManager
 from ...domain.models.company_model import CompanyModel

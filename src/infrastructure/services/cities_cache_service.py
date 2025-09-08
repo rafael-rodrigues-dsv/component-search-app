@@ -1,10 +1,10 @@
 """
 Serviço de Cache de Cidades - Base de dados local otimizada
 """
-import json
 import sqlite3
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
+
 import requests
 
 
@@ -63,7 +63,10 @@ class CitiesCacheService:
         """Download otimizado via Brasil API"""
         try:
             # Tentar Brasil API primeiro (mais rápida)
-            url = f"https://brasilapi.com.br/api/ibge/municipios/v1/{uf}"
+            from ...config.config_manager import ConfigManager
+            config = ConfigManager()
+            ibge_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('ibge', {}).get('url', 'https://servicodados.ibge.gov.br/api/v1/localidades')
+            url = f"{ibge_url}/estados/{uf}/municipios"
             response = self.session.get(url, timeout=10)
             
             if response.status_code == 200:
@@ -78,7 +81,10 @@ class CitiesCacheService:
         
         # Fallback para IBGE oficial
         try:
-            url = f"https://servicodados.ibge.gov.br/api/v1/localidades/estados/{uf}/municipios"
+            from ...config.config_manager import ConfigManager
+            config = ConfigManager()
+            ibge_url = config.config.get('geographic_discovery', {}).get('apis', {}).get('ibge', {}).get('url', 'https://servicodados.ibge.gov.br/api/v1/localidades')
+            url = f"{ibge_url}/estados/{uf}/municipios"
             response = self.session.get(url, timeout=15)
             response.raise_for_status()
             return response.json()

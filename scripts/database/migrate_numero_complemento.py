@@ -2,8 +2,8 @@
 Script de migração para separar número e complemento em dados existentes
 """
 import re
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Adicionar src ao path
 project_root = Path(__file__).parent.parent.parent

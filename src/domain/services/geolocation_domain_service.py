@@ -2,6 +2,7 @@
 Domain Service para operações de geolocalização
 """
 from typing import Dict, List
+
 from ...infrastructure.repositories.access_repository import AccessRepository
 from ...infrastructure.services.geolocation_service import GeolocationService
 

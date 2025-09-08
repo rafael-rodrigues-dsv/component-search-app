@@ -2,11 +2,8 @@
 Serviço de Descoberta Geográfica Dinâmica
 Descobre cidades e bairros automaticamente baseado em CEP + raio
 """
-import json
 import math
-import random
 import time
-from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import requests
@@ -325,7 +322,8 @@ class DynamicGeographicDiscoveryService:
             print(f"[GEO] 🚀 IBGE CIDADES - Buscando todas as cidades de {uf}...")
             
             # IBGE Cidades - dados completos em 1 request
-            url = f"https://servicodados.ibge.gov.br/api/v1/localidades/estados/{uf}/municipios"
+            ibge_url = self.config.get_config_value('geographic_discovery.apis.ibge.url', 'https://servicodados.ibge.gov.br/api/v1/localidades')
+            url = f"{ibge_url}/estados/{uf}/municipios"
             response = self.session.get(url, timeout=15)
             response.raise_for_status()
             
