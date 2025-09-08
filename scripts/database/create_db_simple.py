@@ -89,10 +89,37 @@ def create_simple_db(auto_mode=False):
         bairros = []  # Sem dados hardcoded
         cidades = []  # Sem dados hardcoded
 
-        termos = [
-            "INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO) VALUES ('empresa de elevadores', 'elevadores', -1, Date())",
-            "INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO) VALUES ('manutenção de elevadores', 'elevadores', -1, Date())"
-        ]
+        # Carregar termos baseado na configuração
+        import sys
+        sys.path.append(str(project_root / "src"))
+        
+        try:
+            from infrastructure.config.config_manager import ConfigManager
+            config = ConfigManager()
+            is_test_mode = config.is_test_mode
+            
+            # Importar constantes do settings
+            sys.path.append(str(project_root))
+            from config.settings import BASE_BUSCA, BASE_TESTES
+            
+            if is_test_mode:
+                print("[DB-DATA] Modo TESTE - usando base reduzida")
+                base_termos = BASE_TESTES
+            else:
+                print("[DB-DATA] Modo PRODUÇÃO - usando base completa")
+                base_termos = BASE_BUSCA
+                
+        except Exception as e:
+            print(f"[AVISO] Erro ao carregar configuração: {e}")
+            print("[DB-DATA] Usando base padrão")
+            base_termos = [
+                "empresa de elevadores", "manutenção de elevadores", "instalação de elevadores",
+                "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
+            ]
+        
+        termos = []
+        for termo in base_termos:
+            termos.append(f"INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO) VALUES ('{termo}', 'elevadores', -1, Date())")
 
         # Carregar zonas
         print(f"[DB-DATA] Carregando {len(zonas)} zonas...")
@@ -128,7 +155,7 @@ def create_simple_db(auto_mode=False):
             print(f"[DB-DATA] TB_CIDADES vazia - usará descoberta dinâmica")
 
         # Carregar termos base
-        print(f"[DB-DATA] Carregando {len(termos)} termos base...")
+        print(f"[DB-DATA] Carregando {len(termos)} termos base ({len(base_termos)} categorias)...")
         for sql in termos:
             try:
                 access.DoCmd.RunSQL(sql)
