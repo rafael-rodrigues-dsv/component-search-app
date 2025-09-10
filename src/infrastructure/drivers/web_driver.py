@@ -40,6 +40,15 @@ class WebDriverManager:
             options = Options()
             import random
             import time
+            
+            # === MODO HEADLESS (INVISÍVEL) ===
+            from src.infrastructure.config.config_manager import ConfigManager
+            config = ConfigManager()
+            if config.get('webdriver.headless', True):  # Padrão: invisível
+                options.add_argument('--headless')
+                print("[INFO] Executando em modo invisível (headless) para melhor performance")
+            else:
+                print("[INFO] Executando em modo visível")
 
             # === ANTI-DETECÇÃO CRÍTICA ===
             options.add_argument("--disable-blink-features=AutomationControlled")
@@ -47,8 +56,7 @@ class WebDriverManager:
             options.add_experimental_option('useAutomationExtension', False)
 
             # Novos argumentos anti-detecção
-            options.add_argument("--disable-features=VizDisplayCompositor")
-            options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
+            options.add_argument("--disable-features=BlinkGenPropertyTrees")
             options.add_argument("--disable-default-apps")
             options.add_argument("--disable-extensions")
             options.add_argument("--disable-plugins")
@@ -110,12 +118,33 @@ class WebDriverManager:
             options.add_argument("--disable-notifications")
             options.add_argument("--disable-popup-blocking")
             options.add_argument("--disable-gpu")
+            options.add_argument("--disable-gpu-sandbox")
+            options.add_argument("--disable-software-rasterizer")
+            options.add_argument("--disable-background-timer-throttling")
+            options.add_argument("--disable-backgrounding-occluded-windows")
+            options.add_argument("--disable-renderer-backgrounding")
+            options.add_argument("--disable-features=TranslateUI,VizDisplayCompositor")
             options.add_argument("--no-sandbox")
             options.add_argument("--log-level=3")
             options.add_argument("--disable-logging")
+            options.add_argument("--silent")
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--disable-web-security")
             options.add_argument("--allow-running-insecure-content")
+            
+            # === SUPRESSÃO DE ERROS GPU ===
+            options.add_argument("--disable-gpu-process-crash-limit")
+            options.add_argument("--disable-ipc-flooding-protection")
+            options.add_argument("--disable-shared-memory")
+            options.add_argument("--disable-gl-drawing-for-tests")
+            options.add_argument("--disable-accelerated-2d-canvas")
+            options.add_argument("--disable-accelerated-jpeg-decoding")
+            options.add_argument("--disable-accelerated-mjpeg-decode")
+            options.add_argument("--disable-accelerated-video-decode")
+            options.add_argument("--disable-accelerated-video-encode")
+            options.add_argument("--disable-gpu-memory-buffer-compositor-resources")
+            options.add_argument("--disable-gpu-memory-buffer-video-frames")
+            options.add_argument("--disable-background-media-suspend")
 
             # === PROXY ROTATION (se disponível) ===
             try:
@@ -133,11 +162,10 @@ class WebDriverManager:
             browser_path = self._get_browser_path()
             if browser_path:
                 options.binary_location = browser_path
-                print(f"[INFO] Executando com {self.browser.title()} Browser visível")
-            else:
-                print("[INFO] Executando com navegador visível")
 
             service = Service(self.driver_path)
+            # Suprimir logs do ChromeDriver
+            service.log_path = 'NUL'  # Windows equivalent of /dev/null
             self.driver = webdriver.Chrome(service=service, options=options)
 
             # === SCRIPT STEALTH AVANÇADO ===

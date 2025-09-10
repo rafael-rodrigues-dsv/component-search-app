@@ -162,19 +162,21 @@ class GoogleScraper:
                 links = self.driver.find_elements(By.CSS_SELECTOR, selector)
                 for link in links:
                     try:
-                        url = link.get_attribute("href")
-                        if url and self._is_valid_url(url):
-                            # Verifica blacklist
-                            domain = url.split('/')[2].lower()
-                            if not any(host in domain for host in blacklist_hosts):
-                                urls.append(url)
-                    except Exception as e:
-                        print(f"    [DEBUG] Erro ao processar link: {str(e)[:30]}")
+                        # Verifica se elemento ainda é válido
+                        if link.is_displayed():
+                            url = link.get_attribute("href")
+                            if url and self._is_valid_url(url):
+                                # Verifica blacklist
+                                domain = url.split('/')[2].lower()
+                                if not any(host in domain for host in blacklist_hosts):
+                                    urls.append(url)
+                    except Exception:
+                        # Ignora elementos stale silenciosamente
                         continue
                 if urls:
                     break
-            except Exception as e:
-                print(f"    [DEBUG] Erro no seletor: {str(e)[:30]}")
+            except Exception:
+                # Falha silenciosa no seletor
                 continue
 
         return urls
@@ -229,17 +231,16 @@ class GoogleScraper:
             self.driver.execute_script("window.open(arguments[0],'_blank');", url)
             self.driver.switch_to.window(self.driver.window_handles[-1])
 
-            # Timeout agressivo - 8 segundos máximo
-            self.driver.set_page_load_timeout(8)
+            # Timeout otimizado - 5 segundos máximo
+            self.driver.set_page_load_timeout(5)
             
             try:
-                # Aguarda carregamento
-                WebDriverWait(self.driver, 8).until(
+                # Aguarda carregamento mínimo
+                WebDriverWait(self.driver, 5).until(
                     EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
             except TimeoutException:
-                print(f"    [AVISO] Timeout no carregamento - continuando...")
-                # Continua mesmo com timeout
+                # Continua silenciosamente - timeout é esperado
                 pass
 
             # Para carregamento forçadamente se necessário

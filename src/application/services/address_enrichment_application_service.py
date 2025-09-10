@@ -71,20 +71,8 @@ class AddressEnrichmentApplicationService:
                     print(f"      ⚠️ CEP inválido ou ausente - pulando enriquecimento")
                     enriched_address = current_address
                 
-                # Criar tarefa de enriquecimento CEP
-                from ...infrastructure.repositories.access_repository import AccessRepository
-                repo = AccessRepository()
-                result = repo.fetch_one("SELECT ID_ENDERECO FROM TB_EMPRESAS WHERE ID_EMPRESA = ?", [empresa_id])
-                
-                if result:
-                    endereco_id = result[0]
-                    
-                    # Criar tarefa na TB_CEP_ENRICHMENT
-                    repo.create_cep_enrichment_task(empresa_id, endereco_id)
-                    print(f"      📋 Tarefa criada na TB_CEP_ENRICHMENT")
-                    
-                    # Contar como processado para estatísticas
-                    enriched_count += 1
+                # NÃO criar tarefa - deve ser processo separado
+                enriched_count += 1
                 
             except Exception as e:
                 print(f"[GEO] ⚠️  Erro ao processar empresa {empresa_id}: {e}")

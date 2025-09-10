@@ -470,11 +470,23 @@ class AccessRepository:
                            WHERE ID_EMPRESA = ?
                            """, latitude, longitude, distancia_km, empresa_id)
             
+            # Replicar distância para TB_PLANILHA
+            cursor.execute("SELECT SITE_URL FROM TB_EMPRESAS WHERE ID_EMPRESA = ?", empresa_id)
+            site_result = cursor.fetchone()
+            if site_result:
+                site_url = site_result[0]
+                cursor.execute("""
+                               UPDATE TB_PLANILHA
+                               SET DISTANCIA_KM = ?
+                               WHERE SITE = ?
+                               """, distancia_km, site_url)
+            
             conn.commit()
     
     def update_geolocation_result(self, id_geo: int, latitude: float, longitude: float, distancia_km: float):
         """Método legado - usar update_geolocation_success"""
         self.update_geolocation_success(id_geo, latitude, longitude, distancia_km)
+        print(f"      📋 Dados replicados: TB_EMPRESAS + TB_PLANILHA")
 
     def update_geolocation_error(self, id_geo: int, erro_descricao: str):
         """Atualiza erro na geolocalização"""
@@ -489,7 +501,7 @@ class AccessRepository:
             conn.commit()
 
     def update_planilha_distance_by_empresa(self, empresa_id: int, distancia_km: float):
-        """Atualiza distância na planilha baseado no ID da empresa"""
+        """Atualiza distância na planilha baseado no ID da empresa (método legado)"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
@@ -504,6 +516,7 @@ class AccessRepository:
                                WHERE SITE = ?
                                """, distancia_km, site_url)
                 conn.commit()
+                print(f"      📋 TB_PLANILHA atualizada: {distancia_km}km para {site_url}")
 
     def get_geolocation_stats(self) -> Dict[str, int]:
         """Obtém estatísticas de geolocalização"""

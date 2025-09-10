@@ -1,6 +1,6 @@
 [project]
 name = "python-search-app"
-version = "4.0.1"
+version = "4.1.0"
 description = "Aplicação Python para coleta de e-mails e geolocalização com sistema de controle de tarefas"
 authors = [{ name = "Developer", email = "dev@example.com" }]
 readme = "README.md"

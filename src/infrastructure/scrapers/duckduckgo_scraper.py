@@ -73,51 +73,60 @@ class DuckDuckGoScraper:
             self.driver_manager.driver.execute_script("window.scrollBy(0, 1500);")
             time.sleep(random.uniform(*self.delays["scroll"]))
 
+            # Aguarda elementos carregarem
+            WebDriverWait(self.driver_manager.driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
+            )
+            
             cards = self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']")
             for card in cards:
-                link_elements = card.find_elements(By.CSS_SELECTOR, "a[data-testid='result-title-a']")
-
-                if link_elements:
-                    href = link_elements[0].get_attribute("href") or ""
-                    if href.startswith("http") and not self._is_blacklisted(href, blacklist_hosts):
-                        links.append(href)
-        except Exception as e:
-            print(f"    [DEBUG] Erro ao extrair links: {str(e)[:50]}")
+                try:
+                    # Verifica se o elemento ainda é válido
+                    if card.is_displayed():
+                        link_elements = card.find_elements(By.CSS_SELECTOR, "a[data-testid='result-title-a']")
+                        
+                        if link_elements and link_elements[0].is_displayed():
+                            href = link_elements[0].get_attribute("href") or ""
+                            if href.startswith("http") and not self._is_blacklisted(href, blacklist_hosts):
+                                links.append(href)
+                except Exception:
+                    # Ignora elementos que se tornaram stale
+                    continue
+                    
+        except Exception:
+            # Falha silenciosa - não imprime erro pois é esperado
+            pass
 
         return list(set(links))  # Remove duplicatas
 
     def go_to_next_page(self):
         """Navega para a próxima página de resultados"""
         try:
-            # Scroll para o final da página
+            # Scroll progressivo para carregar mais resultados (DuckDuckGo usa lazy loading)
+            initial_results = len(self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']"))
+            
+            # Scroll até o final da página
             self.driver_manager.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(random.uniform(*self.delays["scroll"]))
-
-            # Procura botão "More results" ou similar
-            more_selectors = [
-                "button[id='more-results']",
-                "a[class*='more']",
-                "button:contains('More')",
-                "[data-testid='more-results']"
-            ]
-
-            for selector in more_selectors:
-                try:
-                    more_btn = self.driver_manager.driver.find_element(By.CSS_SELECTOR, selector)
-                    if more_btn.is_displayed():
-                        more_btn.click()
-                        time.sleep(random.uniform(*self.delays["page_load"]))
-                        return True
-                except Exception as e:
-                    print(f"    [DEBUG] Erro no seletor {selector}: {str(e)[:30]}")
-                    continue
-
-            # Se não encontrou botão, tenta scroll adicional para carregar mais
-            for _ in range(3):
+            
+            # Aguarda carregamento dinâmico
+            time.sleep(2)
+            
+            # Scroll adicional para garantir carregamento
+            for i in range(3):
                 self.driver_manager.driver.execute_script("window.scrollBy(0, 1000);")
                 time.sleep(random.uniform(*self.delays["scroll"]))
-
-            return True  # Assume que carregou mais resultados
+                
+                # Verifica se novos resultados foram carregados
+                current_results = len(self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']"))
+                if current_results > initial_results:
+                    return True
+            
+            # Scroll final para garantir que carregou tudo
+            self.driver_manager.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(1)
+            
+            return True  # Sempre retorna True pois DuckDuckGo carrega via scroll
 
         except Exception:
             return False
@@ -131,25 +140,16 @@ class DuckDuckGoScraper:
             self.driver_manager.driver.execute_script("window.open(arguments[0],'_blank');", url)
             self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[-1])
             
-            # Timeout muito agressivo - 5 segundos máximo
-            self.driver_manager.driver.set_page_load_timeout(5)
+            # Timeout otimizado - 3 segundos máximo
+            self.driver_manager.driver.set_page_load_timeout(3)
             
             try:
-                # Aguarda carregamento na nova aba
-                WebDriverWait(self.driver_manager.driver, 5).until(
+                # Aguarda carregamento mínimo
+                WebDriverWait(self.driver_manager.driver, 3).until(
                     EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
             except TimeoutException:
-                print(f"    [AVISO] Timeout no carregamento - continuando...")
-                pass
-            
-            # Aguarda mínimo para HTML carregar
-            try:
-                WebDriverWait(self.driver_manager.driver, 2).until(
-                    EC.presence_of_element_located((By.TAG_NAME, "body"))
-                )
-            except TimeoutException:
-                print(f"    [AVISO] Body não carregou - tentando extrair mesmo assim")
+                # Continua silenciosamente - timeout é esperado
                 pass
 
             # Para carregamento forçadamente

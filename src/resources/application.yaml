@@ -32,6 +32,7 @@ search:
     timeout: 3
     results_per_term_limit: 1200
     site_timeout: 5
+    suppress_browser_logs: true  # Suprimir logs do navegador
   retry:
     max_attempts: 3
     base_delay: 1.0
@@ -42,6 +43,11 @@ performance:
   tracking_enabled: true
   metrics_retention_hours: 24
 
+webdriver:
+  headless: true  # Modo invisível para melhor performance
+  suppress_gpu_errors: true  # Suprimir erros de GPU do Chrome
+  log_level: 3  # Nível mínimo de log (só erros críticos)
+  
 dashboard:
   enabled: true
   port: 5000
@@ -53,7 +59,7 @@ mode:
   complete_threshold: 1000
 
 geolocation:
- reference_cep: "04761-000" # CEP de referência para cálculo de distâncias
+ reference_cep: "18015-000" # CEP de referência para cálculo de distâncias
 
 geographic_discovery:
   enabled: true

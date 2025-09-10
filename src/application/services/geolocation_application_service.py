@@ -18,13 +18,8 @@ class GeolocationApplicationService:
     def process_geolocation(self) -> Dict[str, int]:
         """Processa geolocalização usando tabela de controle"""
         try:
-            # Enriquecer endereços com CEP antes da geolocalização
-            from .address_enrichment_application_service import AddressEnrichmentApplicationService
-            enrichment_service = AddressEnrichmentApplicationService()
-            total_processed, total_enriched = enrichment_service.enrich_addresses_for_geolocation()
-            
-            if total_enriched > 0:
-                self.logger.info(f"[GEO] 🎯 {total_enriched} endereços enriquecidos com dados do CEP")
+            # Enriquecimento CEP deve ser executado separadamente (opção [2] do menu)
+            print(f"[GEO] ℹ️ Enriquecimento CEP deve ser feito antes (opção [2] do menu)")
             
             print(f"[GEO] 🔍 Verificando tarefas pendentes na TB_GEOLOCALIZACAO...")
             
