@@ -2,6 +2,35 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [4.0.1] - 2024-12-19
+
+### 🐛 **Correções de Bug**
+
+#### **Correção de Concorrência no Banco Access**
+- **Erro Corrigido**: `Function sequence error (0) (SQLRowCount)` durante coleta
+- **Causa**: Múltiplas operações usando mesma conexão simultaneamente
+- **Solução**: 
+  - Parâmetros SQL como tuplas `(param,)` em vez de valores únicos
+  - Fechamento adequado de cursors com `cursor.close()`
+  - Remoção de context managers conflitantes
+  - Correção da query INSERT na TB_EMPRESAS
+- **Métodos Corrigidos**: `is_domain_visited()`, `is_email_collected()`, `save_endereco()`, `save_empresa()`, `update_empresa_status()`, `save_emails()`, `save_telefones()`, `get_geolocation_stats()`, `get_cep_enrichment_stats()`
+
+#### **Configuração de Build Otimizada**
+- **Arquivo .egg-info**: Movido de `src/` para pasta raiz do projeto
+- **setup.cfg**: Criado com `egg_base = .` para controlar localização
+- **pyproject.toml**: Atualizado com configurações de build adequadas
+- **Organização**: Arquivos de build agora ficam na raiz (mais limpo)
+
+### 🔧 **Melhorias Técnicas**
+
+- **Estabilidade**: Eliminação completa de erros de concorrência no banco
+- **Performance**: Conexões de banco mais eficientes
+- **Organização**: Estrutura de arquivos mais limpa
+- **Robustez**: Tratamento de erro melhorado nos métodos de repositório
+
+---
+
 ## [4.0.0] - 2024-12-19
 
 ### 🚀 **ATUALIZAÇÃO RECENTE: Interface Otimizada e Simplificada**

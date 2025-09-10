@@ -47,10 +47,16 @@ class AccessRepository:
 
     def is_domain_visited(self, domain: str) -> bool:
         """Verifica se domínio já foi visitado (substitui visited.json)"""
-        with self._get_connection() as conn:
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE DOMINIO = ?", domain)
-            return cursor.fetchone()[0] > 0
+            cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE DOMINIO = ?", (domain,))
+            result = cursor.fetchone()
+            cursor.close()
+            return result[0] > 0
+        except Exception as e:
+            self.logger.error(f"Erro ao verificar domínio visitado: {e}")
+            return False
 
     def save_endereco(self, address_model) -> int:
         """Salva endereço estruturado e retorna ID"""
@@ -58,37 +64,40 @@ class AccessRepository:
             return None
             
         try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Verificar se tabela existe
-                try:
-                    cursor.execute("SELECT COUNT(*) FROM TB_ENDERECOS")
-                except:
-                    print("[AVISO] Tabela TB_ENDERECOS não existe - pulando endereço")
-                    return None
-                
-                # Verificar se endereço já existe (por logradouro + numero + complemento)
-                cursor.execute("""
-                               SELECT ID_ENDERECO FROM TB_ENDERECOS 
-                               WHERE LOGRADOURO = ? AND NUMERO = ? AND COMPLEMENTO = ? AND BAIRRO = ?
-                               """, address_model.logradouro, address_model.numero, address_model.complemento, address_model.bairro)
-                existing = cursor.fetchone()
-                
-                if existing:
-                    return existing[0]
-                
-                # Inserir novo endereço
-                cursor.execute("""
-                               INSERT INTO TB_ENDERECOS (LOGRADOURO, NUMERO, COMPLEMENTO, BAIRRO, CIDADE, ESTADO, CEP, DATA_CRIACAO)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, Date())
-                               """, address_model.logradouro, address_model.numero, address_model.complemento, address_model.bairro, 
-                               address_model.cidade, address_model.estado, address_model.cep)
-                
-                cursor.execute("SELECT @@IDENTITY")
-                endereco_id = cursor.fetchone()[0]
-                conn.commit()
-                return endereco_id
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Verificar se tabela existe
+            try:
+                cursor.execute("SELECT COUNT(*) FROM TB_ENDERECOS")
+            except:
+                print("[AVISO] Tabela TB_ENDERECOS não existe - pulando endereço")
+                cursor.close()
+                return None
+            
+            # Verificar se endereço já existe (por logradouro + numero + complemento)
+            cursor.execute("""
+                           SELECT ID_ENDERECO FROM TB_ENDERECOS 
+                           WHERE LOGRADOURO = ? AND NUMERO = ? AND COMPLEMENTO = ? AND BAIRRO = ?
+                           """, (address_model.logradouro, address_model.numero, address_model.complemento, address_model.bairro))
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.close()
+                return existing[0]
+            
+            # Inserir novo endereço
+            cursor.execute("""
+                           INSERT INTO TB_ENDERECOS (LOGRADOURO, NUMERO, COMPLEMENTO, BAIRRO, CIDADE, ESTADO, CEP, DATA_CRIACAO)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, Date())
+                           """, (address_model.logradouro, address_model.numero, address_model.complemento, address_model.bairro, 
+                           address_model.cidade, address_model.estado, address_model.cep))
+            
+            cursor.execute("SELECT @@IDENTITY")
+            endereco_id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            return endereco_id
         except Exception as e:
             print(f"[AVISO] Erro ao salvar endereço: {e} - continuando sem endereço")
             return None
@@ -97,89 +106,99 @@ class AccessRepository:
                      address_model = None, latitude: float = None, longitude: float = None,
                      distancia_km: float = None) -> int:
         """Salva empresa com endereço estruturado"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Salvar endereço se houver
-            endereco_id = None
-            if address_model:
-                endereco_id = self.save_endereco(address_model)
-            
-            cursor.execute("""
-                           INSERT INTO TB_EMPRESAS (ID_TERMO, SITE_URL, DOMINIO, STATUS_COLETA,
-                                                    DATA_PRIMEIRA_VISITA, TENTATIVAS_COLETA, MOTOR_BUSCA,
-                                                    ID_ENDERECO, LATITUDE, LONGITUDE, DISTANCIA_KM)
-                           VALUES (?, ?, ?, 'PENDENTE', Date (), 0, ?, ?, ?, ?, ?)
-                           """, termo_id, site_url, domain, motor_busca, endereco_id, latitude, longitude, distancia_km)
-            cursor.execute("SELECT @@IDENTITY")
-            empresa_id = cursor.fetchone()[0]
-            conn.commit()
-            return empresa_id
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Salvar endereço se houver
+        endereco_id = None
+        if address_model:
+            endereco_id = self.save_endereco(address_model)
+        
+        cursor.execute("""
+                       INSERT INTO TB_EMPRESAS (ID_TERMO, SITE_URL, DOMINIO, STATUS_COLETA,
+                                                DATA_PRIMEIRA_VISITA, TENTATIVAS_COLETA, MOTOR_BUSCA,
+                                                ID_ENDERECO, LATITUDE, LONGITUDE, DISTANCIA_KM)
+                       VALUES (?, ?, ?, ?, Date (), ?, ?, ?, ?, ?, ?)
+                       """, (termo_id, site_url, domain, 'PENDENTE', 0, motor_busca, endereco_id, latitude, longitude, distancia_km))
+        cursor.execute("SELECT @@IDENTITY")
+        empresa_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        return empresa_id
 
     def update_empresa_status(self, empresa_id: int, status: str, nome_empresa: str = None):
         """Atualiza status da empresa após coleta"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            if nome_empresa:
-                cursor.execute("""
-                               UPDATE TB_EMPRESAS
-                               SET STATUS_COLETA      = ?,
-                                   NOME_EMPRESA       = ?,
-                                   DATA_ULTIMA_VISITA = Date (), TENTATIVAS_COLETA = TENTATIVAS_COLETA + 1
-                               WHERE ID_EMPRESA = ?
-                               """, status, nome_empresa, empresa_id)
-            else:
-                cursor.execute("""
-                               UPDATE TB_EMPRESAS
-                               SET STATUS_COLETA      = ?,
-                                   DATA_ULTIMA_VISITA = Date (), TENTATIVAS_COLETA = TENTATIVAS_COLETA + 1
-                               WHERE ID_EMPRESA = ?
-                               """, status, empresa_id)
-            conn.commit()
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        if nome_empresa:
+            cursor.execute("""
+                           UPDATE TB_EMPRESAS
+                           SET STATUS_COLETA      = ?,
+                               NOME_EMPRESA       = ?,
+                               DATA_ULTIMA_VISITA = Date (), TENTATIVAS_COLETA = TENTATIVAS_COLETA + 1
+                           WHERE ID_EMPRESA = ?
+                           """, (status, nome_empresa, empresa_id))
+        else:
+            cursor.execute("""
+                           UPDATE TB_EMPRESAS
+                           SET STATUS_COLETA      = ?,
+                               DATA_ULTIMA_VISITA = Date (), TENTATIVAS_COLETA = TENTATIVAS_COLETA + 1
+                           WHERE ID_EMPRESA = ?
+                           """, (status, empresa_id))
+        conn.commit()
+        cursor.close()
 
     # ===== E-MAILS =====
 
     def is_email_collected(self, email: str) -> bool:
         """Verifica se e-mail já foi coletado (substitui emails.json)"""
-        with self._get_connection() as conn:
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM TB_EMAILS WHERE EMAIL = ?", email)
-            return cursor.fetchone()[0] > 0
+            cursor.execute("SELECT COUNT(*) FROM TB_EMAILS WHERE EMAIL = ?", (email,))
+            result = cursor.fetchone()
+            cursor.close()
+            return result[0] > 0
+        except Exception as e:
+            self.logger.error(f"Erro ao verificar e-mail coletado: {e}")
+            return False
 
     def save_emails(self, empresa_id: int, emails: List[str], domain_email: str):
         """Salva e-mails otimizado"""
         if not emails:
             return
 
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
 
-            # Inserção em lote
-            email_data = [(empresa_id, email, domain_email) for email in emails]
-            cursor.executemany("""
-                               INSERT INTO TB_EMAILS (ID_EMPRESA, EMAIL, DOMINIO_EMAIL,
-                                                      VALIDADO, DATA_COLETA, ORIGEM_COLETA)
-                               VALUES (?, ?, ?, -1, Date (), 'SCRAPING')
-                               """, email_data)
-            conn.commit()
+        # Inserção em lote
+        email_data = [(empresa_id, email, domain_email, -1, 'SCRAPING') for email in emails]
+        cursor.executemany("""
+                           INSERT INTO TB_EMAILS (ID_EMPRESA, EMAIL, DOMINIO_EMAIL,
+                                                  VALIDADO, DATA_COLETA, ORIGEM_COLETA)
+                           VALUES (?, ?, ?, ?, Date (), ?)
+                           """, email_data)
+        conn.commit()
+        cursor.close()
 
     def save_telefones(self, empresa_id: int, telefones: List[Dict[str, str]]):
         """Salva telefones otimizado"""
         if not telefones:
             return
 
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
 
-            # Inserção em lote
-            phone_data = [(empresa_id, tel['original'], tel['formatted'],
-                           tel.get('ddd', ''), tel.get('tipo', 'FIXO')) for tel in telefones]
-            cursor.executemany("""
-                               INSERT INTO TB_TELEFONES (ID_EMPRESA, TELEFONE, TELEFONE_FORMATADO,
-                                                         DDD, TIPO_TELEFONE, VALIDADO, DATA_COLETA)
-                               VALUES (?, ?, ?, ?, ?, -1, Date () )
-                               """, phone_data)
-            conn.commit()
+        # Inserção em lote
+        phone_data = [(empresa_id, tel['original'], tel['formatted'],
+                       tel.get('ddd', ''), tel.get('tipo', 'FIXO'), -1) for tel in telefones]
+        cursor.executemany("""
+                           INSERT INTO TB_TELEFONES (ID_EMPRESA, TELEFONE, TELEFONE_FORMATADO,
+                                                     DDD, TIPO_TELEFONE, VALIDADO, DATA_COLETA)
+                           VALUES (?, ?, ?, ?, ?, ?, Date () )
+                           """, phone_data)
+        conn.commit()
+        cursor.close()
 
     # ===== TERMOS DE BUSCA =====
 
@@ -489,33 +508,34 @@ class AccessRepository:
     def get_geolocation_stats(self) -> Dict[str, int]:
         """Obtém estatísticas de geolocalização"""
         try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Total de empresas com endereço
-                cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE ID_ENDERECO IS NOT NULL")
-                total_com_endereco = cursor.fetchone()[0]
-                
-                # Tarefas de geolocalização
-                cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
-                geocodificadas = cursor.fetchone()[0]
-                
-                cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
-                pendentes = cursor.fetchone()[0]
-                
-                cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'ERRO'")
-                erros = cursor.fetchone()[0]
-                
-                return {
-                    'total_com_endereco': total_com_endereco,
-                    'geocodificadas': geocodificadas,
-                    'pendentes': pendentes,
-                    'erros': erros,
-                    'percentual': round((geocodificadas / max(total_com_endereco, 1)) * 100, 1)
-                }
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Total de empresas com endereço
+            cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE ID_ENDERECO IS NOT NULL")
+            total_com_endereco = cursor.fetchone()[0]
+            
+            # Tarefas de geolocalização
+            cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+            geocodificadas = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
+            pendentes = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM TB_GEOLOCALIZACAO WHERE STATUS_PROCESSAMENTO = 'ERRO'")
+            erros = cursor.fetchone()[0]
+            
+            cursor.close()
+            
+            return {
+                'total_com_endereco': total_com_endereco,
+                'geocodificadas': geocodificadas,
+                'pendentes': pendentes,
+                'erros': erros,
+                'percentual': round((geocodificadas / max(total_com_endereco, 1)) * 100, 1)
+            }
         except Exception as e:
             print(f"[AVISO] Erro ao obter estatísticas: {e}")
-            print("[INFO] Feche o arquivo Access se estiver aberto e tente novamente")
             return {
                 'total_com_endereco': 0,
                 'geocodificadas': 0,
@@ -834,27 +854,29 @@ class AccessRepository:
     def get_cep_enrichment_stats(self) -> Dict[str, int]:
         """Obtém estatísticas de enriquecimento CEP"""
         try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                
-                cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
-                concluidos = cursor.fetchone()[0]
-                
-                cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
-                pendentes = cursor.fetchone()[0]
-                
-                cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'ERRO'")
-                erros = cursor.fetchone()[0]
-                
-                total = concluidos + pendentes + erros
-                
-                return {
-                    'total': total,
-                    'concluidos': concluidos,
-                    'pendentes': pendentes,
-                    'erros': erros,
-                    'percentual': round((concluidos / max(total, 1)) * 100, 1)
-                }
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+            concluidos = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
+            pendentes = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM TB_CEP_ENRICHMENT WHERE STATUS_PROCESSAMENTO = 'ERRO'")
+            erros = cursor.fetchone()[0]
+            
+            cursor.close()
+            
+            total = concluidos + pendentes + erros
+            
+            return {
+                'total': total,
+                'concluidos': concluidos,
+                'pendentes': pendentes,
+                'erros': erros,
+                'percentual': round((concluidos / max(total, 1)) * 100, 1)
+            }
         except Exception as e:
             print(f"[AVISO] Erro ao obter estatísticas CEP: {e}")
             return {'total': 0, 'concluidos': 0, 'pendentes': 0, 'erros': 0, 'percentual': 0}

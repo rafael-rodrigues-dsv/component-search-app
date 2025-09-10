@@ -1,6 +1,6 @@
 [project]
 name = "python-search-app"
-version = "3.0.0"
+version = "4.0.1"
 description = "Aplicação Python para coleta de e-mails e geolocalização com sistema de controle de tarefas"
 authors = [{ name = "Developer", email = "dev@example.com" }]
 readme = "README.md"
@@ -29,6 +29,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["*"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+zip-safe = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
