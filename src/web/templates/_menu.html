@@ -1,0 +1,31 @@
+<!-- Shared hamburger header menu (included in pages) -->
+<nav class="main-header navbar navbar-expand-md navbar-dark bg-gradient-primary">
+    <div class="container-fluid">
+        <a href="/" class="navbar-brand">
+            <i class="fas fa-robot"></i>
+            <span class="brand-text font-weight-light">Python Search App</span>
+        </a>
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/config/terms">Configurações</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<script>
+// Small helper to ensure Bootstrap collapse works if adminlte/bootstrap scripts not loaded yet
+document.addEventListener('DOMContentLoaded', function(){
+    // nothing required — Bootstrap handles collapse via data- attributes
+});
+</script>

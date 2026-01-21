@@ -289,21 +289,35 @@ class AccessRepository:
     
     def execute_query(self, query: str, params: list = None):
         """Executa query genérica"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            if params:
-                cursor.execute(query, params)
-            else:
-                cursor.execute(query)
-            
-            # Se é SELECT, retornar resultados
-            if query.strip().upper().startswith('SELECT'):
-                columns = [desc[0] for desc in cursor.description]
-                rows = cursor.fetchall()
-                return [dict(zip(columns, row)) for row in rows]
-            else:
-                conn.commit()
-                return cursor.rowcount
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+
+                # Se é SELECT, retornar resultados
+                if query.strip().upper().startswith('SELECT'):
+                    # Proteção: cursor.description pode ser None se a execução falhar ou não retornar colunas
+                    if not cursor.description:
+                        self.logger.error(f"execute_query: Nenhuma descrição de colunas para query SELECT. Query: {query}")
+                        try:
+                            rows = cursor.fetchall()
+                        except Exception:
+                            return []
+                        return []
+
+                    columns = [desc[0] for desc in cursor.description]
+                    rows = cursor.fetchall()
+                    return [dict(zip(columns, row)) for row in rows]
+                else:
+                    conn.commit()
+                    return cursor.rowcount
+        except Exception as e:
+            # Logar erro e query para facilitar debug
+            self.logger.error(f"Erro ao executar query: {e} - Query: {query}")
+            return []
 
     # ===== PLANILHA =====
 
@@ -747,39 +761,53 @@ class AccessRepository:
     
     def get_processing_statistics(self) -> Dict[str, int]:
         """Obtém estatísticas completas do processamento"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
 
-            # Termos
-            cursor.execute("SELECT COUNT(*) FROM TB_TERMOS_BUSCA")
-            total_termos = cursor.fetchone()[0]
+                # Termos
+                cursor.execute("SELECT COUNT(*) FROM TB_TERMOS_BUSCA")
+                total_termos = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM TB_TERMOS_BUSCA WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
-            termos_concluidos = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM TB_TERMOS_BUSCA WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
+                termos_concluidos = cursor.fetchone()[0]
 
-            # Empresas
-            cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS")
-            total_empresas = cursor.fetchone()[0]
+                # Empresas
+                cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS")
+                total_empresas = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE STATUS_COLETA = 'COLETADO'")
-            empresas_coletadas = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE STATUS_COLETA = 'COLETADO'")
+                empresas_coletadas = cursor.fetchone()[0]
 
-            # E-mails e telefones
-            cursor.execute("SELECT COUNT(*) FROM TB_EMAILS")
-            total_emails = cursor.fetchone()[0]
+                # E-mails e telefones
+                cursor.execute("SELECT COUNT(*) FROM TB_EMAILS")
+                total_emails = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM TB_TELEFONES")
-            total_telefones = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM TB_TELEFONES")
+                total_telefones = cursor.fetchone()[0]
 
+                return {
+                    'termos_total': total_termos,
+                    'termos_concluidos': termos_concluidos,
+                    'termos_pendentes': total_termos - termos_concluidos,
+                    'empresas_total': total_empresas,
+                    'empresas_coletadas': empresas_coletadas,
+                    'emails_total': total_emails,
+                    'telefones_total': total_telefones,
+                    'progresso_pct': round((termos_concluidos / total_termos * 100), 1) if total_termos > 0 else 0
+                }
+        except Exception as e:
+            # Evitar propagar erros ODBC (SQLGetData/HY010). Retornar valores padrão e logar.
+            self.logger.error(f"Erro em get_processing_statistics: {e}")
             return {
-                'termos_total': total_termos,
-                'termos_concluidos': termos_concluidos,
-                'termos_pendentes': total_termos - termos_concluidos,
-                'empresas_total': total_empresas,
-                'empresas_coletadas': empresas_coletadas,
-                'emails_total': total_emails,
-                'telefones_total': total_telefones,
-                'progresso_pct': round((termos_concluidos / total_termos * 100), 1) if total_termos > 0 else 0
+                'termos_total': 0,
+                'termos_concluidos': 0,
+                'termos_pendentes': 0,
+                'empresas_total': 0,
+                'empresas_coletadas': 0,
+                'emails_total': 0,
+                'telefones_total': 0,
+                'progresso_pct': 0
             }
     
     # ===== CEP ENRICHMENT =====

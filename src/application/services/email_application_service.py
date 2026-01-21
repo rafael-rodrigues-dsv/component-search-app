@@ -26,6 +26,7 @@ from ...infrastructure.logging.structured_logger import StructuredLogger
 from ...infrastructure.metrics.performance_tracker import PerformanceTracker
 from ...infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ...infrastructure.scrapers.google_scraper import GoogleScraper
+from .robot_controller import is_stop_requested
 
 
 class EmailApplicationService(EmailCollectorInterface):
@@ -83,6 +84,13 @@ class EmailApplicationService(EmailCollectorInterface):
                 self.scraper.driver = self.driver_manager.driver
 
             # Obter termos do banco
+            # Garantir que os termos estejam inicializados no banco
+            try:
+                initialized = self.db_service.initialize_search_terms()
+                self.logger.info(f"Termos inicializados: {initialized}")
+            except Exception:
+                self.logger.warning("Falha ao inicializar termos dinamicamente; prosseguindo com termos existentes no banco")
+
             terms_data = self.db_service.get_search_terms()
             if not terms_data:
                 self.logger.error("Nenhum termo de busca encontrado")
@@ -107,6 +115,15 @@ class EmailApplicationService(EmailCollectorInterface):
                          mode="completo")
 
         for i, (term, term_data) in enumerate(zip(terms, terms_data), 1):
+            # Checar pedido de parada cooperativa
+            if is_stop_requested():
+                self.logger.info("Parada solicitada - encerrando coleta")
+                break
+
+            # Antes de iniciar um termo, checar novamente
+            if is_stop_requested():
+                self.logger.info("Parada solicitada antes de processar termo")
+                break
             if not self._execute_search_for_term(term, i, len(terms)):
                 self.db_service.update_term_status(term_data['id'], 'ERRO')
                 continue
@@ -199,11 +216,19 @@ class EmailApplicationService(EmailCollectorInterface):
         results_processed = 0
 
         for page in range(term.pages):
+            # Checar parada antes de processar cada página
+            if is_stop_requested():
+                self.logger.info("Parada solicitada - interrompendo paginação")
+                break
             links = self.scraper.get_result_links(BLACKLIST_HOSTS)
             if not links:
                 break
 
             for link in links:
+                # Checar parada em cada iteração de link (ponto de cooperação)
+                if is_stop_requested():
+                    self.logger.info("Parada solicitada - interrompendo processamento de links")
+                    break
 
                 results_processed += 1
                 global_processed += 1
@@ -229,7 +254,17 @@ class EmailApplicationService(EmailCollectorInterface):
                 if self._save_company_to_database(company, domain, term_data['id']):
                     term_saved += 1
 
-                time.sleep(random.uniform(*SEARCH_DWELL))
+                # Dormir entre acessos, mas de forma interrompível
+                sleep_time = random.uniform(*SEARCH_DWELL)
+                # Dividir sleep em pequenos pedaços para checar parada
+                waited = 0.0
+                step = 0.25
+                while waited < sleep_time:
+                    if is_stop_requested():
+                        self.logger.info('Parada solicitada durante sleep; abortando sleep')
+                        break
+                    time.sleep(min(step, sleep_time - waited))
+                    waited += step
 
             # Próxima página
             if page < term.pages - 1:

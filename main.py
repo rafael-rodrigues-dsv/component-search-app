@@ -10,7 +10,6 @@ from pathlib import Path
 
 from src.__version__ import __version__
 from src.application.services.database_service import DatabaseService
-from src.application.services.email_application_service import EmailApplicationService
 from src.web.dashboard_server import start_dashboard, stop_dashboard
 
 
@@ -84,44 +83,35 @@ def main():
     """Função principal da aplicação"""
     from src.infrastructure.config.config_manager import ConfigManager
     config = ConfigManager()
-    
+
+    # --- Verificação/autoupdate do ChromeDriver antes de iniciar a aplicação ---
+    try:
+        from src.infrastructure.drivers.chromedriver_updater import update_chromedriver
+        print('[INFO] Verificando ChromeDriver antes de iniciar a aplicação...')
+        try:
+            updated = update_chromedriver('drivers/chromedriver.exe')
+            if updated:
+                print('[OK] ChromeDriver verificado/atualizado com sucesso')
+            else:
+                print('[AVISO] Não foi possível garantir atualização automática do ChromeDriver; continuará com o driver atual (se houver)')
+        except Exception as e:
+            print(f'[AVISO] Erro ao executar updater do ChromeDriver: {e}')
+    except Exception:
+        # helper indisponível — continuar normalmente
+        print('[AVISO] Módulo de atualização do ChromeDriver não disponível; pulando verificação automática')
+
     # Mostrar modo de operação
     mode_text = "TESTE" if config.is_test_mode else "PRODUÇÃO"
     print(f"[INFO] Iniciando Python Search App - Coletor de E-mails e Contatos v{__version__}")
     print(f"[INFO] Modo de operação: {mode_text}")
 
-    # Verificar se pelo menos um navegador está disponível
-    chrome_available = _check_browser_availability("CHROME")
-    brave_available = _check_browser_availability("BRAVE")
-
-    if not chrome_available and not brave_available:
-        print("[ERRO] Nenhum navegador suportado encontrado!")
-        print("[INFO] Instale pelo menos um dos navegadores:")
-        print("  - Google Chrome: https://www.google.com/chrome/")
-        print("  - Brave Browser: https://brave.com/")
-        input("Pressione Enter para sair...")
-        return 1
-
-    # Formata lista de navegadores disponíveis
-    browsers = []
-    if chrome_available:
-        browsers.append("Google Chrome")
-    if brave_available:
-        browsers.append("Brave Browser")
-
-    if len(browsers) == 1:
-        print(f"[OK] Navegador disponível: {browsers[0]}")
-    else:
-        print(f"[OK] Navegadores disponíveis: {', '.join(browsers)}")
-
-    # Verificar se banco Access existe
+    # Verificar se banco Access existe (cria automaticamente se necessário)
     db_path = Path("data/pythonsearch.accdb")
 
     if not db_path.exists():
         print("[INFO] Banco Access não encontrado. Criando automaticamente...")
         if not _create_database_automatically():
             print("[ERRO] Falha ao criar banco de dados")
-            input("Pressione Enter para sair...")
             return 1
         print("[OK] Banco criado com sucesso!")
 
@@ -142,7 +132,6 @@ def main():
         
         if terms_count == 0:
             print("[ERRO] Falha ao inicializar termos de busca")
-            input("Pressione Enter para sair...")
             return 1
         
         mode_text = "TESTE" if config.is_test_mode else "PRODUÇÃO"
@@ -160,197 +149,39 @@ def main():
                 print(f"[OK] Banco recriado com {terms_count} termos")
             except Exception as e2:
                 print(f"[ERRO] Falha mesmo após recriar: {e2}")
-                input("Pressione Enter para sair...")
                 return 1
         else:
             print("[ERRO] Não foi possível recriar o banco")
-            input("Pressione Enter para sair...")
             return 1
 
-    # Escolher modo de operação
+    # Iniciar dashboard web (interface principal de execução)
     print("\n=== PYTHON SEARCH APP ===")
-    print("[1] Processar coleta de dados (e-mails e telefones)")
-    print("[2] Enriquecer endereços (ViaCEP)")
-    print("[3] Processar geolocalização (Nominatim)")
-    print("[4] Sair")
-    print("\n📊 Para gerar planilha Excel, use o dashboard web durante o processamento")
-
-    while True:
-        opcao = input("\nEscolha uma opção (1-4): ").strip()
-
-        if opcao == '1':
-            # Verificar se precisa resetar ou continuar APENAS para coleta
-            if not _handle_reset_option(db_service):
-                break
-            print("\n[INFO] Iniciando coleta de dados otimizada...")
-            
-            collector_service = EmailApplicationService()
-            
-            # Iniciar dashboard web DEPOIS dos inputs do usuário
-            try:
-                print("[INFO] Iniciando dashboard web...")
-                dashboard = start_dashboard()
-                
-                if dashboard:
-                    # Abrir browser automaticamente
-                    try:
-                        webbrowser.open('http://127.0.0.1:5000')
-                        print("[OK] Dashboard aberto no navegador")
-                    except:
-                        print("[AVISO] Não foi possível abrir o navegador automaticamente")
-                        print("[INFO] Acesse manualmente: http://127.0.0.1:5000")
-            except Exception as e:
-                print(f"[AVISO] Dashboard web não disponível: {e}")
-            
-            success = collector_service.execute()
-            break
-        elif opcao == '2':
-            print("\n[INFO] Iniciando enriquecimento de endereços via ViaCEP...")
-            from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
-            cep_service = CepEnrichmentApplicationService()
-
-            # Mostrar estatísticas antes
-            stats = cep_service.get_cep_enrichment_stats()
-            print(f"\n[INFO] Tarefas CEP: {stats['total']}")
-            print(f"[INFO] Já processadas: {stats['concluidos']} ({stats['percentual']}%)")
-            print(f"[INFO] Pendentes: {stats['pendentes']}")
-            print(f"[INFO] Erros: {stats['erros']}")
-
-            if stats['pendentes'] == 0 and stats['total'] > 0:
-                print("\n[OK] Todos os endereços já foram processados!")
-                success = True
-            else:
-                # Criar tarefas se necessário
-                if stats['total'] == 0:
-                    print("\n[INFO] Criando tarefas de enriquecimento...")
-                    created = cep_service.create_cep_enrichment_tasks()
-                    if created == 0:
-                        print("\n[AVISO] Nenhuma empresa com CEP encontrada!")
-                        success = False
-                        break
-                
-                # Iniciar dashboard web DEPOIS das verificações
-                try:
-                    print("[INFO] Iniciando dashboard web...")
-                    dashboard = start_dashboard()
-                    
-                    if dashboard:
-                        # Abrir browser automaticamente
-                        try:
-                            webbrowser.open('http://127.0.0.1:5000')
-                            print("[OK] Dashboard aberto no navegador")
-                        except:
-                            print("[AVISO] Não foi possível abrir o navegador automaticamente")
-                            print("[INFO] Acesse manualmente: http://127.0.0.1:5000")
-                except Exception as e:
-                    print(f"[AVISO] Dashboard web não disponível: {e}")
-                
-                result = cep_service.process_cep_enrichment()
-                success = result['processadas'] > 0
-                print(f"\n[OK] Processamento concluído: {result['enriquecidas']}/{result['total']} enriquecidas")
-            break
-        elif opcao == '3':
-            print("\n[INFO] Iniciando processamento de geolocalização via Nominatim...")
-            from src.application.services.geolocation_application_service import GeolocationApplicationService
-            geo_service = GeolocationApplicationService()
-
-            # Mostrar estatísticas antes
-            stats = geo_service.get_geolocation_stats()
-            print(f"\n[INFO] Empresas com endereço: {stats['total_com_endereco']}")
-            print(f"[INFO] Já geocodificadas: {stats['geocodificadas']} ({stats['percentual']}%)")
-            print(f"[INFO] Pendentes: {stats['pendentes']}")
-
-            if stats['pendentes'] == 0:
-                print("\n[OK] Todas as empresas já foram geocodificadas!")
-                success = True
-            else:
-                # Iniciar dashboard web DEPOIS das verificações
-                try:
-                    print("[INFO] Iniciando dashboard web...")
-                    dashboard = start_dashboard()
-                    
-                    if dashboard:
-                        # Abrir browser automaticamente
-                        try:
-                            webbrowser.open('http://127.0.0.1:5000')
-                            print("[OK] Dashboard aberto no navegador")
-                        except:
-                            print("[AVISO] Não foi possível abrir o navegador automaticamente")
-                            print("[INFO] Acesse manualmente: http://127.0.0.1:5000")
-                except Exception as e:
-                    print(f"[AVISO] Dashboard web não disponível: {e}")
-                
-                result = geo_service.process_geolocation()
-                success = result['geocodificadas'] > 0
-                print(f"\n[OK] Processamento concluído: {result['geocodificadas']}/{result['total']} geocodificadas")
-            break
-        elif opcao == '4':
-            print("\n[INFO] Saindo...")
-            return 0
-        else:
-            print("[ERRO] Opção inválida. Digite 1, 2, 3 ou 4.")
-
+    print("[INFO] Iniciando dashboard web (interface principal). Use a UI para controlar fluxos e configurar termos.")
+    dashboard = None
     try:
-        # Mostrar estatísticas finais
-        if success:
-            stats = db_service.get_statistics()
-            if stats:
-                print("\n[INFO] === ESTATÍSTICAS FINAIS ===")
-                print(f"[INFO] Termos processados: {stats['termos_concluidos']}/{stats['termos_total']} ({stats['progresso_pct']}%)")
-                print(f"[INFO] Empresas encontradas: {stats['empresas_total']}")
-                print(f"[INFO] E-mails coletados: {stats['emails_total']}")
-                print(f"[INFO] Telefones coletados: {stats['telefones_total']}")
-                
-                # Estatísticas de CEP enrichment
-                try:
-                    from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
-                    cep_service = CepEnrichmentApplicationService()
-                    cep_stats = cep_service.get_cep_enrichment_stats()
-                    if cep_stats['total'] > 0:
-                        print(f"[INFO] CEP enriquecidos: {cep_stats['concluidos']}/{cep_stats['total']} ({cep_stats['percentual']}%)")
-                except:
-                    pass
-                
-                # Estatísticas de geolocalização
-                try:
-                    from src.application.services.geolocation_application_service import GeolocationApplicationService
-                    geo_service = GeolocationApplicationService()
-                    geo_stats = geo_service.get_geolocation_stats()
-                    if geo_stats['total_com_endereco'] > 0:
-                        print(f"[INFO] Geocodificadas: {geo_stats['geocodificadas']}/{geo_stats['total_com_endereco']} ({geo_stats['percentual']}%)")
-                except:
-                    pass
+        dashboard = start_dashboard()
+        if dashboard and config.get_config_value('dashboard.auto_open_browser', True):
+            try:
+                webbrowser.open('http://127.0.0.1:5000')
+                print("[OK] Dashboard aberto no navegador")
+            except Exception:
+                print("[AVISO] Não foi possível abrir o navegador automaticamente. Acesse: http://127.0.0.1:5000")
+    except Exception as e:
+        print(f"[AVISO] Dashboard web não disponível: {e}")
 
-        if success:
-            print("[OK] Aplicação executada com sucesso")
-        else:
-            print("[ERRO] Falha na execução da aplicação")
-            
-        # Parar dashboard se estiver rodando
-        try:
-            stop_dashboard()
-        except:
-            pass
-        
-        # Fechar conexão singleton
-        try:
-            from src.infrastructure.repositories.access_repository import AccessRepository
-            AccessRepository().close_connection()
-            print("[OK] Conexão singleton fechada")
-        except:
-            pass
-        
-        input("Pressione Enter para sair...")
-        return 0 if success else 1
-
+    # Bloquear o processo principal mantendo o dashboard rodando (aguardar Ctrl+C)
+    try:
+        print('[INFO] Pressione Ctrl+C para encerrar o servidor e sair')
+        import time
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("\n[INFO] Aplicação interrompida pelo usuário")
-        # Parar dashboard
+        print('\n[INFO] Encerrando...')
+    finally:
         try:
             stop_dashboard()
         except:
             pass
-        # Fechar conexão singleton
         try:
             from src.infrastructure.repositories.access_repository import AccessRepository
             AccessRepository().close_connection()
@@ -358,20 +189,6 @@ def main():
             pass
         return 0
 
-    except Exception as e:
-        print(f"[ERRO] Erro inesperado: {e}")
-        # Parar dashboard
-        try:
-            stop_dashboard()
-        except:
-            pass
-        # Fechar conexão singleton
-        try:
-            from src.infrastructure.repositories.access_repository import AccessRepository
-            AccessRepository().close_connection()
-        except:
-            pass
-        return 1
 
 
 if __name__ == "__main__":

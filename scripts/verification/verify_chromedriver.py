@@ -107,6 +107,28 @@ def baixar_chromedriver(download_url):
         return False
 
 
+def _get_chromedriver_major() -> int | None:
+    """Retorna a versão major do chromedriver existente em drivers/chromedriver.exe"""
+    chromedriver_path = Path("drivers/chromedriver.exe")
+    if not chromedriver_path.exists():
+        return None
+    try:
+        import subprocess
+        proc = subprocess.run([str(chromedriver_path), '--version'], capture_output=True, text=True, timeout=5)
+        out = (proc.stdout or proc.stderr or '').strip()
+        # Exemplo: 'ChromeDriver 139.0.0.0 (abcdef)'
+        parts = out.split()
+        for token in parts:
+            if token and token[0].isdigit():
+                try:
+                    return int(token.split('.')[0])
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return None
+
+
 if __name__ == "__main__":
     print("🚗 Verificador de ChromeDriver")
     print("=" * 40)
@@ -119,8 +141,19 @@ if __name__ == "__main__":
 
     # Verificar ChromeDriver
     if verificar_chromedriver():
-        print("\n✅ ChromeDriver já está instalado!")
-        sys.exit(0)
+        # checar compatibilidade
+        drv_major = _get_chromedriver_major()
+        try:
+            chrome_major = int(chrome_version)
+        except Exception:
+            chrome_major = None
+
+        if drv_major is not None and chrome_major is not None and drv_major == chrome_major:
+            print(f"\n[OK] ChromeDriver já está instalado e é compatível (Chrome {chrome_major}, Chromedriver {drv_major})")
+            sys.exit(0)
+        else:
+            print(f"\n[AVISO] ChromeDriver existente detectado (versão {drv_major}) mas não compatível com Chrome {chrome_version}. Irei atualizar...")
+            # continuar para baixar
 
     # Baixar ChromeDriver
     download_url = get_download_url(chrome_version)

@@ -44,18 +44,21 @@ class GeolocationService:
             if result.success:
                 self.lat_referencia = result.latitude
                 self.lon_referencia = result.longitude
-                self.logger.info(f"Ponto de referência: {self.cep_referencia} ({result.latitude}, {result.longitude})")
+                # log removido: Ponto de referência
+                # self.logger.info(f"Ponto de referência: {self.cep_referencia} ({result.latitude}, {result.longitude})")
             else:
                 self._usar_fallback_sao_paulo()
         except Exception as e:
-            self.logger.error(f"Erro ao inicializar referência: {self._sanitize_log(str(e))}")
+            # log removido: Erro ao inicializar referência
+            # self.logger.error(f"Erro ao inicializar referência: {self._sanitize_log(str(e))}")
             self._usar_fallback_sao_paulo()
 
     def _usar_fallback_sao_paulo(self):
         """Usa centro de São Paulo como fallback"""
         self.lat_referencia = -23.5505
         self.lon_referencia = -46.6333
-        self.logger.warning("Usando centro de SP como referência")
+        # log removido: aviso fallback
+        # self.logger.warning("Usando centro de SP como referência")
 
     def _sanitize_log(self, text: str) -> str:
         """Sanitiza texto para logs evitando log injection"""
@@ -68,10 +71,12 @@ class GeolocationService:
 
     def geocodificar_endereco_estruturado(self, address_model) -> GeoResult:
         """Converte AddressModel em coordenadas (método otimizado)"""
+
         if not address_model or not address_model.is_valid():
             return GeoResult()
 
-        self.logger.info(f"[GEO] Geocodificando estruturado: {address_model.logradouro}")
+        # log removido: Geocodificando estruturado
+        # self.logger.info(f"[GEO] Geocodificando estruturado: {address_model.logradouro}")
 
         # Usar campos estruturados diretamente
         result = self._geocodificar_structured_model(address_model)
@@ -87,7 +92,8 @@ class GeolocationService:
         if not endereco:
             return GeoResult()
 
-        self.logger.info(f"[GEO] Geocodificando: {self._sanitize_log(endereco)}")
+        # log removido: Geocodificando
+        # self.logger.info(f"[GEO] Geocodificando: {self._sanitize_log(endereco)}")
 
         # Tentar structured query primeiro
         result = self._geocodificar_structured(endereco)
@@ -162,15 +168,22 @@ class GeolocationService:
             data = response.json()
             if data:
                 lat, lon = float(data[0]['lat']), float(data[0]['lon'])
-                self.logger.info(f"[GEO] Structured {tipo} OK: {lat}, {lon}")
+                # log removido: structured ok
+                # self.logger.info(f"[GEO] Structured {tipo} OK: {lat}, {lon}")
                 return GeoResult(latitude=lat, longitude=lon, success=True)
 
         except requests.RequestException as e:
-            self.logger.debug(f"[GEO] {tipo} - erro de rede: {self._sanitize_log(str(e))}")
+            # log removido: erro de rede
+            # self.logger.debug(f"[GEO] {tipo} - erro de rede: {self._sanitize_log(str(e))}")
+            pass
         except (ValueError, KeyError) as e:
-            self.logger.debug(f"[GEO] {tipo} - erro de parsing: {self._sanitize_log(str(e))}")
+            # log removido: erro de parsing
+            # self.logger.debug(f"[GEO] {tipo} - erro de parsing: {self._sanitize_log(str(e))}")
+            pass
         except Exception as e:
-            self.logger.debug(f"[GEO] {tipo} - erro inesperado: {self._sanitize_log(str(e))}")
+            # log removido: erro inesperado
+            # self.logger.debug(f"[GEO] {tipo} - erro inesperado: {self._sanitize_log(str(e))}")
+            pass
 
         return GeoResult()
     
@@ -205,15 +218,22 @@ class GeolocationService:
             data = response.json()
             if data:
                 lat, lon = float(data[0]['lat']), float(data[0]['lon'])
-                self.logger.info(f"[GEO] Structured OK: {lat}, {lon}")
+                # log removido: structured ok
+                # self.logger.info(f"[GEO] Structured OK: {lat}, {lon}")
                 return GeoResult(latitude=lat, longitude=lon, success=True)
 
         except requests.RequestException as e:
-            self.logger.warning(f"[GEO] Erro de rede: {self._sanitize_log(str(e))}")
+            # log removido: aviso de rede
+            # self.logger.warning(f"[GEO] Erro de rede: {self._sanitize_log(str(e))}")
+            pass
         except (ValueError, KeyError) as e:
-            self.logger.debug(f"[GEO] Erro de parsing: {self._sanitize_log(str(e))}")
+            # log removido: erro de parsing
+            # self.logger.debug(f"[GEO] Erro de parsing: {self._sanitize_log(str(e))}")
+            pass
         except Exception as e:
-            self.logger.error(f"[GEO] Erro inesperado: {self._sanitize_log(str(e))}")
+            # log removido: erro inesperado
+            # self.logger.error(f"[GEO] Erro inesperado: {self._sanitize_log(str(e))}")
+            pass
 
         return GeoResult()
 
@@ -245,7 +265,8 @@ class GeolocationService:
                 data = response.json()
                 if data:
                     lat, lon = float(data[0]['lat']), float(data[0]['lon'])
-                    self.logger.info(f"[GEO] Freeform OK: {lat}, {lon}")
+                    # log removido: freeform ok
+                    # self.logger.info(f"[GEO] Freeform OK: {lat}, {lon}")
                     return GeoResult(latitude=lat, longitude=lon, success=True)
 
                 # Rate limiting apenas entre tentativas
@@ -253,13 +274,20 @@ class GeolocationService:
                     time.sleep(0.5)
 
             except requests.RequestException as e:
-                self.logger.warning(f"[GEO] Tentativa {i} - erro de rede: {self._sanitize_log(str(e))}")
+                # log removido: erro de rede
+                # self.logger.warning(f"[GEO] Tentativa {i} - erro de rede: {self._sanitize_log(str(e))}")
+                pass
             except (ValueError, KeyError) as e:
-                self.logger.debug(f"[GEO] Tentativa {i} - erro de parsing: {self._sanitize_log(str(e))}")
+                # log removido: erro de parsing
+                # self.logger.debug(f"[GEO] Tentativa {i} - erro de parsing: {self._sanitize_log(str(e))}")
+                pass
             except Exception as e:
-                self.logger.error(f"[GEO] Tentativa {i} - erro inesperado: {self._sanitize_log(str(e))}")
+                # log removido: erro inesperado
+                # self.logger.error(f"[GEO] Tentativa {i} - erro inesperado: {self._sanitize_log(str(e))}")
+                pass
 
-        self.logger.warning(f"[GEO] Falha total: {self._sanitize_log(endereco)}")
+        # log removido: falha total
+        # self.logger.warning(f"[GEO] Falha total: {self._sanitize_log(endereco)}")
         return GeoResult()
 
     def _parse_endereco(self, endereco: str) -> Tuple[str, str, str]:
@@ -304,7 +332,8 @@ class GeolocationService:
             if len(cep_limpo) != 8:
                 return GeoResult()
 
-            self.logger.debug(f"[GEO] Geocodificando CEP: {cep}")
+            # log removido: debug cep
+            # self.logger.debug(f"[GEO] Geocodificando CEP: {cep}")
 
             # Rate limiting para ViaCEP
             time.sleep(0.3)
@@ -324,11 +353,17 @@ class GeolocationService:
             return self.geocodificar_endereco(endereco)
 
         except requests.exceptions.Timeout:
-            self.logger.warning(f"[GEO] Timeout na consulta do CEP: {cep}")
+            # log removido: timeout
+            # self.logger.warning(f"[GEO] Timeout na consulta do CEP: {cep}")
+            pass
         except requests.RequestException as e:
-            self.logger.warning(f"[GEO] Erro de rede no CEP {cep}: {self._sanitize_log(str(e))}")
+            # log removido: erro de rede no cep
+            # self.logger.warning(f"[GEO] Erro de rede no CEP {cep}: {self._sanitize_log(str(e))}")
+            pass
         except Exception as e:
-            self.logger.error(f"[GEO] Erro inesperado no CEP {cep}: {self._sanitize_log(str(e))}")
+            # log removido: erro inesperado no cep
+            # self.logger.error(f"[GEO] Erro inesperado no CEP {cep}: {self._sanitize_log(str(e))}")
+            pass
 
         return GeoResult()
 
@@ -371,7 +406,8 @@ class GeolocationService:
             thread.join(timeout=10)
 
             if thread.is_alive():
-                self.logger.warning("[GEO] TIMEOUT (10s) - Geocodificação cancelada")
+                # log removido: timeout
+                # self.logger.warning("[GEO] TIMEOUT (10s) - Geocodificação cancelada")
                 return endereco, None, None, None
 
             try:
@@ -387,9 +423,11 @@ class GeolocationService:
                 result.latitude, result.longitude
             )
 
-            self.logger.info(f"[GEO] Distância calculada: {distancia}km")
+            # log removido: distância calculada
+            # self.logger.info(f"[GEO] Distância calculada: {distancia}km")
             return endereco, result.latitude, result.longitude, distancia
 
         except Exception as e:
-            self.logger.error(f"[GEO] Erro inesperado: {self._sanitize_log(str(e))}")
+            # log removido: erro inesperado
+            # self.logger.error(f"[GEO] Erro inesperado: {self._sanitize_log(str(e))}")
             return endereco, None, None, None

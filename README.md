@@ -1,6 +1,6 @@
 # 🤖 PYTHON SEARCH APP v4.0.0 - COLETOR DE E-MAILS E CONTATOS COM DESCOBERTA GEOGRÁFICA DINÂMICA
 
-Aplicação Python para coleta de e-mails, telefones e geolocalização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture**, **Endereços Estruturados Normalizados** e **Descoberta Geográfica 100% Automática**.
+Aplicação Python para coleta de e-mails, telefones e geolocalização de empresas usando Google/DuckDuckGo e Selenium com **Clean Architecture**, **Endereços Estruturados Normalizados** e **Descoberta Geográfica Dinâmica**.
 
 ## 📋 O que a Aplicação Faz
 
@@ -22,6 +22,8 @@ Aplicação Python para coleta de e-mails, telefones e geolocalização de empre
 | **📊 Dashboard Web Integrado** | **NOVO**: Interface AdminLTE com métricas em tempo real     |
 | **⚙️ Modo completo**           | Processamento completo de todos os resultados                |
 | **🔄 Reinício opcional**      | Continuar anterior ou começar do zero                        |
+| **🖥️ Controles via Dashboard** | Interface web para iniciar/parar processos, selecionar navegador/motor de busca, visualizar métricas em tempo real e gerenciar termos (tags) |
+| **🧾 Termos Persistidos**      | Termos de busca gerenciados no banco de dados; listagem, inclusão e remoção via UI (tags) |
 
 ## 🏗️ Arquitetura v4.0.0 - Clean Architecture + Descoberta Geográfica Dinâmica
 
@@ -226,6 +228,20 @@ A aplicação:
 7. **⚙️ Configurações automáticas**: Motor de busca e modo são configurados durante a coleta
 8. **🔄 Reset opcional**: Pergunta sobre reset apenas na opção de coleta
 
++Operação via Dashboard (resumo rápido):
++
++- Inicie o aplicativo (`.\iniciar_robo_simples.bat` ou `python main.py`).
++- Abra `http://127.0.0.1:5000/` no navegador.
++- Na área "Controles do Robô": selecione o navegador e motor de busca, visualize as tags (termos), e use os botões para iniciar/parar o processo ou resetar a busca.
++- A remoção de termos nas tags é imediata (DELETE `/api/terms/<id>`); inclusão/edição também pode ser feita pela tela de configuração (`/config/terms`).
++
++Diagnóstico rápido (endpoints úteis):
++
++- `GET /api/terms?limit=100` — listar termos ativos
++- `GET /api/browser-availability` — navegadores detectados e padrão
++- `POST /api/execute` — iniciar/parar jobs (payload: action, job_type, browser, engine)
++- `POST /api/reset-search` — resetar dados coletados e reinicializar termos
+
 ### Configurações v4.0.0
 
 - **Arquivo principal**: `src/resources/application.yaml`
@@ -308,7 +324,7 @@ A aplicação gera:
 
 - **E-mails**: `email1@domain.com;email2@domain.com;`
 - **Telefones**: `(11) 99999-8888;(11) 3333-4444;`
-- **Endereços Estruturados**: 
+- **Endereços Estruturados**:
   - `LOGRADOURO`: "Rua Augusta"
   - `NUMERO`: "123"
   - `BAIRRO`: "Consolação"

@@ -8,6 +8,13 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 
 from ..network.retry_manager import RetryManager
+import logging
+import os
+from pathlib import Path
+import traceback
+import subprocess
+import sys
+from typing import Optional
 
 
 class WebDriverManager:
@@ -19,7 +26,7 @@ class WebDriverManager:
         self.driver = None
         self.wait = None
 
-    def _get_browser_path(self) -> str:
+    def _get_browser_path(self) -> Optional[str]:
         """Obtém caminho do navegador baseado no tipo"""
         import os
 
@@ -36,15 +43,21 @@ class WebDriverManager:
 
     def start_driver(self) -> bool:
         """Inicia o driver Chrome com anti-detecção avançada"""
+        logger = logging.getLogger(__name__)
+        # Criar `options` aqui para garantir que exista também no bloco de tratamento de exceções
+        options = Options()
         try:
-            options = Options()
             import random
             import time
             
             # === MODO HEADLESS (INVISÍVEL) ===
             from src.infrastructure.config.config_manager import ConfigManager
+            from src.application.services.user_config_service import UserConfigService
             config = ConfigManager()
-            if config.get('webdriver.headless', True):  # Padrão: invisível
+            # Primeiro, respeitar override vindo da UI (UserConfigService). Se None, usar application.yaml
+            ui_headless = UserConfigService.get_headless()
+            use_headless = bool(config.get('webdriver.headless', True)) if ui_headless is None else bool(ui_headless)
+            if use_headless:
                 options.add_argument('--headless')
                 print("[INFO] Executando em modo invisível (headless) para melhor performance")
             else:
@@ -163,9 +176,21 @@ class WebDriverManager:
             if browser_path:
                 options.binary_location = browser_path
 
+            # Verificar se o executável do driver existe
+            driver_file = Path(self.driver_path)
+            if not driver_file.exists():
+                logger.error(f"Chromedriver não encontrado em: {self.driver_path}")
+                print(f"[ERRO] Chromedriver não encontrado em: {self.driver_path}")
+                return False
+
             service = Service(self.driver_path)
-            # Suprimir logs do ChromeDriver
-            service.log_path = 'NUL'  # Windows equivalent of /dev/null
+            # Suprimir logs do ChromeDriver usando os.devnull
+            try:
+                service.log_path = os.devnull
+            except Exception:
+                # fallback para 'NUL' no Windows
+                service.log_path = 'NUL'
+
             self.driver = webdriver.Chrome(service=service, options=options)
 
             # === SCRIPT STEALTH AVANÇADO ===
@@ -239,8 +264,82 @@ class WebDriverManager:
             self.wait = WebDriverWait(self.driver, 10)
 
             return True
-        except WebDriverException:
+        except Exception as e:
+            # Log completo com traceback para diagnosticar falhas de inicialização
+            logger.error(f"Falha ao iniciar driver: {e}")
+            logger.debug(traceback.format_exc())
+            print(f"[ERROR] Falha ao iniciar driver: {e}")
+            print(traceback.format_exc())
+            # Tentativa automática de correção quando incompatibilidade entre ChromeDriver e Chrome
+            msg = str(e)
+            if 'This version of ChromeDriver only supports Chrome version' in msg or 'session not created' in msg.lower():
+                try:
+                    # Usar helper centralizado para atualizar chromedriver (tenta webdriver_manager, chromedriver_autoinstaller ou script)
+                    try:
+                        from .chromedriver_updater import update_chromedriver
+                        updated = update_chromedriver(self.driver_path)
+                        if updated:
+                            # Se atualizado, tentar iniciar com o novo driver
+                            try:
+                                service = Service(self.driver_path)
+                                try:
+                                    service.log_path = os.devnull
+                                except Exception:
+                                    service.log_path = 'NUL'
+                                self.driver = webdriver.Chrome(service=service, options=options)
+                                self.wait = WebDriverWait(self.driver, 10)
+                                print('[OK] ChromeDriver atualizado e driver iniciado com sucesso')
+                                return True
+                            except Exception as e2:
+                                logger.debug(f'Falha ao iniciar driver após update: {e2}')
+                        else:
+                            logger.debug('Tentativa de atualização do ChromeDriver falhou')
+                    except Exception as up_exc:
+                        logger.debug(f'Erro ao chamar chromedriver_updater: {up_exc}')
+
+                    verifier = Path('scripts/verification/verify_chromedriver.py')
+                    if verifier.exists():
+                        print('[INFO] Detectada incompatibilidade entre ChromeDriver e Chrome. Tentando atualizar o ChromeDriver automaticamente...')
+                        # Executar script com o mesmo interpretador usado pela aplicação; forçar UTF-8 para evitar erros de codificação
+                        env = os.environ.copy()
+                        env['PYTHONIOENCODING'] = 'utf-8'
+                        proc = subprocess.run([sys.executable, str(verifier)], capture_output=True, text=True, env=env)
+                        # Mostrar saída curta sem lançar erros de codificação
+                        if proc.stdout:
+                            try:
+                                print(proc.stdout)
+                            except Exception:
+                                print(proc.stdout.encode('utf-8', errors='replace').decode('utf-8', errors='replace'))
+                        if proc.stderr:
+                            try:
+                                print(proc.stderr)
+                            except Exception:
+                                print(proc.stderr.encode('utf-8', errors='replace').decode('utf-8', errors='replace'))
+
+                        # Se o script instalou o driver, tentar criar novamente
+                        driver_file = Path(self.driver_path)
+                        if driver_file.exists():
+                            try:
+                                service = Service(self.driver_path)
+                                try:
+                                    service.log_path = os.devnull
+                                except Exception:
+                                    service.log_path = 'NUL'
+                                self.driver = webdriver.Chrome(service=service, options=options)
+                                self.wait = WebDriverWait(self.driver, 10)
+                                print('[OK] ChromeDriver atualizado e driver iniciado com sucesso')
+                                return True
+                            except Exception as e2:
+                                print(f"[ERROR] Falha ao iniciar driver mesmo após tentativa de atualização: {e2}")
+                                print(traceback.format_exc())
+                    else:
+                        print('[AVISO] Script de verificação de ChromeDriver não encontrado: scripts/verification/verify_chromedriver.py')
+                except Exception as fix_e:
+                    print(f"[ERRO] Tentativa automática de atualizar ChromeDriver falhou: {fix_e}")
+                    print(traceback.format_exc())
+
             return False
+
 
     @RetryManager.with_retry(max_attempts=3, base_delay=1.5, exceptions=(WebDriverException,))
     def navigate_to(self, url: str) -> bool:

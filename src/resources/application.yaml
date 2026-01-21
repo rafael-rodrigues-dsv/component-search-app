@@ -55,7 +55,7 @@ dashboard:
   update_interval_seconds: 2
 
 mode:
-  is_test: false
+  is_test: true
   complete_threshold: 1000
 
 geolocation:

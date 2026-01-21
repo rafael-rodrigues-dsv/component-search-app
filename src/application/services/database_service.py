@@ -80,18 +80,29 @@ class DatabaseService:
             # Limpar termos existentes
             self.domain_service.clear_search_terms()
             
-            # Verificar modo de teste e usar constantes do config
+            # Verificar modo de teste e usar constants do service
             is_test_mode = config.is_test_mode
             
-            from config.settings import BASE_BUSCA, BASE_TESTES
-            
-            if is_test_mode:
-                print("[INFO] Modo TESTE ativado - usando base reduzida")
-                base_busca = BASE_TESTES
-            else:
-                print("[INFO] Modo PRODUÇÃO ativado - usando base completa")
-                base_busca = BASE_BUSCA
-            
+            # Tentar obter termos do banco (TB_BASE_BUSCA) via SearchTermService
+            try:
+                from .search_term_service import SearchTermService
+                st_service = SearchTermService()
+                active_terms = [r['TERMO_BUSCA'] for r in st_service.get_active_terms(is_test=is_test_mode)]
+                if active_terms:
+                    base_busca = active_terms
+                    print(f"[INFO] Usando {len(base_busca)} termos ativos do banco")
+                else:
+                    raise Exception("Sem termos ativos no banco")
+            except Exception:
+                # Fallback para constants do settings
+                from config.settings import BASE_BUSCA, BASE_TESTES
+                if is_test_mode:
+                    print("[INFO] Modo TESTE ativado - fallback para BASE_TESTES")
+                    base_busca = BASE_TESTES
+                else:
+                    print("[INFO] Modo PRODUÇÃO ativado - fallback para BASE_BUSCA")
+                    base_busca = BASE_BUSCA
+
             terms = []
             term_id = 1
             
@@ -134,7 +145,11 @@ class DatabaseService:
 
     def get_search_terms(self) -> list:
         """Obtém lista de termos para processamento"""
-        return self.domain_service.get_pending_terms()
+        try:
+            return self.domain_service.get_pending_terms()
+        except Exception as e:
+            self.logger.error(f"Erro ao obter termos de busca: {e}")
+            return []
 
     def is_domain_visited(self, domain: str) -> bool:
         """Verifica se domínio já foi visitado"""
@@ -213,8 +228,20 @@ class DatabaseService:
             return self.domain_service.get_processing_statistics()
         except Exception as e:
             self.logger.error(f"Erro ao obter estatísticas: {e}")
-            return None
-    
+            # Retornar dict padrão para evitar None
+            return {
+                'termos_total': 0,
+                'termos_concluidos': 0,
+                'progresso_pct': 0,
+                'empresas_total': 0,
+                'empresas_visitadas': 0,
+                'empresas_coletadas': 0,
+                'empresas_nao_coletadas': 0,
+                'taxa_coleta_pct': 0,
+                'emails_total': 0,
+                'telefones_total': 0
+            }
+
     def get_company_collection_stats(self) -> dict:
         """Obtém estatísticas detalhadas de coleta de empresas"""
         try:
