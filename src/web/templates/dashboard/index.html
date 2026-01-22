@@ -63,7 +63,7 @@
 </head>
 <body class="hold-transition layout-top-nav">
 <div class="wrapper">
-    {% include '_menu.html' %}
+    {% include 'header/_menu.html' %}
 
     <!-- Content Wrapper -->
     <div class="content-wrapper">
@@ -81,7 +81,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Main content -->
         <section class="content">
             <div class="container">
@@ -100,7 +100,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="col-12 col-sm-6 col-md-3">
                         <div class="info-box">
                             <span class="info-box-icon bg-success elevation-1"><i class="fas fa-percentage"></i></span>
@@ -113,7 +113,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="col-12 col-sm-6 col-md-3">
                         <div class="info-box">
                             <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-envelope"></i></span>
@@ -124,7 +124,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="col-12 col-sm-6 col-md-3">
                         <div class="info-box">
                             <span class="info-box-icon bg-danger elevation-1"><i class="fas fa-phone"></i></span>
@@ -136,7 +136,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Small boxes (Stat box) -->
                 <div class="row" id="flow-cards">
                     <!-- Coleta de Dados -->
@@ -155,7 +155,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- CEP Enrichment -->
                     <div class="col-lg-4 col-6 flow-card" data-flow="cep">
                         <div class="small-box bg-success">
@@ -172,7 +172,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Geolocation -->
                     <div class="col-lg-4 col-6 flow-card" data-flow="geo">
                         <div class="small-box bg-warning">
@@ -190,7 +190,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Chart -->
                 <div class="row">
                     <div class="col-md-12">
@@ -207,7 +207,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Export Excel -->
                 <div class="row">
                     <div class="col-12">
@@ -228,13 +228,17 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Robot Controls -->
                 <div class="row">
                     <div class="col-12">
                         <div class="card">
                             <div class="card-header">
                                 <h3 class="card-title"><i class="fas fa-play-circle mr-1"></i>Controles do Robô</h3>
+                                <div class="card-tools">
+                                    <span id="robot-status" class="d-inline-block badge badge-secondary">Parado</span>
+                                    <span id="robot-current-job" class="ml-2 small text-muted">Nenhuma tarefa ativa</span>
+                                </div>
                             </div>
                             <div class="card-body text-center">
                                 <div class="row mb-3">
@@ -299,380 +303,186 @@
 
     <script>
         // Configuração do Socket.IO
-        // Reutiliza conexão Socket.IO global se já existir (evita múltiplas conexões)
         const socket = (typeof window !== 'undefined' && window.socket) ? window.socket : (typeof io !== 'undefined' ? io() : null);
         if (typeof window !== 'undefined' && !window.socket && socket) window.socket = socket;
 
-        // Configuração do gráfico
-        const ctx = document.getElementById('progressChart').getContext('2d');
-        const progressChart = new Chart(ctx, {
+        // Inicializar gráfico Chart.js
+        const ctx = document.getElementById('progressChart') ? document.getElementById('progressChart').getContext('2d') : null;
+        const progressChart = ctx ? new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [
-                    {
-                        label: 'Empresas Visitadas',
-                        data: [],
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Empresas Coletadas',
-                        data: [],
-                        borderColor: '#48bb78',
-                        backgroundColor: 'rgba(72, 187, 120, 0.1)',
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Empresas Não Coletadas',
-                        data: [],
-                        borderColor: '#f56565',
-                        backgroundColor: 'rgba(245, 101, 101, 0.1)',
-                        tension: 0.4
-                    }
+                    { label: 'Empresas Visitadas', data: [], borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', tension: 0.4 },
+                    { label: 'Empresas Coletadas', data: [], borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.4 },
+                    { label: 'Empresas Não Coletadas', data: [], borderColor: '#f56565', backgroundColor: 'rgba(245,101,101,0.1)', tension: 0.4 }
                 ]
             },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    }
-                }
-            }
-        });
-        
+            options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'top' } } }
+        }) : null;
+
         // Eventos do Socket.IO
-        socket.on('connect', function() {
-            const conn = document.getElementById('connection-status');
-            if (conn) conn.innerHTML = '<i class="fas fa-circle text-success"></i> Conectado';
-        });
-        
-        socket.on('disconnect', function() {
-            const conn = document.getElementById('connection-status');
-            if (conn) conn.innerHTML = '<i class="fas fa-circle text-danger"></i> Desconectado';
-        });
-        
-        socket.on('stats_update', function(data) {
-            updateDashboard(data);
-        });
-        
-        // Robot events - atualizar badge e job corrente
-        socket.on('robot_status', function(data) {
-            try {
-                const running = !!data.running;
-                const job = data.job || '';
-                const badge = document.getElementById('robot-status');
-                const jobEl = document.getElementById('robot-current-job');
-                if (running) {
-                    badge.textContent = 'Em execução';
-                    badge.className = 'd-inline-block badge badge-success';
-                    jobEl.textContent = `Tarefa: ${job}`;
-                } else {
-                    badge.textContent = 'Parado';
-                    badge.className = 'd-inline-block badge badge-secondary';
-                    jobEl.textContent = 'Nenhuma tarefa ativa';
-                }
-            } catch (e) {
-                console.error('Erro ao processar robot_status', e);
-            }
-        });
+        if (socket) {
+            socket.on('connect', function() {
+                const conn = document.getElementById('connection-status'); if (conn) conn.innerHTML = '<i class="fas fa-circle text-success"></i> Conectado';
+            });
+            socket.on('disconnect', function() { const conn = document.getElementById('connection-status'); if (conn) conn.innerHTML = '<i class="fas fa-circle text-danger"></i> Desconectado'; });
 
-        // Robot logs: append com timestamp (novos em cima)
-        socket.on('robot_log', function(evt) {
-            try {
-                const logs = document.getElementById('robot-logs');
-                const ts = new Date().toLocaleTimeString();
-                const level = (evt && evt.level) ? evt.level.toUpperCase() : 'INFO';
-                const msg = (evt && evt.message) ? evt.message : '';
-                const line = `${ts} [${level}] ${msg}\n`;
-                logs.textContent = line + logs.textContent;
-            } catch (e) {
-                console.error('Erro ao processar robot_log', e);
-            }
-        });
+            socket.on('stats_update', function(data) { updateDashboard(data); });
 
-        // Evento específico para progresso do CEP em tempo real
-        socket.on('cep_progress', function(data) {
-            // Atualizar apenas os elementos do CEP
-            document.getElementById('cep-concluidos').textContent = data.enriquecidas || 0;
-            document.getElementById('cep-pendentes').textContent = data.pendentes || 0;
-            document.getElementById('cep-taxa-box').textContent = `${data.percentual || 0}%`;
-            document.getElementById('progress-cep').style.width = `${data.percentual || 0}%`;
-            
-            // Mostrar progresso atual no console (opcional)
-            console.log(`CEP Progress: ${data.processadas}/${data.total} (${data.enriquecidas} enriquecidas)`);
-        });
-        
-        // Evento específico para progresso da geolocalização em tempo real
-        socket.on('geo_progress', function(data) {
-            // Atualizar apenas os elementos da geolocalização
-            document.getElementById('geo-concluidos').textContent = data.geocodificadas || 0;
-            document.getElementById('geo-pendentes').textContent = data.pendentes || 0;
-            document.getElementById('geo-taxa-box').textContent = `${data.percentual || 0}%`;
-            document.getElementById('progress-geo').style.width = `${data.percentual || 0}%`;
-            
-            // Mostrar progresso atual no console (opcional)
-            console.log(`GEO Progress: ${data.processadas}/${data.total} (${data.geocodificadas} geocodificadas)`);
-        });
-        
-        // Função para atualizar dashboard
+            socket.on('robot_status', function(data) {
+                try {
+                    const running = !!data.running;
+                    const job = data.job || '';
+                    const badge = document.getElementById('robot-status');
+                    const jobEl = document.getElementById('robot-current-job');
+                    if (running) {
+                        badge.textContent = 'Em execução';
+                        badge.className = 'd-inline-block badge badge-success';
+                        jobEl.textContent = `Tarefa: ${job}`;
+                    } else {
+                        badge.textContent = 'Parado';
+                        badge.className = 'd-inline-block badge badge-secondary';
+                        jobEl.textContent = 'Nenhuma tarefa ativa';
+                    }
+                } catch (e) { console.error('Erro ao processar robot_status', e); }
+            });
+
+            socket.on('robot_log', function(evt) {
+                try {
+                    const logs = document.getElementById('robot-logs');
+                    const ts = new Date().toLocaleTimeString();
+                    const level = (evt && evt.level) ? evt.level.toUpperCase() : 'INFO';
+                    const msg = (evt && evt.message) ? evt.message : '';
+                    const line = `${ts} [${level}] ${msg}\n`;
+                    logs.textContent = line + logs.textContent;
+                } catch (e) { console.error('Erro ao processar robot_log', e); }
+            });
+
+            socket.on('cep_progress', function(data) {
+                document.getElementById('cep-concluidos').textContent = data.enriquecidas || 0;
+                document.getElementById('cep-pendentes').textContent = data.pendentes || 0;
+                document.getElementById('cep-taxa-box').textContent = `${data.percentual || 0}%`;
+                document.getElementById('progress-cep').style.width = `${data.percentual || 0}%`;
+            });
+
+            socket.on('geo_progress', function(data) {
+                document.getElementById('geo-concluidos').textContent = data.geocodificadas || 0;
+                document.getElementById('geo-pendentes').textContent = data.pendentes || 0;
+                document.getElementById('geo-taxa-box').textContent = `${data.percentual || 0}%`;
+                document.getElementById('progress-geo').style.width = `${data.percentual || 0}%`;
+            });
+        }
+
         function updateDashboard(data) {
-            // Coleta de dados
-            const coleta = data.coleta;
-            document.getElementById('termos-processados').textContent = 
-                `${coleta.termos_concluidos}/${coleta.termos_total}`;
-            document.getElementById('progress-termos').style.width = `${coleta.progresso_pct}%`;
-            document.getElementById('progress-termos-text').textContent = `${coleta.progresso_pct}% Completo`;
-            // Estatísticas de empresas
+            const coleta = data.coleta || {};
+            document.getElementById('termos-processados').textContent = `${coleta.termos_concluidos || 0}/${coleta.termos_total || 0}`;
+            document.getElementById('progress-termos').style.width = `${coleta.progresso_pct || 0}%`;
+            document.getElementById('progress-termos-text').textContent = `${coleta.progresso_pct || 0}% Completo`;
             document.getElementById('empresas-visitadas').textContent = coleta.empresas_visitadas || 0;
             document.getElementById('empresas-coletadas').textContent = coleta.empresas_coletadas || 0;
             document.getElementById('taxa-coleta').textContent = `${coleta.taxa_coleta_pct || 0}%`;
-            document.getElementById('emails-total').textContent = coleta.emails_total;
-            document.getElementById('telefones-total').textContent = coleta.telefones_total;
-            
-            // Box de coleta
+            document.getElementById('emails-total').textContent = coleta.emails_total || 0;
+            document.getElementById('telefones-total').textContent = coleta.telefones_total || 0;
+
             document.getElementById('empresas-coletadas-box').textContent = coleta.empresas_coletadas || 0;
             document.getElementById('empresas-visitadas-box').textContent = coleta.empresas_visitadas || 0;
             document.getElementById('taxa-coleta-box').textContent = `${coleta.taxa_coleta_pct || 0}%`;
             document.getElementById('progress-coleta').style.width = `${coleta.taxa_coleta_pct || 0}%`;
-            
-            // CEP
-            const cep = data.cep;
-            document.getElementById('progress-cep').style.width = `${cep.percentual}%`;
+
+            const cep = data.cep || {};
+            document.getElementById('progress-cep').style.width = `${cep.percentual || 0}%`;
             document.getElementById('cep-concluidos').textContent = cep.concluidos || 0;
             document.getElementById('cep-pendentes').textContent = cep.pendentes || 0;
             document.getElementById('cep-taxa-box').textContent = `${cep.percentual || 0}%`;
-            
-            // Geolocalização
-            const geo = data.geo;
-            document.getElementById('progress-geo').style.width = `${geo.percentual}%`;
+
+            const geo = data.geo || {};
+            document.getElementById('progress-geo').style.width = `${geo.percentual || 0}%`;
             document.getElementById('geo-concluidos').textContent = geo.geocodificadas || 0;
             document.getElementById('geo-pendentes').textContent = geo.pendentes || 0;
             document.getElementById('geo-taxa-box').textContent = `${geo.percentual || 0}%`;
-            
-            // Timestamp
-            const timestamp = new Date(data.timestamp).toLocaleString('pt-BR');
-            document.getElementById('last-update').textContent = timestamp;
-            
-            // Atualizar visibilidade dos cards
+
+            document.getElementById('last-update').textContent = new Date(data.timestamp || Date.now()).toLocaleString('pt-BR');
+
             updateCardVisibility();
-            
-            // Atualizar gráfico
             updateChart(data);
         }
-        
-        // Função para controlar visibilidade dos cards (defensiva)
-        function updateCardVisibility() {
-            const flowEl = document.getElementById('flow-select');
-            const selectedFlow = flowEl ? flowEl.value : 'all';
-            const flowCards = document.querySelectorAll('.flow-card');
-            
-            flowCards.forEach(card => {
-                const cardFlow = card.getAttribute('data-flow');
-                if (selectedFlow === 'all' || selectedFlow === cardFlow) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
-        
-        // Event listener para o combo
-        document.addEventListener('DOMContentLoaded', function () {
-            const flowSelect = document.getElementById('flow-select');
-            if (flowSelect) {
-                flowSelect.addEventListener('change', updateCardVisibility);
-            }
-        });
 
-        // Função para atualizar gráfico
         function updateChart(data) {
+            if (!progressChart) return;
             const now = new Date().toLocaleTimeString();
-            
-            // Manter apenas os últimos 20 pontos
             if (progressChart.data.labels.length >= 20) {
                 progressChart.data.labels.shift();
-                progressChart.data.datasets.forEach(dataset => {
-                    dataset.data.shift();
-                });
+                progressChart.data.datasets.forEach(dataset => dataset.data.shift());
             }
-            
             progressChart.data.labels.push(now);
             progressChart.data.datasets[0].data.push(data.coleta.empresas_visitadas || 0);
             progressChart.data.datasets[1].data.push(data.coleta.empresas_coletadas || 0);
             progressChart.data.datasets[2].data.push(data.coleta.empresas_nao_coletadas || 0);
-            
             progressChart.update('none');
         }
-        
-        // Robot control helpers
-        // Helpers to safely read selects (fallbacks)
-        function getSelectedBrowser() {
-            const el = document.getElementById('ui-browser-select');
-            if (!el) return 'CHROME';
-            const v = el.value || el.options[el.selectedIndex] && el.options[el.selectedIndex].value;
-            return v || 'CHROME';
+
+        function updateCardVisibility() {
+            const flowEl = document.getElementById('flow-select');
+            const selectedFlow = flowEl ? flowEl.value : 'all';
+            const flowCards = document.querySelectorAll('.flow-card');
+            flowCards.forEach(card => {
+                const cardFlow = card.getAttribute('data-flow');
+                card.style.display = (selectedFlow === 'all' || selectedFlow === cardFlow) ? 'block' : 'none';
+            });
         }
 
-        function getSelectedEngine() {
-            const el = document.getElementById('ui-engine-select');
-            if (!el) return 'GOOGLE';
-            const v = el.value || el.options[el.selectedIndex] && el.options[el.selectedIndex].value;
-            return v || 'GOOGLE';
-        }
-
-        function getSelectedHeadless() {
-            const el = document.getElementById('ui-headless-select');
-            if (!el) return 'false';
-            const v = el.value || el.options[el.selectedIndex] && el.options[el.selectedIndex].value;
-            return v || 'false';
-        }
-
-        // Initialize browser select using /api/browser-availability
         document.addEventListener('DOMContentLoaded', function () {
+            const flowSelect = document.getElementById('flow-select');
+            if (flowSelect) flowSelect.addEventListener('change', updateCardVisibility);
+
+            // Inicial fetch
+            fetch('/api/stats').then(r => r.json()).then(d => updateDashboard(d)).catch(()=>{});
+
+            // Inicializar browser list
             try {
-                fetch('/api/browser-availability')
-                    .then(r => r.json())
-                    .then(json => {
-                        if (!json) return;
-                        const available = Array.isArray(json.available) ? json.available : [];
-                        const defaultBrowser = json.default || 'CHROME';
-                        const browEl = document.getElementById('ui-browser-select');
-                        if (browEl) {
-                            // Clear existing options and populate from available
-                            browEl.innerHTML = '';
-                            if (available.length === 0) {
-                                // fallback: populate known options
-                                const opts = [{v: 'CHROME', t: 'Google Chrome'}, {v: 'BRAVE', t: 'Brave Browser'}];
-                                for (const o of opts) {
-                                    const opt = document.createElement('option'); opt.value = o.v; opt.text = o.t; browEl.appendChild(opt);
-                                }
-                            } else {
-                                for (const b of available) {
-                                    const text = b === 'CHROME' ? 'Google Chrome' : (b === 'BRAVE' ? 'Brave Browser' : b);
-                                    const opt = document.createElement('option'); opt.value = b; opt.text = text; browEl.appendChild(opt);
-                                }
-                            }
-                            // select default if present
-                            try { browEl.value = defaultBrowser; } catch (e) { /* ignore */ }
+                fetch('/api/browser-availability').then(r=>r.json()).then(json=>{
+                    if(!json) return;
+                    const available = Array.isArray(json.available)?json.available:[];
+                    const defaultBrowser = json.default || 'CHROME';
+                    const browEl = document.getElementById('ui-browser-select');
+                    if (browEl) {
+                        browEl.innerHTML = '';
+                        if (available.length === 0) {
+                            const opts = [{v:'CHROME',t:'Google Chrome'},{v:'BRAVE',t:'Brave Browser'}];
+                            for(const o of opts){ const opt=document.createElement('option'); opt.value=o.v; opt.text=o.t; browEl.appendChild(opt); }
+                        } else {
+                            for(const b of available){ const text = b==='CHROME'?'Google Chrome':(b==='BRAVE'?'Brave Browser':b); const opt=document.createElement('option'); opt.value=b; opt.text=text; browEl.appendChild(opt); }
                         }
-                    })
-                    .catch(() => {});
-            } catch (e) {
-                // ignore
-            }
+                        try{ browEl.value = defaultBrowser; }catch(e){}
+                    }
+                }).catch(()=>{});
+            } catch(e) {}
         });
 
-        async function startJob(jobType) {
-            // defensive: avoid null refs
-            const exportRes = document.getElementById('export-result'); if (exportRes) exportRes.textContent = '';
-            const badge = document.getElementById('robot-status');
-            const jobEl = document.getElementById('robot-current-job');
-            try {
-                // Ler seleções do UI via helpers
-                const browser = getSelectedBrowser();
-                const engine = getSelectedEngine();
-                const headless = getSelectedHeadless();
+        function getSelectedBrowser(){ const el=document.getElementById('ui-browser-select'); if(!el) return 'CHROME'; return el.value || 'CHROME'; }
+        function getSelectedEngine(){ const el=document.getElementById('ui-engine-select'); if(!el) return 'GOOGLE'; return el.value || 'GOOGLE'; }
+        function getSelectedHeadless(){ const el=document.getElementById('ui-headless-select'); if(!el) return 'false'; return el.value || 'false'; }
 
-                // Otimista: atualizar UI imediatamente
-                if (badge) { badge.textContent = 'Iniciando...'; badge.className = 'd-inline-block badge badge-info'; }
+        async function startJob(jobType){
+            const exportRes = document.getElementById('export-result'); if(exportRes) exportRes.textContent='';
+            const badge = document.getElementById('robot-status'); const jobEl=document.getElementById('robot-current-job');
+            try{
+                const browser = getSelectedBrowser(); const engine = getSelectedEngine(); const headless = getSelectedHeadless();
+                if (badge) { badge.textContent='Iniciando...'; badge.className='d-inline-block badge badge-info'; }
                 if (jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
-
-                const resp = await fetch('/api/execute', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({action: 'start', job_type: jobType, browser: browser, engine: engine, headless: headless})
-                });
+                const resp = await fetch('/api/execute', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'start', job_type: jobType, browser: browser, engine: engine, headless: headless}) });
                 const json = await resp.json();
-                if (json.success) {
-                    if (badge) { badge.textContent = 'Em execução'; badge.className = 'd-inline-block badge badge-success'; }
-                    if (jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
-                } else {
-                    if (badge) { badge.textContent = 'Erro'; badge.className = 'd-inline-block badge badge-danger'; }
-                    if (jobEl) jobEl.textContent = json.message || 'Falha ao iniciar';
-                    alert('Erro: ' + (json.message || 'Falha ao iniciar'));
-                }
-            } catch (e) {
-                if (badge) { badge.textContent = 'Erro'; badge.className = 'd-inline-block badge badge-danger'; }
-                if (jobEl) jobEl.textContent = 'Erro ao chamar API';
-                alert('Erro ao chamar API: ' + e);
-            }
+                if (json.success) { if(badge){ badge.textContent='Em execução'; badge.className='d-inline-block badge badge-success'; } if(jobEl) jobEl.textContent = `Tarefa: ${jobType}`; }
+                else { if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent = json.message || 'Falha ao iniciar'; alert('Erro: '+(json.message||'Falha ao iniciar')); }
+            } catch(e){ if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent='Erro ao chamar API'; alert('Erro ao chamar API: '+e); }
         }
 
-        async function stopJob() {
-            const badge = document.getElementById('robot-status');
-            const jobEl = document.getElementById('robot-current-job');
-            try {
-                const resp = await fetch('/api/execute', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({action: 'stop'})
-                });
-                const json = await resp.json();
-                if (json.success) {
-                    badge.textContent = 'Parado';
-                    badge.className = 'd-inline-block badge badge-secondary';
-                    jobEl.textContent = 'Nenhuma tarefa ativa';
-                } else {
-                    badge.textContent = 'Erro';
-                    badge.className = 'd-inline-block badge badge-danger';
-                    jobEl.textContent = json.message || 'Falha ao parar';
-                    alert('Erro: ' + (json.message || 'Falha ao parar'));
-                }
-            } catch (e) {
-                badge.textContent = 'Erro';
-                badge.className = 'd-inline-block badge badge-danger';
-                jobEl.textContent = 'Erro ao chamar API';
-                alert('Erro ao chamar API: ' + e);
-            }
+        async function stopJob(){ const badge=document.getElementById('robot-status'); const jobEl=document.getElementById('robot-current-job');
+            try{ const resp = await fetch('/api/execute',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'stop'}) }); const json = await resp.json(); if(json.success){ badge.textContent='Parado'; badge.className='d-inline-block badge badge-secondary'; jobEl.textContent='Nenhuma tarefa ativa'; } else { badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent = json.message || 'Falha ao parar'; alert('Erro: '+(json.message||'Falha ao parar')); } } catch(e){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent='Erro ao chamar API'; alert('Erro ao chamar API: '+e); }
         }
 
-        // Carregar dados iniciais
-        fetch('/api/stats')
-             .then(response => response.json())
-             .then(data => updateDashboard(data))
-             .catch(error => console.error('Erro ao carregar dados:', error));
-
-        // Função para exportar Excel
-        function exportExcel() {
-            const btn = document.getElementById('export-btn');
-            const result = document.getElementById('export-result');
-            
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Gerando...';
-            result.innerHTML = '';
-            
-            fetch('/api/export-excel')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        result.innerHTML = `<div class="alert alert-success">
-                            <i class="fas fa-check mr-2"></i>
-                            ${data.message}
-                        </div>`;
-                    } else {
-                        result.innerHTML = `<div class="alert alert-danger">
-                            <i class="fas fa-times mr-2"></i>
-                            Erro: ${data.message}
-                        </div>`;
-                    }
-                })
-                .catch(error => {
-                    result.innerHTML = `<div class="alert alert-danger">
-                        <i class="fas fa-times mr-2"></i>
-                        Erro: ${error.message}
-                    </div>`;
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-download mr-2"></i>Gerar Planilha Excel';
-                });
-        }
+        function exportExcel(){ const btn=document.getElementById('export-btn'); const result=document.getElementById('export-result'); btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Gerando...'; result.innerHTML=''; fetch('/api/export-excel').then(r=>r.json()).then(data=>{ if(data.success){ result.innerHTML = `<div class="alert alert-success"><i class="fas fa-check mr-2"></i>${data.message}</div>`; } else { result.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times mr-2"></i>Erro: ${data.message}</div>`; } }).catch(error=>{ result.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times mr-2"></i>Erro: ${error.message}</div>`; }).finally(()=>{ btn.disabled=false; btn.innerHTML='<i class="fas fa-download mr-2"></i>Gerar Planilha Excel'; }); }
     </script>
 <!-- AdminLTE JS -->
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
@@ -680,4 +490,3 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-

@@ -1,0 +1,51 @@
+<div class="col-md-12">
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Municípios</h3></div>
+        <div class="card-body">
+            <div class="mb-3 d-flex">
+                <div style="margin-left:auto; display:flex; align-items:center;">
+                   <label for="mun-page-size" class="small mr-2" style="margin-bottom:0">Exibir:</label>
+                   <select id="mun-page-size" class="form-control form-control-sm" style="width:90px">
+                       <option value="5">5</option>
+                       <option value="10">10</option>
+                       <option value="50">50</option>
+                   </select>
+               </div>
+            </div>
+
+            <table class="table table-sm" id="mun-table">
+                <thead><tr><th>ID</th><th>Município</th><th>Ações</th></tr></thead>
+                <tbody>
+                  <tr id="mun-new-row" style="display:none;">
+                    <td></td>
+                    <td><input id="row-new-mun" class="form-control form-control-sm" placeholder="Novo município"></td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button id="btn-add-mun" class="btn btn-primary">OK</button>
+                        <button id="btn-cancel-mun" class="btn btn-outline-secondary">X</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+            </table>
+
+            <!-- Botão + (mantido) -->
+            <div class="mt-2 text-right">
+                <button id="btn-open-mun-editor" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Adicionar</button>
+            </div>
+
+            <div class="pagination-controls text-center mt-3">
+                <button id="btn-prev-mun" class="btn btn-outline-primary" disabled>Anterior</button>
+                <span id="pagination-mun-info" class="mx-3">Página 1 de 1</span>
+                <button id="btn-next-mun" class="btn btn-outline-primary" disabled>Próximo</button>
+            </div>
+         </div>
+     </div>
+ </div>
+
+<!-- Toast container -->
+<div aria-live="polite" aria-atomic="true" style="position: fixed; top: 1rem; right: 1rem; z-index: 2000;">
+   <div id="toast-container-mun"></div>
+</div>
+
+<script src="/static/js/workflow/workflow_step_cities.js"></script>

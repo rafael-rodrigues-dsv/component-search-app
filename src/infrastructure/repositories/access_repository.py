@@ -33,8 +33,24 @@ class AccessRepository:
 
     def _get_connection(self):
         """Obtém conexão singleton com o banco"""
+        import time
         if self._connection is None:
-            self._connection = pyodbc.connect(self.conn_str)
+            attempts = 6
+            delay = 0.2
+            last_exc = None
+            for attempt in range(1, attempts + 1):
+                try:
+                    self._connection = pyodbc.connect(self.conn_str)
+                    return self._connection
+                except Exception as e:
+                    last_exc = e
+                    self.logger.warning(f"Tentativa {attempt}/{attempts} - falha ao conectar ODBC: {e}")
+                    if attempt < attempts:
+                        time.sleep(delay)
+                        delay *= 2
+                        continue
+                    # exausted
+                    raise
         return self._connection
     
     def close_connection(self):

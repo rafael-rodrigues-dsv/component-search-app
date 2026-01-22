@@ -54,6 +54,8 @@ def create_simple_db(auto_mode=False):
             "CREATE TABLE TB_CIDADES (ID_CIDADE COUNTER PRIMARY KEY, NOME_CIDADE TEXT(100), UF TEXT(2), ATIVO BIT, DATA_CRIACAO DATE)",
             # TB_BASE_BUSCA com colunas extras para compatibilidade (IS_TEST, CREATED_BY, UPDATED_BY, UPDATED_AT)
             "CREATE TABLE TB_BASE_BUSCA (ID_BASE COUNTER PRIMARY KEY, TERMO_BUSCA TEXT(200), CATEGORIA TEXT(50), ATIVO BIT, DATA_CRIACAO DATE, IS_TEST BIT, CREATED_BY TEXT(100), UPDATED_BY TEXT(100), UPDATED_AT DATE)",
+            # Tabela para armazenar dados do CEP de referência (CEP, cidade, estado, logradouro)
+            "CREATE TABLE TB_CEP_CONFIG (ID_CEP_CONFIG COUNTER PRIMARY KEY, CEP TEXT(10), CIDADE TEXT(100), ESTADO TEXT(2), LOGRADOURO TEXT(255), DATA_ATUALIZACAO DATE)",
             "CREATE TABLE TB_ENDERECOS (ID_ENDERECO COUNTER PRIMARY KEY, LOGRADOURO TEXT(200), NUMERO TEXT(20), COMPLEMENTO TEXT(50), BAIRRO TEXT(100), CIDADE TEXT(100), ESTADO TEXT(2), CEP TEXT(10), DATA_CRIACAO DATE)",
             "CREATE TABLE TB_TERMOS_BUSCA (ID_TERMO COUNTER PRIMARY KEY, ID_BASE LONG, ID_ZONA LONG, ID_BAIRRO LONG, ID_CIDADE LONG, TERMO_COMPLETO TEXT(255), TIPO_LOCALIZACAO TEXT(20), STATUS_PROCESSAMENTO TEXT(20), DATA_CRIACAO DATE, DATA_PROCESSAMENTO DATE)",
             "CREATE TABLE TB_EMPRESAS (ID_EMPRESA COUNTER PRIMARY KEY, ID_TERMO LONG, SITE_URL TEXT(255), DOMINIO TEXT(100), NOME_EMPRESA TEXT(100), STATUS_COLETA TEXT(20), DATA_PRIMEIRA_VISITA DATE, DATA_ULTIMA_VISITA DATE, TENTATIVAS_COLETA LONG, MOTOR_BUSCA TEXT(20), ID_ENDERECO LONG, LATITUDE DOUBLE, LONGITUDE DOUBLE, DISTANCIA_KM DOUBLE)",
@@ -76,166 +78,16 @@ def create_simple_db(auto_mode=False):
                 # Continuar mesmo com erro
                 pass
 
-        print("[INFO] Carregando dados basicos...")
+        # Apenas criamos as tabelas; população será realizada por serviços separados
+        print("[INFO] Tabelas criadas. População de dados será executada separadamente pelo serviço de inicialização.")
 
-        # Dados organizados por categoria
-        zonas = [
-            "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona norte', 'SP', -1, Date())",
-            "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona sul', 'SP', -1, Date())",
-            "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona leste', 'SP', -1, Date())",
-            "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona oeste', 'SP', -1, Date())",
-            "INSERT INTO TB_ZONAS (NOME_ZONA, UF, ATIVO, DATA_CRIACAO) VALUES ('zona central', 'SP', -1, Date())"
-        ]
-
-        # Tabelas TB_BAIRROS e TB_CIDADES ficam vazias - serão populadas pela descoberta dinâmica
-        bairros = []  # Sem dados hardcoded
-        cidades = []  # Sem dados hardcoded
-
-        # Carregar termos baseado na configuração
-        import sys
-        sys.path.append(str(project_root / "src"))
-        
+        # Fechar Access COM agora que as tabelas foram criadas
         try:
-            from infrastructure.config.config_manager import ConfigManager
-            config = ConfigManager()
-            is_test_mode = config.is_test_mode
-            
-            # Importar constantes do settings
-            sys.path.append(str(project_root))
-            from config.settings import BASE_BUSCA, BASE_TESTES
-            
-            if is_test_mode:
-                print("[DB-DATA] Modo TESTE - usando base reduzida")
-                base_termos = BASE_TESTES
-            else:
-                print("[DB-DATA] Modo PRODUÇÃO - usando base completa")
-                base_termos = BASE_BUSCA
-                
-        except Exception as e:
-            print(f"[AVISO] Erro ao carregar configuração: {e}")
-            print("[DB-DATA] Usando base padrão")
-            base_termos = [
-                "empresa de elevadores", "manutenção de elevadores", "instalação de elevadores",
-                "modernização de elevadores", "assistência técnica elevadores", "elevadores residenciais"
-            ]
-        
-        termos = []
-        for termo in base_termos:
-            termos.append(f"INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO) VALUES ('{termo}', 'elevadores', -1, Date())")
-
-        # Carregar zonas
-        print(f"[DB-DATA] Carregando {len(zonas)} zonas...")
-        for sql in zonas:
-            try:
-                access.DoCmd.RunSQL(sql)
-            except:
-                pass
-        print(f"[DB-DATA] {len(zonas)} zonas carregadas")
-
-        # Carregar bairros (agora vazio - descoberta dinâmica)
-        if bairros:
-            print(f"[DB-DATA] Carregando {len(bairros)} bairros...")
-            for sql in bairros:
-                try:
-                    access.DoCmd.RunSQL(sql)
-                except:
-                    pass
-            print(f"[DB-DATA] {len(bairros)} bairros carregados")
-        else:
-            print(f"[DB-DATA] TB_BAIRROS vazia - usará descoberta dinâmica")
-
-        # Carregar cidades (agora vazio - descoberta dinâmica)
-        if cidades:
-            print(f"[DB-DATA] Carregando {len(cidades)} cidades...")
-            for sql in cidades:
-                try:
-                    access.DoCmd.RunSQL(sql)
-                except:
-                    pass
-            print(f"[DB-DATA] {len(cidades)} cidades carregadas")
-        else:
-            print(f"[DB-DATA] TB_CIDADES vazia - usará descoberta dinâmica")
-
-        # Carregar termos base
-        print(f"[DB-DATA] Carregando {len(termos)} termos base ({len(base_termos)} categorias)...")
-        for sql in termos:
-            try:
-                access.DoCmd.RunSQL(sql)
-            except:
-                pass
-        print(f"[DB-DATA] {len(termos)} termos base carregados")
-
-        access.Quit()
-
-        # Verificar registros salvos
-        print("\n[INFO] Verificando registros salvos...")
-        
-        try:
-            import pyodbc
-            conn_str = f'DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={db_path};'
-            conn = pyodbc.connect(conn_str)
-            cursor = conn.cursor()
-            
-            # Contar registros por tabela
-            tabelas = {
-                'TB_ZONAS': 'zonas',
-                'TB_BAIRROS': 'bairros', 
-                'TB_CIDADES': 'cidades',
-                'TB_BASE_BUSCA': 'termos base'
-            }
-            
-            print("\n[INFO] CONTAGEM DE REGISTROS POR TABELA:")
-            print("=" * 45)
-            
-            total_registros = 0
-            for tabela, nome in tabelas.items():
-                try:
-                    cursor.execute(f"SELECT COUNT(*) FROM {tabela}")
-                    count = cursor.fetchone()[0]
-                    print(f"   {tabela:<15} | {count:>3} {nome}")
-                    total_registros += count
-                except Exception as e:
-                    print(f"   {tabela:<15} | ERR {nome}")
-            
-            print("=" * 45)
-            print(f"   TOTAL GERAL     | {total_registros:>3} registros")
-            
-            # Calcular combinações possíveis
-            cursor.execute("SELECT COUNT(*) FROM TB_ZONAS")
-            count_zonas = cursor.fetchone()[0]
-            cursor.execute("SELECT COUNT(*) FROM TB_BAIRROS")
-            count_bairros = cursor.fetchone()[0]
-            cursor.execute("SELECT COUNT(*) FROM TB_CIDADES")
-            count_cidades = cursor.fetchone()[0]
-            cursor.execute("SELECT COUNT(*) FROM TB_BASE_BUSCA")
-            count_termos = cursor.fetchone()[0]
-            
-            total_combinacoes = (count_zonas + count_bairros + count_cidades) * count_termos
-            
-            conn.close()
-            
-            print(f"\n[INFO] POTENCIAL DE BUSCA:")
-            print(f"   {total_combinacoes} combinacoes possiveis")
-            print(f"\n[OK] BANCO CRIADO COM SUCESSO!")
-            print(f"[INFO] Localizacao: {db_path}")
-            print(f"[OK] 12 tabelas estruturadas")
-            
-            # Verificar se TB_ENDERECOS foi criada (nova conexão)
-            try:
-                import pyodbc
-                test_conn = pyodbc.connect(conn_str)
-                test_cursor = test_conn.cursor()
-                test_cursor.execute("SELECT COUNT(*) FROM TB_ENDERECOS")
-                count = test_cursor.fetchone()[0]
-                test_conn.close()
-                print(f"[DB-CHECK] TB_ENDERECOS verificada e funcionando ({count} registros)")
-            except Exception as e:
-                print(f"[DB-ERRO] TB_ENDERECOS nao foi criada: {e}")
-            
-        except Exception as e:
-            print(f"[AVISO] Nao foi possivel verificar registros: {e}")
-            print(f"\n[OK] BANCO CRIADO COM SUCESSO!")
-            print(f"[INFO] Localizacao: {db_path}")
+            access.Quit()
+            access = None
+            print('[INFO] Access COM finalizado')
+        except Exception:
+            pass
 
     except Exception as e:
         print(f"[ERRO] Falha: {e}")

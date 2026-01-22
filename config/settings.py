@@ -27,8 +27,9 @@ RESULTS_PER_TERM_LIMIT = config.results_per_term_limit
 COMPLETE_MODE_THRESHOLD = config.complete_mode_threshold
 MAX_PHONES_PER_SITE = config.max_phones_per_site
 
-# Geolocalização - via ConfigManager
-REFERENCE_CEP = config.reference_cep
+# Geolocalização - ler valor bruto do YAML (não aciona leitura do DB durante import)
+# Se precisar do CEP real do banco, use o ZipCodeService em runtime após a conexão ODBC estar disponível.
+REFERENCE_CEP = config.get('geolocation.reference_cep', '01310-100')
 
 BASE_BUSCA = [
     "empresa de elevadores", "manutenção de elevadores", "instalação de elevadores",

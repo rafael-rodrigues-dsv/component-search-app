@@ -13,6 +13,8 @@ class DatabaseService:
     def __init__(self):
         self.domain_service = DatabaseDomainService()
         self.logger = logging.getLogger(__name__)
+        # Source of last-initialized terms: 'db', 'base_testes', 'base_busca', 'static_fallback'
+        self.last_terms_source = None
 
     def initialize_search_terms(self) -> int:
         """Inicializa termos de busca dinamicamente (só se necessário)"""
@@ -31,6 +33,8 @@ class DatabaseService:
             if total_terms > 0:
                 pending_terms = self.domain_service.get_pending_terms()
                 print(f"[INFO] {total_terms} termos já existem ({len(pending_terms)} pendentes) - pulando descoberta dinâmica")
+                # If terms already existed, mark source as 'db'
+                self.last_terms_source = 'db'
                 return len(pending_terms) if pending_terms else total_terms
             
             print("[INFO] Nenhum termo encontrado - executando descoberta dinâmica...")
@@ -49,6 +53,7 @@ class DatabaseService:
             self.logger.error(f"Erro na descoberta dinâmica: {e}")
             print(f"[ERRO] Falha na descoberta dinâmica: {e}")
             print("[INFO] Usando método estático como fallback...")
+            self.last_terms_source = 'static_fallback'
             return self._initialize_static_terms()
     
 
@@ -91,6 +96,7 @@ class DatabaseService:
                 if active_terms:
                     base_busca = active_terms
                     print(f"[INFO] Usando {len(base_busca)} termos ativos do banco")
+                    self.last_terms_source = 'db'
                 else:
                     raise Exception("Sem termos ativos no banco")
             except Exception:
@@ -99,9 +105,11 @@ class DatabaseService:
                 if is_test_mode:
                     print("[INFO] Modo TESTE ativado - fallback para BASE_TESTES")
                     base_busca = BASE_TESTES
+                    self.last_terms_source = 'base_testes'
                 else:
                     print("[INFO] Modo PRODUÇÃO ativado - fallback para BASE_BUSCA")
                     base_busca = BASE_BUSCA
+                    self.last_terms_source = 'base_busca'
 
             terms = []
             term_id = 1

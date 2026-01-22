@@ -114,29 +114,108 @@ def main():
             print("[ERRO] Falha ao criar banco de dados")
             return 1
         print("[OK] Banco criado com sucesso!")
+        # Pequeno atraso para garantir que o Access COM liberou o arquivo
+        try:
+            import time
+            time.sleep(0.5)
+        except Exception:
+            pass
 
     # Inicializar banco de dados
     print("[INFO] Inicializando banco de dados...")
     print("[INFO] Conectando ao banco Access...")
     
     try:
-        # Inicializar singleton de banco no início
+        # Antes de inicializar o singleton, aguardar até que ODBC consiga abrir conexão (evita race com Access COM)
+        from src.infrastructure.logging.initial_load_logger import load_logger
         from src.infrastructure.repositories.access_repository import AccessRepository
-        db_repository = AccessRepository()  # Cria singleton
-        
+
+        max_wait_sec = 15
+        waited = 0
+        wait_step = 0.5
+        last_exc = None
+        while waited <= max_wait_sec:
+            try:
+                # Tenta criar o singleton e obter conexão
+                repo = AccessRepository()
+                conn = repo._get_connection()
+                # Se conseguiu, sair do loop
+                load_logger.debug(f"ODBC conectado ao banco após {waited:.1f}s")
+                break
+            except Exception as e:
+                last_exc = e
+                load_logger.debug(f"Aguardando liberação do arquivo .accdb (esperado pela criação)... tentativa mun {waited:.1f}s: {e}")
+                import time
+                time.sleep(wait_step)
+                waited += wait_step
+                continue
+        else:
+            # Exauriu tempo
+            load_logger.error(f"Timeout aguardando liberação do arquivo .accdb: {last_exc}")
+            raise last_exc
+
+        # Após criação das tabelas, executar carga inicial via InitialDataService (população controlada pela aplicação)
+        try:
+            from src.infrastructure.logging.initial_load_logger import load_logger
+            from src.application.services.initial_data_service import InitialDataService
+            init_svc = InitialDataService()
+            load_logger.info('Iniciando população inicial via InitialDataService...')
+            zones_count = init_svc.populate_zones()
+            load_logger.info(f'Zonas populadas: {zones_count}')
+            terms_count = init_svc.populate_base_terms()
+            load_logger.info(f'Termos base populados: {terms_count}')
+            zip_ok = init_svc.ensure_zip_seed()
+            load_logger.info(f'TB_CEP_CONFIG garantida/seed: {zip_ok}')
+        except Exception as e:
+            # Log full stacktrace to the initial load log for debugging
+            try:
+                from src.infrastructure.logging.initial_load_logger import load_logger
+                import traceback
+                load_logger.error(f'Falha na população inicial: {e}\n{traceback.format_exc()}')
+            except Exception:
+                print(f'[AVISO] Falha na população inicial via InitialDataService: {e}')
+                pass
+
         db_service = DatabaseService()
         print("[OK] Conexão singleton estabelecida com sucesso")
-        
+
+        # Garantir que a tabela TB_CEP_CONFIG exista e esteja populada ANTES da descoberta dinâmica
+        try:
+            from src.application.services.zip_code_service import ZipCodeService
+            zip_svc = ZipCodeService()
+            seeded = zip_svc.ensure_table_and_seed()
+            if seeded:
+                print('[INFO] TB_CEP_CONFIG garantida e seed aplicada (se necessário) via ZipCodeService')
+            else:
+                print('[AVISO] Não foi possível garantir TB_CEP_CONFIG via ZipCodeService')
+        except Exception as e:
+            print(f"[AVISO] Erro verificando/seed TB_CEP_CONFIG via service: {e}")
+
         print("[INFO] Gerando termos de busca...")
         terms_count = db_service.initialize_search_terms()
-        
+
         if terms_count == 0:
             print("[ERRO] Falha ao inicializar termos de busca")
             return 1
-        
+
         mode_text = "TESTE" if config.is_test_mode else "PRODUÇÃO"
         print(f"[OK] {terms_count} termos de busca gerados (modo {mode_text})")
-        
+        # Log the source of terms (db / base_testes / base_busca / static_fallback)
+        try:
+            src = getattr(db_service, 'last_terms_source', None)
+            if src == 'db':
+                print('[INFO] Origem dos termos: TB_BASE_BUSCA (termos ativos no banco)')
+            elif src == 'base_testes':
+                print('[INFO] Origem dos termos: BASE_TESTES (modo de teste)')
+            elif src == 'base_busca':
+                print('[INFO] Origem dos termos: BASE_BUSCA (modo produção)')
+            elif src == 'static_fallback':
+                print('[INFO] Origem dos termos: fallback estático')
+            else:
+                print(f'[INFO] Origem dos termos: desconhecida ({src})')
+        except Exception:
+            pass
+
     except Exception as e:
         print(f"[ERRO] Falha ao conectar com banco: {e}")
         print("[INFO] Tentando recriar banco...")

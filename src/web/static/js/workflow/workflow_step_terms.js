@@ -1,6 +1,6 @@
+// migrated from workflow/termos_grid.js
+// This file implements the grid behavior for the workflow 'Define os Termos' step
 (function () {
-    // Termos Ativos - client-side logic moved to external JS
-    // Reutiliza conexão Socket.IO se já existir (dashboard.html cria uma), para evitar conexões duplicadas
     const socket = (typeof window !== 'undefined' && window.socket) ? window.socket : (typeof io !== 'undefined' ? io() : null);
     if (typeof window !== 'undefined' && !window.socket && socket) window.socket = socket;
     let PAGE_SIZE = 5;
@@ -23,7 +23,11 @@
     function renderTerms(terms) {
         const tbody = document.querySelector('#terms-table tbody');
         if (!tbody) return;
-        tbody.innerHTML = '';
+        // preserve the new-row if present
+        const newRow = tbody.querySelector('#terms-new-row');
+        // remove all children
+        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+        if (newRow) tbody.appendChild(newRow);
         terms.forEach(t => {
             const tr = document.createElement('tr');
 
@@ -58,6 +62,25 @@
 
             tbody.appendChild(tr);
         });
+
+        // Attach handlers for open / ok / cancel and input keydown so editor works after re-render
+        try{
+            const openBtn = document.getElementById('btn-open-term-editor');
+            const newRowEl = document.getElementById('terms-new-row');
+            const okBtn = document.getElementById('btn-add-term');
+            const cancelBtn = document.getElementById('btn-cancel-term');
+            const termInputEl = document.getElementById('row-new-term');
+            const catInputEl = document.getElementById('row-new-term-category');
+
+            const showRow = ()=>{ if(newRowEl) { newRowEl.style.display='table-row'; termInputEl && termInputEl.focus(); } };
+            const hideRow = ()=>{ if(newRowEl) { newRowEl.style.display='none'; } if(termInputEl) termInputEl.value=''; if(catInputEl) catInputEl.value=''; };
+
+            if(openBtn){ openBtn.onclick = (e)=>{ e.preventDefault(); showRow(); }; }
+            if(cancelBtn){ cancelBtn.onclick = (e)=>{ e.preventDefault(); hideRow(); }; }
+            if(okBtn){ okBtn.onclick = async (e)=>{ e.preventDefault(); if(okBtn.disabled) return; const termo = termInputEl ? termInputEl.value.trim() : ''; if(!termo) return; const categoria = catInputEl ? (catInputEl.value || 'base') : 'base'; okBtn.disabled = true; try{ await addTermDirect(termo, categoria); }finally{ okBtn.disabled = false; hideRow(); } }; }
+            if(termInputEl){ termInputEl.onkeydown = (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); okBtn && okBtn.click(); } else if(e.key === 'Escape'){ e.preventDefault(); hideRow(); } }; }
+            if(catInputEl){ catInputEl.onkeydown = (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); okBtn && okBtn.click(); } else if(e.key === 'Escape'){ e.preventDefault(); hideRow(); } }; }
+        }catch(e){ /* non-fatal */ }
     }
 
     async function loadTerms(reload = false, page = null) {
@@ -65,8 +88,6 @@
             if (reload) {
                 offset = 0;
                 currentPage = 1;
-                const tbody = document.querySelector('#terms-table tbody');
-                if (tbody) tbody.innerHTML = '';
             }
 
             if (page && Number.isInteger(page) && page > 0) {
@@ -74,14 +95,12 @@
             }
 
             const url = `/api/terms?limit=${PAGE_SIZE}&offset=${offset}`;
-            console.debug(`[UI] Fetching terms: page=${page || currentPage}, url=${url}`);
             const res = await fetch(url);
             if (!res.ok) {
                 console.error('Falha ao carregar termos', res.status);
                 return;
             }
             const json = await res.json();
-            console.debug('[DEBUG] /api/terms response:', json);
 
             if (json && json.pagination) {
                 currentPage = json.pagination.current_page;
@@ -106,74 +125,23 @@
     function gotoPage(page) {
         if (!Number.isInteger(page) || page < 1) return;
         if (page > totalPages) return;
-        console.debug(`[UI] gotoPage: requesting page ${page}`);
         loadTerms(false, page);
     }
 
-    function showToast(message, type = 'success', title = '') {
+    async function addTermDirect(termo, categoria='base') {
         try {
-            const container = document.getElementById('toast-container');
-            if (!container) return;
-            const toastId = 'toast-' + Date.now();
-            const bg = type === 'success' ? 'bg-success' : (type === 'warning' ? 'bg-warning' : 'bg-danger');
-            const textClass = (type === 'success' || type === 'danger') ? 'text-white' : '';
-            const toastHTML = `
-                <div id="${toastId}" class="toast ${bg} ${textClass}" role="alert" aria-live="assertive" aria-atomic="true" data-delay="3000">
-                    <div class="toast-header ${bg} ${textClass}" style="border-bottom:0">
-                        ${title ? `<strong class="mr-auto">${title}</strong>` : ''}
-                        <small class="text-muted ml-2"></small>
-                        <button type="button" class="ml-2 mb-1 close ${textClass}" data-dismiss="toast" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
-                    </div>
-                    <div class="toast-body ${textClass}" style="background:transparent;">
-                        ${message}
-                    </div>
-                </div>`;
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = toastHTML;
-            const toastEl = wrapper.firstElementChild;
-            container.appendChild(toastEl);
-            const bsToast = bootstrap.Toast.getOrCreateInstance(toastEl);
-            bsToast.show();
-            toastEl.addEventListener('hidden.bs.toast', () => { try { toastEl.remove(); } catch (e) {} });
-        } catch (e) {
-            console.debug('Erro ao exibir toast', e);
-        }
-    }
-
-    async function proposeTerm(termo) {
-        try {
-            const res = await fetch('/api/terms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termo, proposed_by: 'ui' }) });
+            categoria = (typeof categoria === 'string') ? categoria.trim() : categoria;
+            const res = await fetch('/api/terms/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termo, categoria }) });
             const j = await res.json();
             if (j.success) {
-                try { const el = document.getElementById('new-term'); if (el) el.value = ''; } catch (e) {}
+                try { const el = document.getElementById('new-term'); if (el) el.value = ''; const cat = document.getElementById('new-term-category'); if (cat) cat.value = ''; } catch(e) {}
                 loadTerms(true);
-                showToast('Proposta enviada', 'success');
-            } else {
-                console.error('Erro ao propor termo:', j.message || j);
-                showToast('Erro ao propor termo: ' + (j.message || ''), 'danger');
-            }
-        } catch (e) {
-            console.error('Erro proposeTerm', e);
-            showToast('Erro ao propor termo', 'danger');
-        }
-    }
-
-    async function addTermDirect(termo) {
-        try {
-            const res = await fetch('/api/terms/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termo }) });
-            const j = await res.json();
-            if (j.success) {
-                try { const el = document.getElementById('new-term'); if (el) el.value = ''; } catch(e) {}
-                loadTerms(true);
-                showToast('Termo adicionado', 'success');
             }
             else {
                 console.error('Erro ao adicionar termo:', j.message || j);
-                showToast('Erro ao adicionar termo: ' + (j.message || ''), 'danger');
             }
         } catch (e) {
             console.error('Erro addTermDirect', e);
-            showToast('Erro ao adicionar termo', 'danger');
         }
     }
 
@@ -182,25 +150,63 @@
             if (!id) return console.warn('ID inválido para exclusão');
             const res = await fetch(`/api/terms/${id}`, { method: 'DELETE' });
             const j = await res.json();
-            if (j.success) { loadTerms(true); showToast('Termo removido', 'success'); }
+            if (j.success) { loadTerms(true); }
             else console.error('Erro ao remover termo:', j.message || j);
-            if (j && j.success === false) showToast('Erro ao remover termo', 'danger');
         } catch (e) {
             console.error('Erro deleteTerm', e);
-            showToast('Erro ao remover termo', 'danger');
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    function doInit(){
+        if (window._workflow_terms_initialized) return; // guard against double initialization
+        window._workflow_terms_initialized = true;
+
         const btnLoad = document.getElementById('btn-load-more');
         if (btnLoad) btnLoad.addEventListener('click', function () { loadTerms(false); });
 
-        const btnAdd = document.getElementById('btn-add-term');
-        if (btnAdd) btnAdd.addEventListener('click', function () {
-            const termoEl = document.getElementById('new-term');
-            const termo = termoEl ? termoEl.value.trim() : '';
-            if (!termo) return console.warn('Digite um termo');
-            addTermDirect(termo);
+        // Use event delegation to handle open/ok/cancel so handlers survive re-renders
+        function showEditorRow(){ const newRow = document.getElementById('terms-new-row'); const termInput = document.getElementById('row-new-term'); if(!newRow) return; newRow.style.display='table-row'; if(termInput) termInput.focus(); }
+        function hideEditorRow(){ const newRow = document.getElementById('terms-new-row'); const termInput = document.getElementById('row-new-term'); const catInput = document.getElementById('row-new-term-category'); if(!newRow) return; newRow.style.display='none'; if(termInput) termInput.value=''; if(catInput) catInput.value=''; }
+
+        document.addEventListener('click', function delegatedClick(e){
+            const target = e.target;
+            // open editor
+            if(target && (target.id === 'btn-open-term-editor' || target.closest && target.closest('#btn-open-term-editor'))){
+                e.preventDefault(); showEditorRow(); return;
+            }
+            // cancel
+            if(target && (target.id === 'btn-cancel-term' || target.closest && target.closest('#btn-cancel-term'))){
+                e.preventDefault(); hideEditorRow(); return;
+            }
+            // ok (add)
+            if(target && (target.id === 'btn-add-term' || target.closest && target.closest('#btn-add-term'))){
+                e.preventDefault();
+                const okBtn = document.getElementById('btn-add-term');
+                if(!okBtn || okBtn.disabled) return;
+                const termInput = document.getElementById('row-new-term');
+                const catInput = document.getElementById('row-new-term-category');
+                const termo = termInput ? termInput.value.trim() : '';
+                if(!termo) return console.warn('Digite um termo');
+                const categoria = catInput ? (catInput.value || 'base') : 'base';
+                okBtn.disabled = true;
+                addTermDirect(termo, categoria).finally(()=>{ okBtn.disabled = false; hideEditorRow(); });
+                return;
+            }
+        });
+
+        // Key handling for Enter/Escape inside the row inputs
+        document.addEventListener('keydown', function delegatedKey(e){
+            const row = document.getElementById('terms-new-row');
+            if(!row || row.style.display === 'none') return;
+            const active = document.activeElement;
+            if(!active) return;
+            if(active.id === 'row-new-term' || active.id === 'row-new-term-category'){
+                if(e.key === 'Enter'){
+                    e.preventDefault(); const okBtn = document.getElementById('btn-add-term'); okBtn && okBtn.click();
+                } else if(e.key === 'Escape'){
+                    e.preventDefault(); hideEditorRow();
+                }
+            }
         });
 
         try {
@@ -223,18 +229,18 @@
         }
 
         loadTerms(true);
-    });
+    }
+
+    window.init_define_terms = function(){ try{ doInit(); }catch(e){ console.warn('init_define_terms error', e); } };
 
     document.addEventListener('click', function (e) {
         const prev = document.getElementById('btn-prev-page');
         const next = document.getElementById('btn-next-page');
-        // Event delegation for prev/next to ensure listeners exist after DOM updates
         if (e.target === prev && currentPage > 1) gotoPage(currentPage - 1);
         if (e.target === next && currentPage < totalPages) gotoPage(currentPage + 1);
     });
 
-    // Registrar listener somente se existir conexão Socket.IO
     if (socket && typeof socket.on === 'function') {
-        socket.on('term_change_applied', (data) => { loadTerms(true); });
+        socket.on('term_change_applied', (_) => { loadTerms(true); });
     }
 })();

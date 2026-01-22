@@ -10,23 +10,77 @@ class SearchTermRepository:
         self.access = AccessRepository()
 
     def list_active_terms(self, is_test: bool = False) -> List[Dict[str, Any]]:
-        """Retorna termos ativos (ATIVO = -1) da TB_BASE_BUSCA"""
         try:
-            # Retornar termos ativos da base, independente do campo IS_TEST.
-            query = "SELECT ID_BASE, TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO FROM TB_BASE_BUSCA WHERE ATIVO = -1"
+            query = "SELECT ID_BASE, TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO FROM TB_BASE_BUSCA WHERE ATIVO = -1 ORDER BY ID_BASE"
             return self.access.execute_query(query)
-        except Exception:
+        except Exception as e:
+            # Log via access repository (executor) ou print para facilitar debug
+            try:
+                from src.infrastructure.logging.initial_load_logger import load_logger
+                load_logger.error(f"Erro listando termos ativos: {e}")
+            except Exception:
+                pass
             return []
 
     def insert_term(self, termo: str, categoria: str = 'base', is_test: bool = False) -> int:
-        conn = self.access._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO, IS_TEST) VALUES (?, ?, -1, Date(), ?)", (termo, categoria, -1 if is_test else 0))
-        cursor.execute("SELECT @@IDENTITY")
-        id_base = cursor.fetchone()[0]
-        conn.commit()
-        cursor.close()
-        return id_base
+        # Instrumented insert with small retry and detailed logging to initial load log
+        from src.infrastructure.logging.initial_load_logger import load_logger
+        import time, traceback
+
+        attempts = 3
+        delay = 0.2
+        params = (termo, categoria, -1 if is_test else 0)
+
+        # First, check if the term already exists (case-insensitive match) to avoid duplicates
+        try:
+            conn = self.access._get_connection()
+            cursor = conn.cursor()
+            try:
+                # Access SQL: use UCase for case-insensitive comparison
+                cursor.execute("SELECT ID_BASE FROM TB_BASE_BUSCA WHERE UCase(TERMO_BUSCA) = UCase(?)", (termo,))
+                existing = cursor.fetchone()
+                if existing and existing[0]:
+                    load_logger.debug(f"Termo já existe (retornando ID): {termo} -> {existing[0]}")
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
+                    return existing[0]
+            except Exception:
+                # se a verificação falhar, prosseguir para tentativa de inserção (retry logic lidará com erros)
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+
+        except Exception:
+            # se não conseguir abrir conexão para checar (lock temporário), continuamos para a lógica de retry
+            pass
+
+        for attempt in range(1, attempts + 1):
+            try:
+                load_logger.debug(f"Inserindo termo (attempt {attempt}): {termo} (is_test={is_test})")
+                conn = self.access._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO TB_BASE_BUSCA (TERMO_BUSCA, CATEGORIA, ATIVO, DATA_CRIACAO, IS_TEST) VALUES (?, ?, -1, Date(), ?)", params)
+                cursor.execute("SELECT @@IDENTITY")
+                id_base = cursor.fetchone()[0]
+                conn.commit()
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+                load_logger.debug(f"Inserido termo com ID {id_base}: {termo}")
+                return id_base
+            except Exception as e:
+                load_logger.warning(f"Falha ao inserir termo (attempt {attempt}): {termo} - {e}")
+                load_logger.debug(traceback.format_exc())
+                if attempt < attempts:
+                    time.sleep(delay)
+                    delay *= 2
+                    continue
+                # re-raise to let caller know if all attempts failed
+                raise
 
     def insert_change(self, termo: str, acao: str, target_id: int = None, proposto_por: str = 'user') -> int:
         """Insere uma proposta/alteração — sem tabela de changes: operações aplicadas diretamente em TB_TERMOS_BUSCA.

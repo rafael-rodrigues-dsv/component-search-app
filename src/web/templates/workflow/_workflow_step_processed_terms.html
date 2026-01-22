@@ -1,0 +1,35 @@
+<div class="col-md-12">
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Termos Processados</h3></div>
+        <div class="card-body">
+            <div class="mb-3 d-flex">
+                <div class="ml-auto">
+                  <label for="tp-page-size" class="small mr-2" style="margin-bottom:0">Exibir:</label>
+                  <select id="tp-page-size" class="form-control form-control-sm" style="width:90px">
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="50">50</option>
+                  </select>
+               </div>
+            </div>
+
+            <table class="table table-sm" id="tp-table">
+                <thead><tr><th>ID</th><th>Termo</th><th>Status</th></tr></thead>
+                <tbody></tbody>
+            </table>
+
+            <div class="pagination-controls text-center mt-3">
+                <button id="btn-prev-tp" class="btn btn-outline-primary" disabled>Anterior</button>
+                <span id="pagination-tp-info" class="mx-3">Página 1 de 1</span>
+                <button id="btn-next-tp" class="btn btn-outline-primary" disabled>Próximo</button>
+            </div>
+         </div>
+     </div>
+ </div>
+
+<!-- Toast container -->
+<div aria-live="polite" aria-atomic="true" style="position: fixed; top: 1rem; right: 1rem; z-index: 2000;">
+   <div id="toast-container-tp"></div>
+</div>
+
+<script src="/static/js/workflow/workflow_step_processed_terms.js"></script>

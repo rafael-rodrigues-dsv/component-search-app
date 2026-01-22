@@ -155,8 +155,8 @@ class DashboardServer:
         
         @self.app.route('/')
         def dashboard():
-            return render_template('dashboard.html')
-        
+            return render_template('dashboard/index.html')
+
         @self.app.route('/api/export-excel')
         def export_excel():
             try:
@@ -221,45 +221,107 @@ class DashboardServer:
                     }
                 })
             except Exception as e:
-                return jsonify({'error': str(e)}), 500
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/config/cep', methods=['GET'])
+        def get_reference_cep():
+            try:
+                from src.application.services.zip_code_service import ZipCodeService
+                svc = ZipCodeService()
+                cep_row = svc.get_reference_cep()
+                if not cep_row:
+                    # fallback to YAML default - format minimal structure
+                    from src.infrastructure.config.config_manager import ConfigManager
+                    cfg = ConfigManager()
+                    cep_val = cfg.reference_cep
+                    cep_row = {'cep': cep_val, 'cidade': '', 'estado': '', 'logradouro': ''}
+                return jsonify({'success': True, 'data': cep_row})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/config/cep', methods=['POST'])
+        def set_reference_cep():
+            try:
+                from flask import request
+                data = request.get_json() or {}
+                cep = data.get('cep')
+                from src.application.services.zip_code_service import ZipCodeService
+                svc = ZipCodeService()
+                ok = svc.set_reference_cep(cep)
+                if not ok:
+                    return jsonify({'success': False, 'message': 'CEP inválido ou não encontrado'}), 400
+                # Return updated row
+                row = svc.get_reference_cep()
+                return jsonify({'success': True, 'data': row})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/config/cep/lookup')
+        def lookup_cep():
+            try:
+                from flask import request
+                cep = request.args.get('cep')
+                if not cep:
+                    return jsonify({'success': False, 'message': 'CEP é obrigatório'}), 400
+                # Use domain service to lookup via ViaCEP
+                try:
+                    from src.domain.services.address_enrichment_service import AddressEnrichmentService
+                    svc = AddressEnrichmentService()
+                    cep_data = svc._fetch_cep_data(cep)
+                except Exception as e:
+                    return jsonify({'success': False, 'message': f'Erro na consulta do CEP: {e}'}), 500
+                if not cep_data:
+                    return jsonify({'success': False, 'message': 'CEP não encontrado'}), 404
+                # Normalize and return useful fields
+                cep_clean = cep_data.get('cep') or cep
+                result = {
+                    'cep': cep_clean,
+                    'logradouro': cep_data.get('logradouro', ''),
+                    'bairro': cep_data.get('bairro', ''),
+                    'cidade': cep_data.get('localidade', cep_data.get('localidade', '')),
+                    'estado': cep_data.get('uf', '')
+                }
+                return jsonify({'success': True, 'data': result})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
 
         # Páginas adicionais (configuração e execução)
         @self.app.route('/config/terms')
         def page_config_terms():
-            try:
-                return render_template('config_terms.html')
-            except Exception as e:
-                return jsonify({'error': str(e)}), 500
+            from flask import redirect
+            return redirect('/workflow')
 
         # Rotas de atalho para compatibilidade
         @self.app.route('/config')
         def page_config():
             from flask import redirect
             return redirect('/config/terms')
-        
-        # Endpoint de debug que lista rotas registradas (útil para diagnosticar 404)
-        @self.app.route('/__routes')
-        def debug_routes():
+
+        # Rota da POC: workflow de execução (front-end mock)
+        @self.app.route('/workflow')
+        def workflow_index():
             try:
-                routes = sorted([{
-                    'rule': r.rule,
-                    'methods': sorted(list(r.methods - {'HEAD', 'OPTIONS'})),
-                    'endpoint': r.endpoint
-                } for r in self.app.url_map.iter_rules()])
-                # Persistir rotas em arquivo para debug local
-                try:
-                    # Usar pasta data relativa ao repositório (duas pastas acima deste arquivo)
-                    data_dir = Path(__file__).parents[2] / 'data'
-                    data_dir.mkdir(parents=True, exist_ok=True)
-                    try:
-                        with open(data_dir / 'routes.json', 'w', encoding='utf-8') as f:
-                            import json as _json
-                            _json.dump({'routes': routes}, f, indent=2, ensure_ascii=False)
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-                return jsonify({'routes': routes})
+                return render_template('workflow/index.html')
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/workflow/step/<step_name>')
+        def workflow_step(step_name: str):
+            """Serve templates parciais para cada passo do workflow POC.
+            Aceita apenas nomes permitidos para evitar leitura arbitrária de arquivos.
+            """
+            try:
+                allowed = {
+                    'define_terms': 'workflow/_workflow_step_terms.html',
+                    'define_cep': 'workflow/_workflow_step_zip_code.html',
+                    'municipios': 'workflow/_workflow_step_cities.html',
+                    'bairros': 'workflow/_workflow_step_neighborhood.html',
+                    'termos_processados': 'workflow/_workflow_step_processed_terms.html'
+                }
+                tpl = allowed.get(step_name)
+                if not tpl:
+                    return jsonify({'error': 'Step inválido'}), 404
+                return render_template(tpl)
             except Exception as e:
                 return jsonify({'error': str(e)}), 500
 

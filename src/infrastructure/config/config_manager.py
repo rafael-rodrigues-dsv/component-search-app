@@ -44,9 +44,7 @@ class ConfigManager:
                     'base_delay': 1.0,
                     'backoff_factor': 2.0,
                     'max_delay': 60.0
-                }
-            },
-            'search': {
+                },
                 'delays': {
                     'duckduckgo': {
                         'page_load_min': 2.0,
@@ -159,16 +157,28 @@ class ConfigManager:
     # Propriedades de geolocalização
     @property
     def reference_cep(self) -> str:
-        cep = self.get('geolocation.reference_cep', '01310-100')
-        
+        # Retornar o CEP de referência apenas a partir do banco (TB_CEP_CONFIG).
+        # Não deve haver fallback automático para o YAML nesta propriedade.
+        try:
+            from src.application.services.zip_code_service import ZipCodeService
+            svc = ZipCodeService()
+            row = svc.get_reference_cep()
+            if row and isinstance(row, dict) and row.get('cep'):
+                cep = row.get('cep')
+            else:
+                raise ValueError('CEP de referência não encontrado no banco (TB_CEP_CONFIG)')
+        except Exception:
+            # Propagar erro para que chamador trate; não usar YAML como fallback aqui
+            raise
+
         # Validar se é CEP de capital (se habilitado)
         if self.get('geographic_discovery.capital_validation.enabled', True):
             validation_result = self._validate_capital_cep(cep)
             if not validation_result['valid']:
                 raise ValueError(f"CEP inválido: {validation_result['error']}")
-        
+
         return cep
-    
+
     def _validate_capital_cep(self, cep: str) -> dict:
         """Validar CEP de capital dinamicamente"""
         try:
@@ -197,7 +207,8 @@ class ConfigManager:
         try:
             from ..services.capital_cep_validator import CapitalCepValidator
             validator = CapitalCepValidator()
-            return validator.validate_capital_cep(self.get('geolocation.reference_cep', '01310-100'))
+            # Use the resolved reference_cep (which may come from DB) rather than reading YAML directly
+            return validator.validate_capital_cep(self.reference_cep)
         except Exception:
             return {'valid': False, 'error': 'Erro ao obter informações da capital'}
     

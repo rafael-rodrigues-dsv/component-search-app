@@ -233,7 +233,7 @@ A aplicação:
 +- Inicie o aplicativo (`.\iniciar_robo_simples.bat` ou `python main.py`).
 +- Abra `http://127.0.0.1:5000/` no navegador.
 +- Na área "Controles do Robô": selecione o navegador e motor de busca, visualize as tags (termos), e use os botões para iniciar/parar o processo ou resetar a busca.
-+- A remoção de termos nas tags é imediata (DELETE `/api/terms/<id>`); inclusão/edição também pode ser feita pela tela de configuração (`/config/terms`).
++- A remoção de termos nas tags é imediata (DELETE `/api/terms/<id>`); inclusão/edição também pode ser feita via API (`POST /api/terms/add`) ou pelo Workflow (menu "Workflow").
 +
 +Diagnóstico rápido (endpoints úteis):
 +
