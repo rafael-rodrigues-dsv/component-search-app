@@ -63,9 +63,32 @@ class ZipCodeApplicationService:
             estado = cep_data.get('uf', '') or ''
             logradouro = cep_data.get('logradouro', '') or ''
 
-            # Seed using full data
+            # Determine radius_km from profile by inspecting CEP prefix (use same config as dynamic discovery)
             try:
+                from src.infrastructure.config.config_manager import ConfigManager
+                cfg = ConfigManager()
+                # normalize and get first two digits
+                cep_digits = ''.join([c for c in formatted if c.isdigit()])
+                cep_prefix = cep_digits[:2] if len(cep_digits) >= 2 else ''
+                metro_prefixes = cfg.get_config_value('geographic_discovery.auto_profile_detection.metropolitan_cep_prefixes', []) or []
+                profile = 'metropolitan' if cep_prefix in metro_prefixes else 'rural'
+                raio = cfg.get_config_value(f'geographic_discovery.profiles.{profile}.radius_km', None)
+            except Exception:
+                raio = None
+
+            # Seed using full data; pass raio_km to repository via temporary attribute
+            try:
+                # attach temporary raio to repo so upsert_reference includes it
+                try:
+                    self.repo._last_raio_km = int(raio) if raio is not None else None
+                except Exception:
+                    self.repo._last_raio_km = None
                 ok = self.repo.upsert_reference(formatted, cidade, estado, logradouro)
+                # cleanup temporary attr
+                try:
+                    del self.repo._last_raio_km
+                except Exception:
+                    pass
                 if not ok:
                     raise RuntimeError('Falha ao gravar TB_CEP_CONFIG durante o seed')
                 return self.repo.get_reference()
@@ -77,7 +100,7 @@ class ZipCodeApplicationService:
             # Propagate exception to caller (caller may handle/log as needed)
             raise
 
-    def set_reference_cep(self, cep: str) -> bool:
+    def set_reference_cep(self, cep: str, raio_km: int = None) -> bool:
         # validate input
         if not cep or not isinstance(cep, str):
             return False
@@ -99,7 +122,18 @@ class ZipCodeApplicationService:
             estado = cep_data.get('uf', '')
             logradouro = cep_data.get('logradouro', '')
             formatted = f"{cep_clean[:5]}-{cep_clean[5:]}"
+            # If raio_km provided, pass it to repo via temporary attribute to be included in upsert
+            try:
+                if raio_km is not None:
+                    self.repo._last_raio_km = int(raio_km)
+            except Exception:
+                pass
             ok = self.repo.upsert_reference(formatted, cidade, estado, logradouro)
+            try:
+                if hasattr(self.repo, '_last_raio_km'):
+                    del self.repo._last_raio_km
+            except Exception:
+                pass
             logger.debug("[ZipCodeService] upsert_reference returned: %s", ok)
             return ok
         except Exception as e:

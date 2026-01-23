@@ -94,7 +94,7 @@ geographic_discovery:
       exclude_rural_areas: true
       focus_metropolitan_area: true
     rural:
-      radius_km: 20
+      radius_km: 50
       min_city_population: 10000
       target_large_cities: 10
       exclude_rural_areas: false

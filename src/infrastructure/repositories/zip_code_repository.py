@@ -18,7 +18,7 @@ class ZipCodeRepository:
             try:
                 conn = self._repo._get_connection()
                 cursor = conn.cursor()
-                cursor.execute("SELECT CEP, CIDADE, ESTADO, LOGRADOURO, DATA_ATUALIZACAO FROM TB_CEP_CONFIG ORDER BY ID_CEP_CONFIG DESC")
+                cursor.execute("SELECT CEP, CIDADE, ESTADO, LOGRADOURO, RAIO_KM, DATA_ATUALIZACAO FROM TB_CEP_CONFIG ORDER BY ID_CEP_CONFIG DESC")
                 row = cursor.fetchone()
                 cursor.close()
                 if not row:
@@ -28,7 +28,8 @@ class ZipCodeRepository:
                     'cidade': row[1],
                     'estado': row[2],
                     'logradouro': row[3],
-                    'updated_at': row[4]
+                    'raio_km': row[4],
+                    'updated_at': row[5]
                 }
             except Exception as e:
                 last_exc = e
@@ -62,10 +63,19 @@ class ZipCodeRepository:
                 r = cursor.fetchone()
                 exists = (r[0] if r else 0) > 0
                 print(f"[DEBUG][ZipCodeRepository] TB_CEP_CONFIG exists? {exists}")
+                # If a raio_km value has been passed via kwargs, include it in upsert
+                # keep function signature backwards compatible by reading optional attribute on self
+                raio_km = getattr(self, '_last_raio_km', None)
                 if exists:
-                    cursor.execute("UPDATE TB_CEP_CONFIG SET CEP = ?, CIDADE = ?, ESTADO = ?, LOGRADOURO = ?, DATA_ATUALIZACAO = Date()", (cep, cidade, estado, logradouro))
+                    if raio_km is not None:
+                        cursor.execute("UPDATE TB_CEP_CONFIG SET CEP = ?, CIDADE = ?, ESTADO = ?, LOGRADOURO = ?, RAIO_KM = ?, DATA_ATUALIZACAO = Date()", (cep, cidade, estado, logradouro, int(raio_km)))
+                    else:
+                        cursor.execute("UPDATE TB_CEP_CONFIG SET CEP = ?, CIDADE = ?, ESTADO = ?, LOGRADOURO = ?, DATA_ATUALIZACAO = Date()", (cep, cidade, estado, logradouro))
                 else:
-                    cursor.execute("INSERT INTO TB_CEP_CONFIG (CEP, CIDADE, ESTADO, LOGRADOURO, DATA_ATUALIZACAO) VALUES (?, ?, ?, ?, Date())", (cep, cidade, estado, logradouro))
+                    if raio_km is not None:
+                        cursor.execute("INSERT INTO TB_CEP_CONFIG (CEP, CIDADE, ESTADO, LOGRADOURO, RAIO_KM, DATA_ATUALIZACAO) VALUES (?, ?, ?, ?, ?, Date())", (cep, cidade, estado, logradouro, int(raio_km)))
+                    else:
+                        cursor.execute("INSERT INTO TB_CEP_CONFIG (CEP, CIDADE, ESTADO, LOGRADOURO, DATA_ATUALIZACAO) VALUES (?, ?, ?, ?, Date())", (cep, cidade, estado, logradouro))
                 conn.commit()
                 cursor.close()
                 print(f"[DEBUG][ZipCodeRepository] upsert_reference successful for cep={cep}")
@@ -103,7 +113,7 @@ class ZipCodeRepository:
                         create_sql = (
                             "CREATE TABLE TB_CEP_CONFIG ("
                             "ID_CEP_CONFIG COUNTER PRIMARY KEY, "
-                            "CEP TEXT(10), CIDADE TEXT(100), ESTADO TEXT(2), LOGRADOURO TEXT(255), DATA_ATUALIZACAO DATE)"
+                            "CEP TEXT(10), CIDADE TEXT(100), ESTADO TEXT(2), LOGRADOURO TEXT(255), RAIO_KM INTEGER, DATA_ATUALIZACAO DATE)"
                         )
                         cursor.execute(create_sql)
                         conn.commit()

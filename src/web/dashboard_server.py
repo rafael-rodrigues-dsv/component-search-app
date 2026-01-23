@@ -248,9 +248,10 @@ class DashboardServer:
                 from flask import request
                 data = request.get_json() or {}
                 cep = data.get('cep')
+                raio_km = data.get('raio_km')
                 from src.application.services.zip_code_application_service import ZipCodeApplicationService
                 svc = ZipCodeApplicationService()
-                ok = svc.set_reference_cep(cep)
+                ok = svc.set_reference_cep(cep, raio_km=raio_km)
                 if not ok:
                     return jsonify({'success': False, 'message': 'CEP inválido ou não encontrado'}), 400
                 # Return updated row

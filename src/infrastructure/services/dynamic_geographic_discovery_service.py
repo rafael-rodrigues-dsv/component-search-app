@@ -29,9 +29,17 @@ class DynamicGeographicDiscoveryService:
         profile = self._detect_profile_from_cep(cep)
         profile_name = "metropolitana" if profile == "metropolitan" else "rural"
         
-        # Obter radius_km do perfil detectado
-        radius_km = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.radius_km', 50)
-        
+        # Prefer RAIO_KM from TB_CEP_CONFIG if present (user-configurable); otherwise use YAML profile
+        try:
+            from src.application.services.zip_code_application_service import ZipCodeApplicationService
+            zip_svc = ZipCodeApplicationService()
+            cep_row = zip_svc.get_reference_cep() or {}
+            radius_km = cep_row.get('raio_km') if isinstance(cep_row, dict) and cep_row.get('raio_km') is not None else None
+        except Exception:
+            radius_km = None
+        if radius_km is None:
+            radius_km = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.radius_km', 50)
+
         print(f"[GEO] 🚀 Descobrindo região ao redor do CEP {cep}")
         print(f"[GEO] 🏙️ Perfil detectado: {profile_name.upper()}")
         print(f"[GEO] 📍 Raio de busca: {radius_km}km")
@@ -598,4 +606,3 @@ class DynamicGeographicDiscoveryService:
         else:
             print(f"[GEO] 🌾 CEP {cep} detectado como REGIÃO RURAL/INTERIOR (prefixo {cep_prefix})")
             return 'rural'
-

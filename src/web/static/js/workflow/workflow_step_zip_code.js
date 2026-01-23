@@ -17,9 +17,13 @@
         if(cidade) cidade.textContent = data.cidade || '-';
         if(estado) estado.textContent = data.estado || '-';
         if(log) log.textContent = data.logradouro || '-';
-      }
-    }catch(e){ console.warn('Erro ao carregar CEP', e); }
-  }
+        const raioEl = document.getElementById('cepRaioCurrent');
+        const raioInput = document.getElementById('cepRaioInput');
+        if(raioEl) raioEl.textContent = (data.raio_km !== undefined && data.raio_km !== null) ? String(data.raio_km) : '-';
+        if(raioInput) raioInput.value = (data.raio_km !== undefined && data.raio_km !== null) ? String(data.raio_km) : '';
+       }
+     }catch(e){ console.warn('Erro ao carregar CEP', e); }
+   }
 
   function formatAddress(data){
     // data: { cep, logradouro, bairro, cidade, estado }
@@ -34,7 +38,11 @@
 
   async function doSaveConfirmed(data){
     try{
-      const res = await fetch('/api/config/cep', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cep: data.cep }) });
+      // include raio_km from input if present
+      const raioVal = parseInt(document.getElementById('cepRaioInput')?.value || '', 10);
+      const payload = { cep: data.cep };
+      if(!isNaN(raioVal) && raioVal > 0) payload.raio_km = raioVal;
+      const res = await fetch('/api/config/cep', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const j = await res.json();
       if(res.ok && j.success){
         const d = j.data || {};
@@ -46,11 +54,15 @@
         if(cidade) cidade.textContent = d.cidade || data.cidade || '-';
         if(estado) estado.textContent = d.estado || data.estado || '-';
         if(log) log.textContent = d.logradouro || data.logradouro || '-';
-        const inp = document.getElementById('cepInput'); if(inp) inp.value = '';
-      }else{
-        alert('Falha ao salvar CEP: ' + (j.message||res.statusText));
-      }
-    }catch(e){ console.error('Erro ao salvar CEP', e); alert('Erro ao salvar CEP'); }
+        const raioEl = document.getElementById('cepRaioCurrent');
+        const raioInput = document.getElementById('cepRaioInput');
+        if(raioEl) raioEl.textContent = (d.raio_km !== undefined && d.raio_km !== null) ? String(d.raio_km) : '-';
+        if(raioInput) raioInput.value = (d.raio_km !== undefined && d.raio_km !== null) ? String(d.raio_km) : '';
+         const inp = document.getElementById('cepInput'); if(inp) inp.value = '';
+       }else{
+         alert('Falha ao salvar CEP: ' + (j.message||res.statusText));
+       }
+     }catch(e){ console.error('Erro ao salvar CEP', e); alert('Erro ao salvar CEP'); }
   }
 
   async function save(){
@@ -105,4 +117,4 @@
     setupConfirm();
     loadCep();
   };
-})();
+ })();

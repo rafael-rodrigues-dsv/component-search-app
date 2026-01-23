@@ -4,6 +4,8 @@
 
   <div class="form-inline">
     <input id="cepInput" class="form-control mr-2" placeholder="Digite CEP" />
+    <label for="cepRaioInput" class="ml-2 mr-1">Raio (km):</label>
+    <input id="cepRaioInput" type="number" min="1" step="1" class="form-control mr-2" style="width:100px" placeholder="km" />
     <button id="saveCep" class="btn btn-primary btn-sm">Salvar</button>
   </div>
 
@@ -12,6 +14,7 @@
     <div><strong>Cidade:</strong> <span id="cepCidade">-</span></div>
     <div><strong>Estado:</strong> <span id="cepEstado">-</span></div>
     <div><strong>Logradouro:</strong> <span id="cepLogradouro">-</span></div>
+    <div><strong>Raio (km):</strong> <span id="cepRaioCurrent">-</span></div>
   </div>
 </div>
 
