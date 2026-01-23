@@ -28,7 +28,20 @@ class NeighborhoodsRepository:
                 except Exception:
                     pass
                 try:
-                    cursor.execute("INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES (?, ?, -1, Date())", (nome, uf))
+                    # Try to find matching city id in TB_CIDADES by name+UF
+                    city_id = None
+                    try:
+                        cursor.execute("SELECT ID_CIDADE FROM TB_CIDADES WHERE UCase(NOME_CIDADE) = UCase(?) AND UF = ?", (cidade, uf))
+                        r = cursor.fetchone()
+                        if r:
+                            city_id = r[0]
+                    except Exception:
+                        city_id = None
+
+                    if city_id:
+                        cursor.execute("INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ID_MUNICIPIO, ATIVO, DATA_CRIACAO) VALUES (?, ?, ?, -1, Date())", (nome, uf, city_id))
+                    else:
+                        cursor.execute("INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES (?, ?, -1, Date())", (nome, uf))
                     inserted += 1
                 except Exception:
                     continue
@@ -46,10 +59,16 @@ class NeighborhoodsRepository:
         data_dir.mkdir(parents=True, exist_ok=True)
         try:
             if uf:
-                sql = "SELECT ID_BAIRRO AS id, NOME_BAIRRO AS nome, UF FROM TB_BAIRROS WHERE UF = ? ORDER BY UCase(NOME_BAIRRO)"
+                sql = (
+                    "SELECT b.ID_BAIRRO AS id, b.NOME_BAIRRO AS nome, b.UF AS uf, b.ID_MUNICIPIO AS id_municipio, c.NOME_CIDADE AS cidade "
+                    "FROM TB_BAIRROS b LEFT JOIN TB_CIDADES c ON b.ID_MUNICIPIO = c.ID_CIDADE WHERE b.UF = ? ORDER BY UCase(b.NOME_BAIRRO)"
+                )
                 rows = self._access.execute_query(sql, [uf])
             else:
-                sql = "SELECT ID_BAIRRO AS id, NOME_BAIRRO AS nome, UF FROM TB_BAIRROS ORDER BY UCase(NOME_BAIRRO)"
+                sql = (
+                    "SELECT b.ID_BAIRRO AS id, b.NOME_BAIRRO AS nome, b.UF AS uf, b.ID_MUNICIPIO AS id_municipio, c.NOME_CIDADE AS cidade "
+                    "FROM TB_BAIRROS b LEFT JOIN TB_CIDADES c ON b.ID_MUNICIPIO = c.ID_CIDADE ORDER BY UCase(b.NOME_BAIRRO)"
+                )
                 rows = self._access.execute_query(sql, None)
 
             if rows:

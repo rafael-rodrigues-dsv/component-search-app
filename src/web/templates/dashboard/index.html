@@ -156,6 +156,7 @@
                         </div>
                     </div>
 
+                    {% if show_cep %}
                     <!-- CEP Enrichment -->
                     <div class="col-lg-4 col-6 flow-card" data-flow="cep">
                         <div class="small-box bg-success">
@@ -172,7 +173,9 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
 
+                    {% if show_geo %}
                     <!-- Geolocation -->
                     <div class="col-lg-4 col-6 flow-card" data-flow="geo">
                         <div class="small-box bg-warning">
@@ -189,6 +192,7 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- Chart -->
@@ -269,8 +273,12 @@
 
                                 <div class="robot-controls" role="group" aria-label="Robot Controls">
                                     <button class="btn btn-primary" onclick="startJob('coleta')" title="Iniciar coleta (todos os termos)"><i class="fas fa-play mr-2"></i>Iniciar Coleta</button>
+                                    {% if show_cep %}
                                     <button class="btn btn-secondary" onclick="startJob('cep')" title="Iniciar enriquecimento de CEP"><i class="fas fa-map-marked-alt mr-2"></i>Iniciar CEP</button>
+                                    {% endif %}
+                                    {% if show_geo %}
                                     <button class="btn btn-warning" onclick="startJob('geo')" title="Iniciar geolocalização"><i class="fas fa-map-marker-alt mr-2"></i>Iniciar Geo</button>
+                                    {% endif %}
                                     <button class="btn btn-danger" onclick="stopJob()" title="Parar robô"><i class="fas fa-stop mr-2"></i>Parar Robô</button>
                                 </div>
 

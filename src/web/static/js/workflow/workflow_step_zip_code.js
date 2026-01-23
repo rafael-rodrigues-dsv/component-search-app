@@ -14,6 +14,8 @@
         const estado = document.getElementById('cepEstado');
         const log = document.getElementById('cepLogradouro');
         if(cur) cur.textContent = data.cep || '(nenhum)';
+        const inp = document.getElementById('cepInput');
+        if(inp) inp.value = data.cep || '';
         if(cidade) cidade.textContent = data.cidade || '-';
         if(estado) estado.textContent = data.estado || '-';
         if(log) log.textContent = data.logradouro || '-';
@@ -57,8 +59,10 @@
         const raioEl = document.getElementById('cepRaioCurrent');
         const raioInput = document.getElementById('cepRaioInput');
         if(raioEl) raioEl.textContent = (d.raio_km !== undefined && d.raio_km !== null) ? String(d.raio_km) : '-';
-        if(raioInput) raioInput.value = (d.raio_km !== undefined && d.raio_km !== null) ? String(d.raio_km) : '';
-         const inp = document.getElementById('cepInput'); if(inp) inp.value = '';
+        // Keep the input fields populated with the saved values instead of clearing them
+        const inp = document.getElementById('cepInput');
+        if(inp) inp.value = d.cep || data.cep || inp.value || '';
+        if(raioInput) raioInput.value = (d.raio_km !== undefined && d.raio_km !== null) ? String(d.raio_km) : (raioInput.value || '');
        }else{
          alert('Falha ao salvar CEP: ' + (j.message||res.statusText));
        }

@@ -158,7 +158,15 @@ class DashboardServer:
         
         @self.app.route('/')
         def dashboard():
-            return render_template('dashboard/index.html')
+            try:
+                from src.infrastructure.config.config_manager import ConfigManager
+                cfg = ConfigManager()
+                show_cep = bool(cfg.cep_enrichment_widget_enabled)
+                show_geo = bool(cfg.geolocation_widget_enabled)
+            except Exception:
+                show_cep = True
+                show_geo = True
+            return render_template('dashboard/index.html', show_cep=show_cep, show_geo=show_geo)
 
         @self.app.route('/api/export-excel')
         def export_excel():
@@ -755,11 +763,15 @@ class DashboardServer:
                     nome = (r.get('nome') if isinstance(r, dict) else None) or ''
                     idv = (r.get('id') if isinstance(r, dict) else None) or None
                     uf_val = ''
+                    city_name = ''
                     if isinstance(r, dict):
                         uf_val = r.get('uf') or r.get('UF') or ''
                         if isinstance(uf_val, str):
                             uf_val = uf_val.strip()
-                    normalized.append({'id': idv, 'name': nome, 'uf': uf_val})
+                        city_name = r.get('cidade') or r.get('cidade') or r.get('city') or ''
+                        if isinstance(city_name, str):
+                            city_name = city_name.strip()
+                    normalized.append({'id': idv, 'name': nome, 'uf': uf_val, 'city': city_name})
 
                 return jsonify({'neighborhoods': normalized, 'pagination': result.get('pagination', {})})
             except Exception as e:

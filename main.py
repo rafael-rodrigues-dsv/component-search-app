@@ -13,19 +13,6 @@ from src.application.services.database_application_service import DatabaseApplic
 from src.web.dashboard_server import start_dashboard, stop_dashboard
 
 
-def _check_browser_availability(browser: str) -> bool:
-    """Verifica se o navegador está disponível (verificação rápida de arquivo)"""
-    import os
-
-    if browser == "CHROME":
-        return os.path.exists(r"C:\Program Files\Google\Chrome\Application\chrome.exe") or \
-            os.path.exists(r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe")
-    elif browser == "BRAVE":
-        return os.path.exists(r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe") or \
-            os.path.exists(r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe")
-    return False
-
-
 def _create_database_automatically() -> bool:
     """Cria o banco Access automaticamente"""
     try:
@@ -42,41 +29,6 @@ def _create_database_automatically() -> bool:
         print(f"[ERRO] Falha na criação: {e}")
         return False
 
-
-def _handle_reset_option(db_service) -> bool:
-    """Gerencia opção de reset ou continuação"""
-    try:
-        # Verificar se há dados existentes
-        stats = db_service.get_statistics()
-
-        if stats and (stats.get('empresas_total', 0) > 0 or stats.get('termos_concluidos', 0) > 0):
-            print("\n[INFO] Dados existentes encontrados:")
-            print(f"  - Empresas: {stats.get('empresas_total', 0)}")
-            print(f"  - E-mails: {stats.get('emails_total', 0)}")
-            print(f"  - Telefones: {stats.get('telefones_total', 0)}")
-            print(f"  - Progresso: {stats.get('progresso_pct', 0)}%")
-            print()
-
-            while True:
-                opcao = input("[ESCOLHA] (C)ontinuar busca ou (R)esetar tudo? (C/R): ").upper().strip()
-
-                if opcao == 'C':
-                    print("[INFO] Continuando busca de onde parou...")
-                    return True
-                elif opcao == 'R':
-                    print("[INFO] Resetando todos os dados...")
-                    db_service.reset_data(confirm=True)
-                    print("[OK] Reset concluído! Começando do zero...")
-                    return True
-                else:
-                    print("[ERRO] Opção inválida. Digite C para continuar ou R para resetar.")
-        else:
-            print("[INFO] Nenhum dado anterior encontrado. Iniciando nova coleta...")
-            return True
-
-    except Exception as e:
-        print(f"[ERRO] Falha ao verificar dados existentes: {e}")
-        return True
 
 
 def main():
@@ -154,20 +106,12 @@ def main():
             load_logger.error(f"Timeout aguardando liberação do arquivo .accdb: {last_exc}")
             raise last_exc
 
-        # Após criação das tabelas, executar carga inicial via InitialDataService (população controlada pela aplicação)
+        # Após criação das tabelas, executar carga inicial via InitialLoadApplicationService
         try:
-            from src.infrastructure.logging.initial_load_logger import load_logger
-            from src.application.services.initial_data_application_service import InitialDataApplicationService
-            init_svc = InitialDataApplicationService()
-            load_logger.info('Iniciando população inicial via InitialDataService...')
-            zones_count = init_svc.populate_zones()
-            load_logger.info(f'Zonas populadas: {zones_count}')
-            terms_count = init_svc.populate_base_terms()
-            load_logger.info(f'Termos base populados: {terms_count}')
-            zip_ok = init_svc.ensure_zip_seed()
-            load_logger.info(f'TB_CEP_CONFIG garantida/seed: {zip_ok}')
-
-
+            from src.application.services.initial_load_application_service import InitialLoadApplicationService
+            loader = InitialLoadApplicationService()
+            results = loader.run()
+            # results contains 'zones','terms','zip_ok'
         except Exception as e:
             # Log full stacktrace to the initial load log for debugging
             try:
@@ -175,7 +119,7 @@ def main():
                 import traceback
                 load_logger.error(f'Falha na população inicial: {e}\n{traceback.format_exc()}')
             except Exception:
-                print(f'[AVISO] Falha na população inicial via InitialDataService: {e}')
+                print(f'[AVISO] Falha na população inicial via InitialLoadApplicationService: {e}')
                 pass
 
         db_service = DatabaseApplicationService()

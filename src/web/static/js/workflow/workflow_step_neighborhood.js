@@ -45,8 +45,9 @@
             const tr = document.createElement('tr');
             const idCell = `<td>${it.id !== undefined && it.id !== null ? it.id : ''}</td>`;
             const nameCell = `<td>${(it.name||'').replace(/</g,'&lt;')}</td>`;
+            const cityCell = `<td>${(it.city||'').replace(/</g,'&lt;')}</td>`;
             const ufCell = `<td>${(it.uf||'').replace(/</g,'&lt;')}</td>`;
-            tr.innerHTML = idCell + nameCell + ufCell;
+            tr.innerHTML = idCell + nameCell + cityCell + ufCell;
             tbody.appendChild(tr);
         });
 

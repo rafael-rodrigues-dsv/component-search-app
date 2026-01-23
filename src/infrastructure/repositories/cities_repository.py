@@ -4,7 +4,6 @@ Handles persistence of discovered cities into Access DB and delegates cache oper
 """
 from typing import List, Dict, Any
 from src.infrastructure.repositories.access_repository import AccessRepository
-from pathlib import Path
 
 class CitiesRepository:
     def __init__(self):
@@ -74,15 +73,9 @@ class CitiesRepository:
 
     # New: fetch directly from TB_CIDADES (database table) - returns list of dicts with keys 'id','nome','uf'
     def list_cities(self, uf: str = None) -> List[Dict[str, Any]]:
-        # Debug: append entry to data/cities_debug.log for troubleshooting
+        # Use logger for debug information instead of writing debug files
         try:
-            data_dir = Path.cwd().joinpath('data')
-            data_dir.mkdir(parents=True, exist_ok=True)
-            try:
-                with open(data_dir.joinpath('cities_debug.log'), 'a', encoding='utf-8') as dbg:
-                    dbg.write(f'list_cities called (uf={uf})\n')
-            except Exception:
-                pass
+            self._access.logger.debug(f'list_cities called (uf={uf})')
         except Exception:
             pass
 
@@ -98,12 +91,11 @@ class CitiesRepository:
             # If execute_query returned usable rows (list of dicts), return them
             if rows:
                 try:
-                    with open(data_dir.joinpath('cities_debug.log'), 'a', encoding='utf-8') as dbg:
-                        dbg.write(f'execute_query returned {len(rows)} rows\n')
-                        try:
-                            dbg.write(f'sample_row: {rows[0]}\n')
-                        except Exception:
-                            pass
+                    self._access.logger.debug(f'execute_query returned {len(rows)} rows')
+                    try:
+                        self._access.logger.debug(f'sample_row: {rows[0]}')
+                    except Exception:
+                        pass
                 except Exception:
                     pass
                 return rows
@@ -138,8 +130,7 @@ class CitiesRepository:
                 except Exception:
                     pass
                 try:
-                    with open(data_dir.joinpath('cities_debug.log'), 'a', encoding='utf-8') as dbg:
-                        dbg.write(f'low-level fetch returned {len(result)} rows\n')
+                    self._access.logger.debug(f'low-level fetch returned {len(result)} rows')
                 except Exception:
                     pass
                 return result
@@ -150,20 +141,16 @@ class CitiesRepository:
                 except Exception:
                     pass
                 try:
-                    with open(data_dir.joinpath('cities_debug.log'), 'a', encoding='utf-8') as dbg:
-                        import traceback as _tb
-                        dbg.write('low-level fetch exception:\n')
-                        dbg.write(_tb.format_exc() + '\n')
+                    import traceback as _tb
+                    self._access.logger.debug('low-level fetch exception:\n' + _tb.format_exc())
                 except Exception:
                     pass
                 raise
         except Exception:
             # Re-raise so higher-level services / API can decide how to respond (per your instruction)
             try:
-                with open(data_dir.joinpath('cities_debug.log'), 'a', encoding='utf-8') as dbg:
-                    import traceback as _tb
-                    dbg.write('list_cities exception at top level:\n')
-                    dbg.write(_tb.format_exc() + '\n')
+                import traceback as _tb
+                self._access.logger.debug('list_cities exception at top level:\n' + _tb.format_exc())
             except Exception:
                 pass
             raise

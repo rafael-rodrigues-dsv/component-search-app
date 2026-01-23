@@ -183,6 +183,14 @@ class ConfigManager:
         return self.get('geographic_discovery.enabled', True)
     
     @property
+    def cep_enrichment_widget_enabled(self) -> bool:
+        return self.get('ui.widgets.cep_enrichment.enabled', True)
+
+    @property
+    def geolocation_widget_enabled(self) -> bool:
+        return self.get('ui.widgets.geolocation.enabled', True)
+
+    @property
     def capital_validation_enabled(self) -> bool:
         return self.get('geographic_discovery.capital_validation.enabled', True)
     

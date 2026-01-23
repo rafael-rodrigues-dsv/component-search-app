@@ -54,6 +54,13 @@ dashboard:
   auto_open_browser: true
   update_interval_seconds: 2
 
+ui:
+  widgets:
+    cep_enrichment:
+      enabled: false
+    geolocation:
+      enabled: false
+
 mode:
   is_test: false
   complete_threshold: 1000
@@ -139,3 +146,4 @@ geographic_discovery:
       - "94"    # Porto Alegre - RS (região metropolitana)
       - "95"    # Porto Alegre - RS (região metropolitana)
       - "96"    # Porto Alegre - RS (região metropolitana)
+
