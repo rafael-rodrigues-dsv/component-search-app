@@ -51,6 +51,9 @@ class DashboardServer:
 
         self.socketio = SocketIO(self.app, cors_allowed_origins="*", logger=False, engineio_logger=False)
         self.db_service = DatabaseApplicationService()
+        # Simple UI-reset flag: on server start this is True and will be cleared on first client check.
+        # Clients should call GET /api/ui/reset on init; if {'reset': true} is returned they must clear persisted UI prefs.
+        self.ui_reset_required = True
         self.is_running = False
         self.server_thread = None
         self.monitor_thread = None
@@ -716,9 +719,85 @@ class DashboardServer:
                 for r in result.get('cities', []):
                     nome = (r.get('nome') if isinstance(r, dict) else None) or (r.get('name') if isinstance(r, dict) else None) or ''
                     idv = (r.get('id') if isinstance(r, dict) else None) or None
-                    normalized.append({'id': idv, 'name': nome})
+                    # Normalize UF (handle different casing)
+                    uf_val = ''
+                    if isinstance(r, dict):
+                        uf_val = r.get('uf') or r.get('UF') or r.get('Uf') or ''
+                        if isinstance(uf_val, str):
+                            uf_val = uf_val.strip()
+                    normalized.append({'id': idv, 'name': nome, 'uf': uf_val})
 
                 return jsonify({'cities': normalized, 'pagination': result.get('pagination', {})})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/workflow/neighborhoods')
+        def api_workflow_neighborhoods():
+            try:
+                from flask import request
+                uf = request.args.get('uf') or None
+                try:
+                    limit = int(request.args.get('limit', 10))
+                except Exception:
+                    limit = 10
+                try:
+                    offset = int(request.args.get('offset', 0))
+                except Exception:
+                    offset = 0
+
+                from src.application.services.neighborhoods_application_service import NeighborhoodsApplicationService
+                svc = NeighborhoodsApplicationService()
+                result = svc.get_paginated_neighborhoods(uf=uf, limit=limit, offset=offset)
+
+                normalized = []
+                for r in result.get('neighborhoods', []):
+                    nome = (r.get('nome') if isinstance(r, dict) else None) or ''
+                    idv = (r.get('id') if isinstance(r, dict) else None) or None
+                    uf_val = ''
+                    if isinstance(r, dict):
+                        uf_val = r.get('uf') or r.get('UF') or ''
+                        if isinstance(uf_val, str):
+                            uf_val = uf_val.strip()
+                    normalized.append({'id': idv, 'name': nome, 'uf': uf_val})
+
+                return jsonify({'neighborhoods': normalized, 'pagination': result.get('pagination', {})})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/workflow/processed_terms')
+        def api_workflow_processed_terms():
+            try:
+                from flask import request
+                try:
+                    limit = int(request.args.get('limit', 10))
+                except Exception:
+                    limit = 10
+                try:
+                    offset = int(request.args.get('offset', 0))
+                except Exception:
+                    offset = 0
+
+                from src.application.services.processed_terms_application_service import ProcessedTermsApplicationService
+                svc = ProcessedTermsApplicationService()
+                result = svc.get_paginated_processed_terms(limit=limit, offset=offset)
+
+                # Return as terms with fields termo_completo, tipo_localidade, status
+                return jsonify({'terms': result.get('terms', []), 'pagination': result.get('pagination', {})})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/ui/reset')
+        def api_ui_reset():
+            try:
+                # Return True once after server startup; then clear the flag so subsequent calls return False
+                if getattr(self, 'ui_reset_required', False):
+                    try:
+                        # clear the flag so only the first caller(s) see reset
+                        self.ui_reset_required = False
+                    except Exception:
+                        pass
+                    return jsonify({'reset': True})
+                return jsonify({'reset': False})
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 

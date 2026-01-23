@@ -88,10 +88,11 @@ class CitiesRepository:
 
         try:
             if uf:
-                sql = "SELECT ID_CIDADE AS id, NOME_CIDADE AS nome, UF FROM TB_CIDADES WHERE UF = ? ORDER BY NOME_CIDADE"
+                # Order by uppercase name to ensure case-insensitive alphabetical order
+                sql = "SELECT ID_CIDADE AS id, NOME_CIDADE AS nome, UF FROM TB_CIDADES WHERE UF = ? ORDER BY UCase(NOME_CIDADE)"
                 rows = self._access.execute_query(sql, [uf])
             else:
-                sql = "SELECT ID_CIDADE AS id, NOME_CIDADE AS nome, UF FROM TB_CIDADES ORDER BY NOME_CIDADE"
+                sql = "SELECT ID_CIDADE AS id, NOME_CIDADE AS nome, UF FROM TB_CIDADES ORDER BY UCase(NOME_CIDADE)"
                 rows = self._access.execute_query(sql, None)
 
             # If execute_query returned usable rows (list of dicts), return them

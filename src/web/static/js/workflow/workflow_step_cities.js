@@ -1,21 +1,23 @@
 // migrated from municipios_grid.js
 (function(){
     // pagination state (same pattern as termos grid)
-    let PAGE_SIZE = 10;
-    let offset = 0;
+    // default standardized to 5 to align with other grids
+    let PAGE_SIZE = 5;
     let currentPage = 1;
     let totalPages = 1;
 
     // initialize PAGE_SIZE from localStorage or selector
     try{
+        // Only honor stored page size if user explicitly changed it before.
         const stored = (window.localStorage ? window.localStorage.getItem('mun_page_size') : null);
-        if(stored && Number.isInteger(parseInt(stored,10))){
+        const userSet = (window.localStorage ? window.localStorage.getItem('mun_page_size_user_set') : null);
+        if(userSet === '1' && stored && Number.isInteger(parseInt(stored,10))){
             PAGE_SIZE = parseInt(stored,10);
         } else {
             const sel = document.getElementById('mun-page-size');
             if(sel && sel.value) PAGE_SIZE = parseInt(sel.value,10) || PAGE_SIZE;
         }
-    }catch(e){ PAGE_SIZE = PAGE_SIZE || 10; }
+    }catch(e){ PAGE_SIZE = PAGE_SIZE || 5; }
 
     let totalItems = 0;
 
@@ -47,7 +49,8 @@
             const tr = document.createElement('tr');
             const idCell = `<td>${it.id !== undefined && it.id !== null ? it.id : ''}</td>`;
             const nameCell = `<td>${(it.name||'').replace(/</g,'&lt;')}</td>`;
-            tr.innerHTML = idCell + nameCell;
+            const ufCell = `<td>${(it.uf||'').replace(/</g,'&lt;')}</td>`;
+            tr.innerHTML = idCell + nameCell + ufCell;
             tbody.appendChild(tr);
         });
 
@@ -66,6 +69,16 @@
     function doInit(){
         if(window._mun_initialized) return; window._mun_initialized=true;
 
+        // check server-driven UI reset (Option A): server returns reset=true once after startup
+        try{
+            fetch('/api/ui/reset').then(r=>r.json()).then(j=>{
+                if(j && j.reset){
+                    try{ localStorage.removeItem('mun_page_size'); localStorage.removeItem('mun_page_size_user_set'); }catch(e){}
+                    PAGE_SIZE = 5;
+                }
+            }).catch(()=>{});
+        }catch(e){}
+
         // wire page size selector and persist choice
         try{
             const sel = document.getElementById('mun-page-size');
@@ -76,7 +89,7 @@
                 sel.addEventListener('change', function(){
                     const v = parseInt(this.value,10) || 10;
                     PAGE_SIZE = v;
-                    try{ if(window.localStorage) window.localStorage.setItem('mun_page_size', String(v)); }catch(e){}
+                    try{ if(window.localStorage){ window.localStorage.setItem('mun_page_size', String(v)); window.localStorage.setItem('mun_page_size_user_set','1'); } }catch(e){}
                     currentPage = 1; fetchAndRender();
                 });
             }

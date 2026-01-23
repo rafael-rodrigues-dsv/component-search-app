@@ -1,64 +1,97 @@
 // migrated from bairros_grid.js
 (function(){
-    let PAGE_SIZE = 10;
+    // pagination state (same pattern as other grids)
+    // default standardized to 5 to align with other grids
+    let PAGE_SIZE = 5;
     let currentPage = 1;
-    let data = Array.from({length:28}).map((_,i)=>({id:i+1,name:`Bairro ${i+1}`}));
+    let totalPages = 1;
 
-    function render(){
-        const per = parseInt(document.getElementById('bai-page-size').value,10);
-        const start = (currentPage-1)*per;
-        const items = data.slice(start,start+per);
-        const tbody = document.querySelector('#bai-table tbody');
-        if(!tbody) return;
-        // preserve new-row editor if present
-        const newRow = tbody.querySelector('#bai-new-row');
-        // clear existing rows
-        while(tbody.firstChild) tbody.removeChild(tbody.firstChild);
-        if(newRow) tbody.appendChild(newRow);
-        // append items
-        items.forEach(it=>{
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${it.id}</td><td>${it.name}</td><td><button class="btn btn-sm btn-outline-danger remove" data-id="${it.id}"><i class="fas fa-trash"></i></button></td>`;
-            tbody.appendChild(tr);
-        });
-        const max = Math.max(1, Math.ceil(data.length/per));
-        document.getElementById('pagination-bai-info').textContent = `Página ${currentPage} de ${max}`;
-        document.getElementById('btn-prev-bai').disabled = currentPage<=1;
-        document.getElementById('btn-next-bai').disabled = currentPage>=max;
-        Array.from(document.querySelectorAll('#bai-table .remove')).forEach(b=> b.addEventListener('click', (e)=>{ const id=+e.currentTarget.dataset.id; data = data.filter(x=>x.id!==id); if(currentPage>Math.ceil(data.length/per)) currentPage = Math.max(1, Math.ceil(data.length/per)); render(); showToast('Bairro removido','success'); }));
-    }
+    // initialize PAGE_SIZE from localStorage or selector
+    try{
+        const stored = (window.localStorage ? window.localStorage.getItem('bai_page_size') : null);
+        const userSet = (window.localStorage ? window.localStorage.getItem('bai_page_size_user_set') : null);
+        if(userSet === '1' && stored && Number.isInteger(parseInt(stored,10))){
+            PAGE_SIZE = parseInt(stored,10);
+        } else {
+            const sel = document.getElementById('bai-page-size');
+            if(sel && sel.value) PAGE_SIZE = parseInt(sel.value,10) || PAGE_SIZE;
+        }
+    }catch(e){ PAGE_SIZE = PAGE_SIZE || 5; }
 
     function showToast(msg, type='success'){
         const container = document.getElementById('toast-container-bai'); if(!container) return;
-        const div = document.createElement('div'); div.className = `toast ${type==='success'?'bg-success text-white':''}`; div.innerHTML = `<div class="toast-body">${msg}</div>`; container.appendChild(div); setTimeout(()=>div.remove(), 2500);
+        const div = document.createElement('div'); div.className = `toast ${type==='success'?'bg-success text-white':''}`; div.innerHTML = `<div class=\"toast-body\">${msg}</div>`; container.appendChild(div); setTimeout(()=>div.remove(), 2500);
     }
 
-    function addBairroLocal(name){ data.unshift({id:Date.now(), name}); if(currentPage>1) currentPage=1; render(); showToast('Bairro adicionado','success'); }
+    async function fetchAndRender(){
+        const offset = (currentPage-1)*PAGE_SIZE;
+        const params = new URLSearchParams({ limit: PAGE_SIZE, offset: offset });
+        try{
+            const res = await fetch(`/api/workflow/neighborhoods?${params.toString()}`);
+            const payload = await res.json();
+            if(!res.ok){ showToast(payload.message||'Erro ao carregar bairros','error'); return; }
+            const items = payload.neighborhoods || [];
+            const pagination = payload.pagination || { total: items.length, limit: PAGE_SIZE, offset: offset, total_pages:1, current_page:1 };
+            totalPages = pagination.total_pages || 1;
+            renderTable(items, pagination);
+        }catch(e){ console.error(e); showToast('Erro ao carregar bairros','error'); }
+    }
+
+    function renderTable(items, pagination){
+        const tbody = document.querySelector('#bai-table tbody');
+        if(!tbody) return;
+        while(tbody.firstChild) tbody.removeChild(tbody.firstChild);
+        items.forEach(it=>{
+            const tr = document.createElement('tr');
+            const idCell = `<td>${it.id !== undefined && it.id !== null ? it.id : ''}</td>`;
+            const nameCell = `<td>${(it.name||'').replace(/</g,'&lt;')}</td>`;
+            const ufCell = `<td>${(it.uf||'').replace(/</g,'&lt;')}</td>`;
+            tr.innerHTML = idCell + nameCell + ufCell;
+            tbody.appendChild(tr);
+        });
+
+        const infoEl = document.getElementById('pagination-bai-info');
+        if(infoEl) infoEl.textContent = `Página ${pagination.current_page} de ${pagination.total_pages}`;
+        const prev = document.getElementById('btn-prev-bai');
+        const next = document.getElementById('btn-next-bai');
+        if(prev) prev.disabled = !pagination.has_previous;
+        if(next) next.disabled = !pagination.has_next;
+    }
 
     function doInit(){
-        if(window._bairros_initialized) return; window._bairros_initialized=true;
-        const openBtn = document.getElementById('btn-open-bai-editor');
-        const newRow = document.getElementById('bai-new-row');
-        const cancelBtn = document.getElementById('btn-cancel-bai');
-        const okBtn = document.getElementById('btn-add-bai');
-        const termInput = document.getElementById('row-new-bai');
+        if(window._bai_initialized) return; window._bai_initialized = true;
 
-        function showEditor(){ if(!newRow) return; newRow.style.display='table-row'; if(termInput) termInput.focus(); }
-        function hideEditor(){ if(!newRow) return; newRow.style.display='none'; if(termInput) termInput.value=''; }
+        // consult server to see if UI prefs should be reset after server restart
+        try{
+            fetch('/api/ui/reset').then(r=>r.json()).then(j=>{
+                if(j && j.reset){
+                    try{ localStorage.removeItem('bai_page_size'); localStorage.removeItem('bai_page_size_user_set'); }catch(e){}
+                    PAGE_SIZE = 5;
+                }
+            }).catch(()=>{});
+        }catch(e){}
 
-        if(openBtn) openBtn.addEventListener('click', (e)=>{ e.preventDefault(); showEditor(); });
-        if(cancelBtn) cancelBtn.addEventListener('click', (e)=>{ e.preventDefault(); hideEditor(); });
+        try{
+            const sel = document.getElementById('bai-page-size');
+            const stored = (window.localStorage ? window.localStorage.getItem('bai_page_size') : null);
+            if(stored && Number.isInteger(parseInt(stored,10))) PAGE_SIZE = parseInt(stored,10);
+            if(sel){
+                sel.value = String(PAGE_SIZE);
+                sel.addEventListener('change', function(){
+                    const v = parseInt(this.value,10) || 10;
+                    PAGE_SIZE = v;
+                    try{ if(window.localStorage){ window.localStorage.setItem('bai_page_size', String(v)); window.localStorage.setItem('bai_page_size_user_set','1'); } }catch(e){}
+                    currentPage = 1; fetchAndRender();
+                });
+            }
+        }catch(e){ console.debug('bai page-size init', e); }
 
-        if(okBtn) okBtn.addEventListener('click', function(ev){ ev.preventDefault(); if(okBtn.disabled) return; const v = termInput ? termInput.value.trim() : ''; if(!v) return; okBtn.disabled=true; try{ addBairroLocal(v); }finally{ okBtn.disabled=false; hideEditor(); } });
+        document.getElementById('btn-prev-bai')?.addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; fetchAndRender(); } });
+        document.getElementById('btn-next-bai')?.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; fetchAndRender(); } });
 
-        if(termInput) termInput.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); okBtn && okBtn.click(); } else if(e.key==='Escape'){ e.preventDefault(); hideEditor(); } });
-
-        document.getElementById('bai-page-size')?.addEventListener('change', ()=>{ currentPage=1; render(); });
-        document.getElementById('btn-prev-bai')?.addEventListener('click', ()=>{ if(currentPage>1) currentPage--; render(); });
-        document.getElementById('btn-next-bai')?.addEventListener('click', ()=>{ const per=parseInt(document.getElementById('bai-page-size').value,10); const max=Math.ceil(data.length/per); if(currentPage<max) currentPage++; render(); });
-
-        render();
+        fetchAndRender();
     }
 
+    // Keep same init name used by shims: window.init_bairros_grid
     window.init_bairros_grid = function(){ try{ doInit(); }catch(e){ console.warn(e); } };
 })();

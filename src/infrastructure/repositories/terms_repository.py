@@ -82,3 +82,12 @@ class TermsRepository:
     def delete_all(self) -> int:
         """Remove all search terms (used by reset/clear flows)."""
         return self._repo.execute_query("DELETE FROM TB_TERMOS_BUSCA")
+
+    def list_terms(self) -> List[Dict[str, Any]]:
+        """Return all terms ordered case-insensitive by TERMO_COMPLETO."""
+        # Prefer ordering in SQL using UCase for case-insensitive alphabetical order
+        try:
+            return self._repo.execute_query("SELECT ID_TERMO AS id, TERMO_COMPLETO AS termo_text, TIPO_LOCALIZACAO AS tipo_local, STATUS_PROCESSAMENTO AS status_proc FROM TB_TERMOS_BUSCA ORDER BY UCase(TERMO_COMPLETO)")
+        except Exception:
+            # Fallback to a safer query if UCase isn't supported in this environment
+            return self._repo.execute_query("SELECT ID_TERMO AS id, TERMO_COMPLETO AS termo_text, TIPO_LOCALIZACAO AS tipo_local, STATUS_PROCESSAMENTO AS status_proc FROM TB_TERMOS_BUSCA ORDER BY TERMO_COMPLETO")
