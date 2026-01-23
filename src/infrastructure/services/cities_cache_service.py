@@ -13,52 +13,113 @@ class CitiesCacheService:
     
     def __init__(self):
         self.cache_dir = Path("data/cache")
-        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.cache_dir / "cities_brazil.db"
         self.session = requests.Session()
-        
+
+    def _ensure_cache_db(self):
+        """Create sqlite DB and table if missing"""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS cities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uf TEXT(2),
+                    nome TEXT(200),
+                    ibge TEXT(20),
+                    population INTEGER
+                )
+                """
+            )
+            conn.commit()
+        finally:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            conn.close()
+
+    def _save_cities_to_sqlite(self, cities: List[Dict], uf: str) -> int:
+        """Save a list of cities into sqlite cache (idempotent)"""
+        if not cities:
+            return 0
+        self._ensure_cache_db()
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.cursor()
+            inserted = 0
+            for c in cities:
+                nome = c.get('nome') or c.get('name') or c.get('municipio')
+                ibge = c.get('codigo_ibge') or c.get('ibge') or c.get('codigo') or None
+                population = c.get('population') or None
+                try:
+                    cursor.execute("SELECT id FROM cities WHERE uf = ? AND UPPER(nome) = UPPER(?)", (uf, nome))
+                    if cursor.fetchone():
+                        continue
+                except Exception:
+                    pass
+                try:
+                    cursor.execute("INSERT INTO cities (uf, nome, ibge, population) VALUES (?, ?, ?, ?)", (uf, nome, ibge, population))
+                    inserted += 1
+                except Exception:
+                    continue
+            conn.commit()
+            return inserted
+        finally:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            conn.close()
+
+    def _get_cities_from_cache(self, uf: str) -> List[Dict]:
+        """Retorna lista de cidades do cache para o estado informado"""
+        if not self.db_path.exists():
+            return []
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT nome, ibge, population FROM cities WHERE uf = ? ORDER BY nome", (uf,))
+            rows = cursor.fetchall()
+            result = []
+            for r in rows:
+                result.append({'nome': r['nome'], 'ibge': r['ibge'], 'population': r['population']})
+            return result
+        finally:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            conn.close()
+
+    # Backwards compatible public methods
     def get_state_cities(self, uf: str) -> List[Dict]:
-        """Obter cidades do estado (cache local ou download)"""
         if not self._cache_exists():
             print("[CACHE] Primeira execução - baixando base de cidades...")
             self._build_cache()
-        
         return self._get_cities_from_cache(uf)
-    
+
     def _cache_exists(self) -> bool:
-        """Verificar se cache existe e é válido"""
         return self.db_path.exists()
-    
+
     def _build_cache(self):
-        """Construir cache completo de uma vez"""
-        print("[CACHE] Criando base local de cidades brasileiras...")
-        
-        # Usar Repository para criar cache
-        from ...repositories.access_repository import AccessRepository
-        repo = AccessRepository()
-        repo.create_cities_cache_table()
-        
-        # Estados brasileiros
+        from ...config.config_manager import ConfigManager
+        config = ConfigManager()
         states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
                  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
-        
         total_cities = 0
         for uf in states:
             try:
-                print(f"[CACHE] Baixando {uf}...")
                 cities = self._download_state_cities(uf)
-                
-                # Usar Repository para salvar cidades
-                repo.save_cities_to_cache(cities, uf)
-                
-                total_cities += len(cities)
-                
+                saved = self._save_cities_to_sqlite(cities, uf)
+                total_cities += saved
             except Exception as e:
                 print(f"[CACHE] Erro {uf}: {e}")
-        
-        # Repository gerencia a conexão
         print(f"[CACHE] ✅ Cache criado: {total_cities} cidades")
-    
+
     def _download_state_cities(self, uf: str) -> List[Dict]:
         """Download otimizado via Brasil API"""
         try:
@@ -120,30 +181,6 @@ class CitiesCacheService:
             return 150000  # Cidade pequena
         else:
             return 50000   # Cidade muito pequena
-    
-    def _get_cities_from_cache(self, uf: str) -> List[Dict]:
-        """Buscar cidades do cache local"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        
-        # Usar Repository para buscar cidades
-        from ...repositories.access_repository import AccessRepository
-        repo = AccessRepository()
-        return repo.get_cities_from_cache(uf)
-        
-        # Repository já retorna os dados formatados
-    
-    def get_metropolitan_cities(self, uf: str, capital_name: str) -> List[Dict]:
-        """Obter cidades da região metropolitana (top 20 por população)"""
-        cities = self.get_state_cities(uf)
-        
-        # Marcar capital
-        for city in cities:
-            if city['nome'].lower() == capital_name.lower():
-                city['is_capital'] = True
-        
-        # Retornar top 20 por população
-        return cities[:20]
     
     def clear_cache(self):
         """Limpar cache para forçar rebuild"""

@@ -3,7 +3,7 @@ Serviço de configuração do usuário
 """
 
 
-class UserConfigService:
+class UserConfigApplicationService:
     """Gerencia configurações do usuário via console"""
 
     # Overrides (definidos em runtime pela UI)
@@ -14,25 +14,25 @@ class UserConfigService:
 
     @staticmethod
     def set_browser(value: str):
-        UserConfigService._browser_override = value
+        UserConfigApplicationService._browser_override = value
 
     @staticmethod
     def set_search_engine(value: str):
-        UserConfigService._search_engine_override = value
+        UserConfigApplicationService._search_engine_override = value
 
     @staticmethod
     def set_processing_mode(value: int):
-        UserConfigService._processing_mode_override = value
+        UserConfigApplicationService._processing_mode_override = value
 
     @staticmethod
     def set_headless(value: bool) -> None:
         """Override via UI para executar o navegador em modo headless (True/False)."""
-        UserConfigService._headless_override = bool(value)
+        UserConfigApplicationService._headless_override = bool(value)
 
     @staticmethod
     def get_headless() -> bool | None:
         """Retorna override do headless se definido; caso contrário None para usar config padrão."""
-        return UserConfigService._headless_override
+        return UserConfigApplicationService._headless_override
 
     @staticmethod
     def _check_browser_availability(browser: str) -> bool:
@@ -54,9 +54,9 @@ class UserConfigService:
         """
         browsers = []
         try:
-            if UserConfigService._check_browser_availability("CHROME"):
+            if UserConfigApplicationService._check_browser_availability("CHROME"):
                 browsers.append("CHROME")
-            if UserConfigService._check_browser_availability("BRAVE"):
+            if UserConfigApplicationService._check_browser_availability("BRAVE"):
                 browsers.append("BRAVE")
         except Exception:
             # Em caso de erro ao checar, fornecer lista vazia (a UI tratará o fallback)
@@ -69,10 +69,10 @@ class UserConfigService:
         Usa override se definido; caso contrário escolhe entre navegadores detectados
         ou retorna 'CHROME' por padrão.
         """
-        if UserConfigService._browser_override:
-            return UserConfigService._browser_override
+        if UserConfigApplicationService._browser_override:
+            return UserConfigApplicationService._browser_override
 
-        avail = UserConfigService.list_available_browsers()
+        avail = UserConfigApplicationService.list_available_browsers()
         if len(avail) == 1:
             return avail[0]
         if len(avail) > 1:
@@ -84,20 +84,20 @@ class UserConfigService:
     @staticmethod
     def get_default_search_engine_without_prompt() -> str:
         """Retorna o motor padrão sem prompt (respeita override)."""
-        if UserConfigService._search_engine_override:
-            return UserConfigService._search_engine_override
+        if UserConfigApplicationService._search_engine_override:
+            return UserConfigApplicationService._search_engine_override
         return "GOOGLE"
 
     @staticmethod
     def get_browser() -> str:
         """Obtém navegador escolhido pelo usuário"""
         # Return override if set
-        if UserConfigService._browser_override:
-            return UserConfigService._browser_override
+        if UserConfigApplicationService._browser_override:
+            return UserConfigApplicationService._browser_override
 
         # Verifica disponibilidade
-        chrome_available = UserConfigService._check_browser_availability("CHROME")
-        brave_available = UserConfigService._check_browser_availability("BRAVE")
+        chrome_available = UserConfigApplicationService._check_browser_availability("CHROME")
+        brave_available = UserConfigApplicationService._check_browser_availability("BRAVE")
 
         # Se só um disponível, usa automaticamente
         if chrome_available and not brave_available:
@@ -144,8 +144,8 @@ class UserConfigService:
     def get_search_engine() -> str:
         """Obtém motor de busca escolhido pelo usuário"""
         # Override
-        if UserConfigService._search_engine_override:
-            return UserConfigService._search_engine_override
+        if UserConfigApplicationService._search_engine_override:
+            return UserConfigApplicationService._search_engine_override
 
         # Se não há stdin interativo (ex: executado via servidor web), retornar padrão sem prompt
         try:
@@ -176,7 +176,7 @@ class UserConfigService:
     def get_processing_mode() -> int:
         """Retorna modo completo (sempre coleta tudo)"""
         # Override
-        if UserConfigService._processing_mode_override is not None:
-            return UserConfigService._processing_mode_override
+        if UserConfigApplicationService._processing_mode_override is not None:
+            return UserConfigApplicationService._processing_mode_override
         print("\n🔍 Modo de processamento: COMPLETO (coleta todos os resultados)")
         return 999999

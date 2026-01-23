@@ -9,8 +9,8 @@ from config.settings import (
     BLACKLIST_HOSTS, MAX_EMAILS_PER_SITE,
     RESULTS_PER_TERM_LIMIT, SEARCH_DWELL, COMPLETE_MODE_THRESHOLD
 )
-from .database_service import DatabaseService
-from .user_config_service import UserConfigService
+from .database_application_service import DatabaseApplicationService
+from .user_config_application_service import UserConfigApplicationService
 from ...domain.models.collection_result_model import CollectionResultModel
 from ...domain.models.collection_stats_model import CollectionStatsModel
 from ...domain.models.company_model import CompanyModel
@@ -26,7 +26,7 @@ from ...infrastructure.logging.structured_logger import StructuredLogger
 from ...infrastructure.metrics.performance_tracker import PerformanceTracker
 from ...infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
 from ...infrastructure.scrapers.google_scraper import GoogleScraper
-from .robot_controller import is_stop_requested
+from .robot_controller_application_service import is_stop_requested
 
 
 class EmailApplicationService(EmailCollectorInterface):
@@ -39,12 +39,12 @@ class EmailApplicationService(EmailCollectorInterface):
         self.performance_tracker = PerformanceTracker() if self.config.performance_tracking_enabled else None
 
         # Serviço de banco de dados
-        self.db_service = DatabaseService()
+        self.db_service = DatabaseApplicationService()
 
         # Configurações do usuário (inputs do console)
-        self.browser: str = UserConfigService.get_browser()
-        self.search_engine: str = UserConfigService.get_search_engine()
-        self.top_results_total: int = UserConfigService.get_processing_mode()
+        self.browser: str = UserConfigApplicationService.get_browser()
+        self.search_engine: str = UserConfigApplicationService.get_search_engine()
+        self.top_results_total: int = UserConfigApplicationService.get_processing_mode()
 
         # Inicialização de componentes DEPOIS dos inputs
         self.driver_manager: WebDriverManager = WebDriverManager()
@@ -76,9 +76,11 @@ class EmailApplicationService(EmailCollectorInterface):
     def execute(self) -> bool:
         """Executa coleta completa de e-mails"""
         try:
+            self.logger.debug("Tentando iniciar driver do navegador...")
             if not self.driver_manager.start_driver():
-                self.logger.error("Falha ao iniciar driver")
+                self.logger.error("Falha ao iniciar driver (WebDriverManager.start_driver returned False)")
                 return False
+            self.logger.debug("Driver iniciado com sucesso")
 
             if self.search_engine == "GOOGLE":
                 self.scraper.driver = self.driver_manager.driver
@@ -93,8 +95,21 @@ class EmailApplicationService(EmailCollectorInterface):
 
             terms_data = self.db_service.get_search_terms()
             if not terms_data:
-                self.logger.error("Nenhum termo de busca encontrado")
+                self.logger.error("Nenhum termo de busca encontrado - abortando execução")
+                # Emit extra debug: try to query count directly from domain service
+                try:
+                    cnt = self.db_service.domain_service.count_total_search_terms()
+                    self.logger.debug(f"DomainService reports total_terms={cnt}")
+                except Exception as ex:
+                    self.logger.debug(f"Erro ao obter count_total_search_terms: {ex}")
                 return False
+
+            # Log summary of terms retrieved (first 3) for debugging
+            try:
+                sample = terms_data[:3]
+                self.logger.debug(f"Obtidos {len(terms_data)} termos para processamento. Amostra: {sample}")
+            except Exception:
+                pass
 
             # Converter para SearchTermModel
             terms = [SearchTermModel(query=t['termo'], location='São Paulo', category='elevadores', pages=3) for t in
@@ -364,3 +379,30 @@ class EmailApplicationService(EmailCollectorInterface):
             return False
         except Exception:
             return False
+
+    def add_emails(self, empresa_id: int, emails: list, domain_email: str):
+        """Compat wrapper — adiciona e-mails usando o repositório de e-mails."""
+        try:
+            from src.infrastructure.repositories.emails_repository import EmailsRepository
+            repo = EmailsRepository()
+            return repo.insert_emails(empresa_id, emails, domain_email)
+        except Exception:
+            # Fallback: delegar ao DatabaseApplicationService se implementado
+            try:
+                return self.db_service.domain_service.save_emails(empresa_id, emails, domain_email)
+            except Exception:
+                return None
+
+    def is_collected(self, email: str) -> bool:
+        """Compat wrapper — verifica se o e-mail já foi coletado."""
+        try:
+            # Preferir delegar para o DatabaseApplicationService que encapsula regras
+            return self.db_service.is_email_collected(email)
+        except Exception:
+            try:
+                from src.infrastructure.repositories.emails_repository import EmailsRepository
+                repo = EmailsRepository()
+                return repo.is_email_collected(email)
+            except Exception:
+                return False
+

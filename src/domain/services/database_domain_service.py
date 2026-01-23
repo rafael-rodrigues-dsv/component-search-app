@@ -1,45 +1,74 @@
 """
-Domain Service para operações de banco de dados
+Domain Service para operações de banco de dados (refatorado para usar repositories específicos)
 """
 from typing import Dict, List
 
-from ...infrastructure.repositories.access_repository import AccessRepository
+from ...infrastructure.repositories.terms_repository import TermsRepository
+from ...infrastructure.repositories.companies_repository import CompaniesRepository
+from ...infrastructure.repositories.addresses_repository import AddressesRepository
+from ...infrastructure.repositories.emails_repository import EmailsRepository
+from ...infrastructure.repositories.phones_repository import PhonesRepository
+from ...infrastructure.repositories.spreadsheet_repository import SpreadsheetRepository
+from ...infrastructure.repositories.geolocation_repository import GeolocationRepository
+from ...infrastructure.repositories.cep_enrichment_repository import CepEnrichmentRepository
+from ...infrastructure.repositories.statistics_repository import StatisticsRepository
 
 
 class DatabaseDomainService:
     """Domain Service responsável por regras de negócio relacionadas ao banco"""
-    
+
     def __init__(self):
-        self.repository = AccessRepository()
-    
+        # Instantiate specific repositories
+        self.terms_repo = TermsRepository()
+        self.companies_repo = CompaniesRepository()
+        self.addresses_repo = AddressesRepository()
+        self.emails_repo = EmailsRepository()
+        self.phones_repo = PhonesRepository()
+        self.spreadsheet_repo = SpreadsheetRepository()
+        self.geo_repo = GeolocationRepository()
+        self.cep_repo = CepEnrichmentRepository()
+        self._stats = StatisticsRepository()  # aggregated stats
+
     def count_total_search_terms(self) -> int:
-        """Conta total de termos no banco"""
-        return self.repository.count_total_search_terms()
-    
+        return self.terms_repo.count()
+
     def get_pending_terms(self) -> List[Dict]:
-        """Obtém termos pendentes de processamento"""
-        return self.repository.get_pending_terms()
-    
+        return self.terms_repo.fetch_pending()
+
     def get_processing_statistics(self) -> Dict[str, int]:
-        """Obtém estatísticas completas do processamento"""
-        return self.repository.get_processing_statistics()
-    
+        try:
+            return self._stats.get_processing_statistics()
+        except Exception:
+            return {
+                'termos_total': 0,
+                'termos_concluidos': 0,
+                'termos_pendentes': 0,
+                'empresas_total': 0,
+                'empresas_coletadas': 0,
+                'emails_total': 0,
+                'telefones_total': 0,
+                'progresso_pct': 0
+            }
+
+    def get_company_collection_statistics(self) -> Dict[str, int]:
+        try:
+            return self.companies_repo.get_collection_statistics()
+        except Exception:
+            return {'visitadas': 0, 'coletadas': 0, 'nao_coletadas': 0, 'taxa_coleta_pct': 0}
+
     def is_domain_visited(self, domain: str) -> bool:
-        """Verifica se domínio já foi visitado"""
-        return self.repository.is_domain_visited(domain)
-    
+        return self.companies_repo.is_domain_visited(domain)
+
     def is_email_collected(self, email: str) -> bool:
-        """Verifica se e-mail já foi coletado"""
-        return self.repository.is_email_collected(email)
-    
+        return self.emails_repo.is_email_collected(email)
+
     def save_company_data(self, termo_id: int, site_url: str, domain: str,
                           motor_busca: str, emails: list, telefones: list,
                           nome_empresa: str = None, html_content: str = None) -> bool:
-        """Salva dados completos da empresa"""
+        """Salva dados completos da empresa usando os repositories apropriados"""
         try:
-            # Extrair endereço estruturado do HTML
+            # Extrair endereço estruturado do HTML (se houver)
             address_model = None
-
             if html_content:
                 try:
                     from ...infrastructure.utils.address_extractor import AddressExtractor
@@ -47,61 +76,74 @@ class DatabaseDomainService:
                 except Exception:
                     address_model = None
 
-            # Salvar empresa completa
-            latitude, longitude, distancia_km = None, None, None
-            empresa_id = self.repository.save_empresa(termo_id, site_url, domain, motor_busca,
-                                                      address_model, latitude, longitude, distancia_km)
-            
-            # Criar tarefas de processamento se houver endereço
-            if address_model and address_model.is_valid():
-                endereco_id = self.repository.save_endereco(address_model)
+            # Inserir empresa (companies repository handles address insertion if provided)
+            empresa_id = self.companies_repo.insert_company(termo_id, site_url, domain, motor_busca, address_model)
+
+            # Se address_model válido, garantir endereço e criar tarefas
+            if address_model and hasattr(address_model, 'is_valid') and address_model.is_valid():
+                endereco_id = self.addresses_repo.insert_address(address_model)
                 if endereco_id:
-                    self.repository.create_cep_enrichment_task(empresa_id, endereco_id)
-                    self.repository.create_geolocation_task(empresa_id, endereco_id)
+                    self.cep_repo.create_task(empresa_id, endereco_id)
+                    self.geo_repo.create_task(empresa_id, endereco_id)
 
-            # Sempre atualizar status da empresa (TB_EMPRESAS sempre salva)
+            # Atualizar status da empresa
             status = 'COLETADO' if (emails or telefones) else 'NAO_COLETADO'
-            self.repository.update_empresa_status(empresa_id, status, nome_empresa)
+            self.companies_repo.update_status(empresa_id, status, nome_empresa)
 
-            # Salvar nas outras tabelas APENAS se houver dados válidos
+            # Salvar emails e telefones
             if emails:
                 domain_email = emails[0].split('@')[1] if emails else domain
-                self.repository.save_emails(empresa_id, emails, domain_email)
+                self.emails_repo.insert_emails(empresa_id, emails, domain_email)
 
             if telefones:
-                self.repository.save_telefones(empresa_id, telefones)
+                self.phones_repo.insert_phones(empresa_id, telefones)
 
-            # Salvar na TB_PLANILHA apenas se houver dados coletados
+            # Salvar na planilha apenas se houver dados
             if emails or telefones:
                 emails_str = ';'.join(emails) + ';' if emails else ''
                 telefones_str = ';'.join([t['formatted'] for t in telefones]) + ';' if telefones else ''
-                self.repository.save_to_final_sheet(site_url, emails_str, telefones_str, None)
+                self.spreadsheet_repo.save_to_sheet(site_url, emails_str, telefones_str, None)
 
             return True
-
         except Exception:
             return False
-    
+
     def update_term_status(self, termo_id: int, status: str) -> None:
-        """Atualiza status do termo processado"""
-        self.repository.update_term_status(termo_id, status)
-    
+        self.terms_repo.update_status(termo_id, status)
+
     def reset_collected_data(self) -> None:
-        """Reset dos dados coletados"""
-        self.repository.reset_collected_data()
-    
+        # Use MaintenanceRepository for multi-table deletes and reset logic
+        try:
+            from ...infrastructure.repositories.maintenance_repository import MaintenanceRepository
+            repo = MaintenanceRepository()
+            repo.reset_collected_data()
+        except Exception:
+            pass
+
     def clear_search_terms(self) -> None:
-        """Limpa termos de busca existentes"""
-        self.repository.clear_search_terms()
-    
+        self.terms_repo.delete_all()
+
     def save_dynamic_search_terms(self, terms: list) -> int:
-        """Salva termos de busca gerados dinamicamente"""
-        return self.repository.save_dynamic_search_terms(terms)
-    
+        # Prefer using TermsRepository bulk insert
+        try:
+            return self.terms_repo.bulk_insert(terms)
+        except Exception:
+            # Fallback: insert one-by-one via TermsRepository.insert
+            inserted = 0
+            try:
+                for t in terms:
+                    if isinstance(t, dict):
+                        termo = t.get('termo') or t.get('termo_completo') or t.get('termo')
+                        tipo = t.get('tipo_localizacao') or t.get('tipo') or ''
+                    else:
+                        termo = str(t)
+                        tipo = ''
+                    if termo:
+                        self.terms_repo.insert(termo, tipo)
+                        inserted += 1
+                return inserted
+            except Exception:
+                return 0
+
     def export_to_excel(self, excel_path: str) -> int:
-        """Exporta dados para Excel"""
-        return self.repository.export_to_excel(excel_path)
-    
-    def get_company_collection_statistics(self) -> Dict[str, int]:
-        """Obtém estatísticas detalhadas de coleta de empresas"""
-        return self.repository.get_company_collection_statistics()
+        return self.spreadsheet_repo.export_to_excel(excel_path)

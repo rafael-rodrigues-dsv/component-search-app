@@ -7,7 +7,7 @@ from pathlib import Path
 from ...domain.services.database_domain_service import DatabaseDomainService
 
 
-class DatabaseService:
+class DatabaseApplicationService:
     """Serviço para operações de banco de dados"""
 
     def __init__(self):
@@ -90,8 +90,8 @@ class DatabaseService:
             
             # Tentar obter termos do banco (TB_BASE_BUSCA) via SearchTermService
             try:
-                from .search_term_service import SearchTermService
-                st_service = SearchTermService()
+                from .search_term_application_service import SearchTermApplicationService
+                st_service = SearchTermApplicationService()
                 active_terms = [r['TERMO_BUSCA'] for r in st_service.get_active_terms(is_test=is_test_mode)]
                 if active_terms:
                     base_busca = active_terms
@@ -154,7 +154,60 @@ class DatabaseService:
     def get_search_terms(self) -> list:
         """Obtém lista de termos para processamento"""
         try:
-            return self.domain_service.get_pending_terms()
+            rows = self.domain_service.get_pending_terms()
+            # Normalize DB column names (Access returns uppercase column names) to a simple dict shape
+            normalized = []
+            for r in rows or []:
+                # r may be dict with keys like ID_TERMO, TERMO_COMPLETO, TIPO_LOCALIZACAO, STATUS_PROCESSAMENTO
+                row = {}
+                # id
+                if 'ID_TERMO' in r:
+                    row['id'] = r.get('ID_TERMO')
+                elif 'id' in r:
+                    row['id'] = r.get('id')
+                else:
+                    row['id'] = r.get('ID') or r.get('Id')
+                # termo
+                if 'TERMO_COMPLETO' in r:
+                    row['termo'] = r.get('TERMO_COMPLETO')
+                elif 'TERMO_BUSCA' in r:
+                    row['termo'] = r.get('TERMO_BUSCA')
+                else:
+                    row['termo'] = r.get('termo') or r.get('TERMO')
+                # tipo_localizacao
+                if 'TIPO_LOCALIZACAO' in r:
+                    row['tipo_localizacao'] = r.get('TIPO_LOCALIZACAO')
+                else:
+                    row['tipo_localizacao'] = r.get('tipo_localizacao') or r.get('tipo')
+                # status
+                if 'STATUS_PROCESSAMENTO' in r:
+                    row['status'] = r.get('STATUS_PROCESSAMENTO')
+                else:
+                    row['status'] = r.get('status')
+
+                normalized.append(row)
+
+            # If there are no pending terms, attempt a fallback to base active terms (TB_BASE_BUSCA)
+            if not normalized:
+                try:
+                    from .search_term_application_service import SearchTermApplicationService
+                    from ...infrastructure.config.config_manager import ConfigManager
+                    cfg = ConfigManager()
+                    st_service = SearchTermApplicationService()
+                    active = st_service.get_active_terms(is_test=cfg.is_test_mode)
+                    fallback = []
+                    for a in active:
+                        # a may contain TERMO_BUSCA or TERMO
+                        term_text = a.get('TERMO_BUSCA') if isinstance(a, dict) else a
+                        if not term_text:
+                            term_text = a.get('TERMO') if isinstance(a, dict) else term_text
+                        fallback.append({'id': a.get('ID_BASE') if isinstance(a, dict) else None, 'termo': term_text, 'tipo_localizacao': '', 'status': 'PENDENTE'})
+                    if fallback:
+                        return fallback
+                except Exception:
+                    pass
+
+            return normalized
         except Exception as e:
             self.logger.error(f"Erro ao obter termos de busca: {e}")
             return []

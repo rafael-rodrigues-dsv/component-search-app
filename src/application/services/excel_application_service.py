@@ -3,7 +3,7 @@ Serviço de aplicação para exportação de Excel
 """
 from pathlib import Path
 
-from src.application.services.database_service import DatabaseService
+from src.application.services.database_application_service import DatabaseApplicationService
 from src.infrastructure.logging.structured_logger import StructuredLogger
 
 
@@ -11,7 +11,7 @@ class ExcelApplicationService:
     """Serviço de aplicação para geração de planilhas Excel"""
 
     def __init__(self):
-        self.db_service = DatabaseService()
+        self.db_service = DatabaseApplicationService()
         self.logger = StructuredLogger("excel_export")
 
     def export_excel(self, custom_path: str = None) -> dict:

@@ -546,17 +546,15 @@ class DynamicGeographicDiscoveryService:
     def _save_discovered_locations_to_db(self, cities: List[Dict], neighborhoods: List[Dict], uf: str):
         """Salva cidades e bairros descobertos no banco de dados"""
         try:
-            from ...infrastructure.repositories.access_repository import AccessRepository
-            repo = AccessRepository()
-            
+            from src.domain.services.cities_domain_service import CitiesDomainService
+            service = CitiesDomainService()
+
             print(f"[GEO] 💾 Salvando {len(cities)} cidades e {len(neighborhoods)} bairros no banco...")
-            
-            # Usar métodos do Repository
-            saved_cities = repo.save_discovered_cities(cities, uf)
-            saved_neighborhoods = repo.save_discovered_neighborhoods(neighborhoods, uf)
-            
-            print(f"[GEO] ✅ Localizações salvas: {saved_cities} cidades, {saved_neighborhoods} bairros")
-            
+
+            result = service.save_discovered(cities, neighborhoods, uf)
+
+            print(f"[GEO] ✅ Localizações salvas: {result.get('cities', 0)} cidades, {result.get('neighborhoods', 0)} bairros")
+
         except Exception as e:
             print(f"[GEO] ⚠️ Erro ao salvar no banco: {e}")
     
@@ -600,3 +598,4 @@ class DynamicGeographicDiscoveryService:
         else:
             print(f"[GEO] 🌾 CEP {cep} detectado como REGIÃO RURAL/INTERIOR (prefixo {cep_prefix})")
             return 'rural'
+

@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from src.infrastructure.repositories.search_term_repository import SearchTermRepository
 
 
-class SearchTermService:
+class SearchTermApplicationService:
     def __init__(self):
         self.repo = SearchTermRepository()
 
@@ -44,32 +44,53 @@ class SearchTermService:
         return self.repo.approve_change(change_id, approver=approver)
 
     def get_paginated_terms(self, limit: int, offset: int) -> Dict[str, Any]:
-        """Fetch paginated terms with metadata.
-
-        Nota: para evitar problemas com consultas complexas no driver ODBC/Access, buscamos
-        os termos ativos via `list_active_terms()` e aplicamos paginação por slice em memória.
-        Isso garante que a API retorne a página correta. Se no futuro for necessário otimizar,
-        podemos mover paginação para o repositório novamente.
-        """
-        # obter todos os termos ativos (lista de dicts)
+        """Fetch paginated terms with metadata using repository pagination where possible."""
+        paged = []
+        total = 0
         try:
-            all_rows = self.repo.list_active_terms()
+            # Try to use repository pagination for efficiency
+            paged = self.repo.list_paginated_terms(limit=limit, offset=offset)
+            total = self.repo.count_active_terms()
         except Exception:
-            all_rows = []
+            # Fallback to in-memory pagination
+            try:
+                all_rows = self.repo.list_active_terms()
+            except Exception:
+                all_rows = []
+            total = len(all_rows)
+            try:
+                offset = int(offset) if offset else 0
+                limit = int(limit) if limit else 10
+            except Exception:
+                offset = 0
+                limit = 10
+            paged = all_rows[offset:offset + limit] if offset < total else []
 
         try:
-            offset = int(offset) if offset else 0
             limit = int(limit) if limit else 10
+            offset = int(offset) if offset else 0
         except Exception:
-            offset = 0
             limit = 10
+            offset = 0
 
-        total_count = len(all_rows)
-        total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+        # Fallback: se não encontrou nada no banco, tentar usar as bases estáticas do settings
+        if total == 0 and (not paged or len(paged) == 0):
+            try:
+                from config.settings import BASE_TESTES, BASE_BUSCA
+                from src.infrastructure.config.config_manager import ConfigManager
+                cfg = ConfigManager()
+                base = BASE_TESTES if cfg.is_test_mode else BASE_BUSCA
+                # transformar em dicionários compatíveis com o front
+                all_terms = [{'ID_BASE': idx+1, 'TERMO_BUSCA': t, 'CATEGORIA': 'base'} for idx, t in enumerate(base)]
+                offset = int(offset) if offset else 0
+                limit = int(limit) if limit else 10
+                paged = all_terms[offset:offset+limit]
+                total = len(all_terms)
+            except Exception:
+                pass
+
+        total_pages = (total + limit - 1) // limit if limit > 0 else 1
         current_page = (offset // limit) + 1 if limit > 0 else 1
-
-        # slice
-        paged = all_rows[offset:offset + limit] if offset < total_count else []
 
         return {
             "terms": paged,

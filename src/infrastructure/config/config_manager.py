@@ -6,7 +6,11 @@ from typing import Dict, Any
 
 
 class ConfigManager:
-    """Gerenciador centralizado de configurações"""
+    """Gerenciador centralizado de configurações
+
+    Observação: a propriedade `reference_cep` NÃO utiliza cache e consulta a
+    tabela `TB_CEP_CONFIG` via `ZipCodeApplicationService` a cada acesso.
+    """
 
     def __init__(self, config_path: str = "src/resources/application.yaml"):
         self.config_path = self._validate_path(config_path)
@@ -15,23 +19,16 @@ class ConfigManager:
 
     def _validate_path(self, path: str) -> Path:
         """Valida e sanitiza o caminho do arquivo para prevenir path traversal"""
-        # Resolve o caminho absoluto
         resolved_path = Path(path).resolve()
-
-        # Define diretório base permitido (raiz do projeto)
         base_dir = Path.cwd().resolve()
-
-        # Verifica se o caminho está dentro do diretório permitido
         try:
             resolved_path.relative_to(base_dir)
         except ValueError:
             raise ValueError(f"Caminho não permitido: {path}. Deve estar dentro de {base_dir}")
-
         return resolved_path
 
     def _load_config(self) -> None:
         """Carrega configuração do arquivo YAML"""
-        # Configuração padrão como fallback
         default_config = {
             'search': {
                 'scraping': {
@@ -65,7 +62,6 @@ class ConfigManager:
             }
         }
 
-        # Tentar carregar do arquivo YAML
         try:
             if self.config_path.exists():
                 import yaml
@@ -77,11 +73,9 @@ class ConfigManager:
         except Exception as e:
             print(f"Erro ao carregar YAML: {e}")
 
-        # Usar configuração padrão se falhar
         self._config = default_config
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Obtém valor por chave aninhada (ex: 'scraping.max_emails_per_site')"""
         keys = key.split('.')
         value = self._config
         for k in keys:
@@ -90,6 +84,35 @@ class ConfigManager:
             else:
                 return default
         return value
+
+    # ---------- properties ----------
+    @property
+    def reference_cep(self) -> str:
+        """Retorna o CEP de referência lendo diretamente TB_CEP_CONFIG via service.
+
+        Levanta ValueError se não houver valor na tabela e não houver CEP no YAML.
+        """
+        try:
+            from src.application.services.zip_code_application_service import ZipCodeApplicationService
+            svc = ZipCodeApplicationService()
+            row = svc.get_reference_cep()
+            if not row or not isinstance(row, dict) or not row.get('cep'):
+                raise ValueError('CEP de referência não encontrado no banco (TB_CEP_CONFIG)')
+            return row.get('cep')
+        except Exception:
+            # Propagar erro para que chamador trate
+            raise
+
+    def _validate_capital_cep(self, cep: str) -> dict:
+        try:
+            from ..services.capital_cep_validator import CapitalCepValidator
+            validator = CapitalCepValidator()
+            return validator.validate_capital_cep(cep)
+        except Exception as e:
+            return {
+                'valid': False,
+                'error': f'Erro na validação: {e}'
+            }
 
     # Propriedades de scraping
     @property
@@ -156,45 +179,6 @@ class ConfigManager:
 
     # Propriedades de geolocalização
     @property
-    def reference_cep(self) -> str:
-        # Retornar o CEP de referência apenas a partir do banco (TB_CEP_CONFIG).
-        # Não deve haver fallback automático para o YAML nesta propriedade.
-        try:
-            from src.application.services.zip_code_service import ZipCodeService
-            svc = ZipCodeService()
-            row = svc.get_reference_cep()
-            if row and isinstance(row, dict) and row.get('cep'):
-                cep = row.get('cep')
-            else:
-                raise ValueError('CEP de referência não encontrado no banco (TB_CEP_CONFIG)')
-        except Exception:
-            # Propagar erro para que chamador trate; não usar YAML como fallback aqui
-            raise
-
-        # Validar se é CEP de capital (se habilitado)
-        if self.get('geographic_discovery.capital_validation.enabled', True):
-            validation_result = self._validate_capital_cep(cep)
-            if not validation_result['valid']:
-                raise ValueError(f"CEP inválido: {validation_result['error']}")
-
-        return cep
-
-    def _validate_capital_cep(self, cep: str) -> dict:
-        """Validar CEP de capital dinamicamente"""
-        try:
-            from ..services.capital_cep_validator import CapitalCepValidator
-            validator = CapitalCepValidator()
-            return validator.validate_capital_cep(cep)
-        except Exception as e:
-            return {
-                'valid': False,
-                'error': f'Erro na validação: {e}'
-            }
-    
-
-    
-    # Propriedades de descoberta geográfica
-    @property
     def geographic_discovery_enabled(self) -> bool:
         return self.get('geographic_discovery.enabled', True)
     
@@ -203,15 +187,12 @@ class ConfigManager:
         return self.get('geographic_discovery.capital_validation.enabled', True)
     
     def get_capital_info(self) -> dict:
-        """Obter informações da capital do CEP de referência"""
         try:
             from ..services.capital_cep_validator import CapitalCepValidator
             validator = CapitalCepValidator()
-            # Use the resolved reference_cep (which may come from DB) rather than reading YAML directly
             return validator.validate_capital_cep(self.reference_cep)
         except Exception:
             return {'valid': False, 'error': 'Erro ao obter informações da capital'}
-    
+
     def get_config_value(self, key: str, default: Any = None) -> Any:
-        """Método genérico para obter qualquer valor de configuração"""
         return self.get(key, default)

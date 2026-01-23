@@ -52,10 +52,10 @@ class WebDriverManager:
             
             # === MODO HEADLESS (INVISÍVEL) ===
             from src.infrastructure.config.config_manager import ConfigManager
-            from src.application.services.user_config_service import UserConfigService
+            from src.application.services.user_config_application_service import UserConfigApplicationService
             config = ConfigManager()
             # Primeiro, respeitar override vindo da UI (UserConfigService). Se None, usar application.yaml
-            ui_headless = UserConfigService.get_headless()
+            ui_headless = UserConfigApplicationService.get_headless()
             use_headless = bool(config.get('webdriver.headless', True)) if ui_headless is None else bool(ui_headless)
             if use_headless:
                 options.add_argument('--headless')

@@ -138,3 +138,59 @@ class GeolocationApplicationService:
         except Exception:
             # Falha silenciosa - não interromper processamento
             pass
+
+    def create_task(self, empresa_id: int, endereco_id: int):
+        """Compat wrapper: cria uma tarefa de geolocalização via repository"""
+        try:
+            from ...infrastructure.repositories.geolocation_repository import GeolocationRepository
+            repo = GeolocationRepository()
+            return repo.create_task(empresa_id, endereco_id)
+        except Exception:
+            try:
+                from ...infrastructure.repositories.access_repository import AccessRepository
+                repo = AccessRepository()
+                return repo.create_geolocation_task(empresa_id, endereco_id)
+            except Exception:
+                return None
+
+    def fetch_pending(self):
+        """Retorna tarefas pendentes (compat)"""
+        try:
+            from ...infrastructure.repositories.geolocation_repository import GeolocationRepository
+            repo = GeolocationRepository()
+            return repo.fetch_pending()
+        except Exception:
+            try:
+                from ...infrastructure.repositories.access_repository import AccessRepository
+                repo = AccessRepository()
+                return repo.get_pending_geolocation_tasks()
+            except Exception:
+                return []
+
+    def mark_success(self, id_geo: int, lat: float, lon: float, dist_km: float):
+        """Marca sucesso de geolocalização (compat)"""
+        try:
+            from ...infrastructure.repositories.geolocation_repository import GeolocationRepository
+            repo = GeolocationRepository()
+            return repo.update_success(id_geo, lat, lon, dist_km)
+        except Exception:
+            try:
+                from ...infrastructure.repositories.access_repository import AccessRepository
+                repo = AccessRepository()
+                return repo.update_geolocation_success(id_geo, lat, lon, dist_km)
+            except Exception:
+                return False
+
+    def mark_error(self, id_geo: int, erro: str):
+        """Marca erro na tarefa de geolocalização (compat)"""
+        try:
+            from ...infrastructure.repositories.geolocation_repository import GeolocationRepository
+            repo = GeolocationRepository()
+            return repo.update_error(id_geo, erro)
+        except Exception:
+            try:
+                from ...infrastructure.repositories.access_repository import AccessRepository
+                repo = AccessRepository()
+                return repo.update_geolocation_error(id_geo, erro)
+            except Exception:
+                return False

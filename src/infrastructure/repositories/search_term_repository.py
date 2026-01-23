@@ -151,32 +151,40 @@ class SearchTermRepository:
             return False
 
     def list_paginated_terms(self, limit: int, offset: int) -> List[Dict[str, Any]]:
-        """Lista termos de TB_BASE_BUSCA com paginação, compatível com Microsoft Access."""
+        """Lista termos de TB_BASE_BUSCA com paginação em Python (fallback para ODBC incompatível).
+
+        Implementação segura: busca todos os termos ativos via `list_active_terms` e realiza
+        paginação por slice em memória. Evita queries complexas que Access/ODBC podem não aceitar.
+        """
         try:
-            # Garantir inteiros
+            try:
+                all_rows = self.list_active_terms()
+            except Exception:
+                all_rows = []
+
             offset = int(offset) if offset else 0
             limit = int(limit) if limit else 10
 
-            # Caso simples (primeira página) - evitar subqueries desnecessárias
-            if offset == 0:
-                paginated_query = f"SELECT TOP {limit} * FROM TB_BASE_BUSCA WHERE ATIVO = -1 ORDER BY ID_BASE"
-            else:
-                # Padrão compatível com Access usando TOP + subquery (inner ordenado desc)
-                total_top = offset + limit
-                paginated_query = f"""
-                    SELECT * FROM (
-                        SELECT TOP {limit} * FROM (
-                            SELECT TOP {total_top} * FROM TB_BASE_BUSCA WHERE ATIVO = -1 ORDER BY ID_BASE DESC
-                        ) AS innerq
-                        ORDER BY ID_BASE
-                    ) AS outerq
-                    ORDER BY ID_BASE
-                """
+            if offset < 0:
+                offset = 0
+            if limit <= 0:
+                limit = 10
 
-            return self.access.execute_query(paginated_query)
+            paged = all_rows[offset: offset + limit]
+            return paged
         except Exception as e:
-            print(f"Erro ao buscar termos paginados: {e}")
+            print(f"Erro ao buscar termos paginados (in-memory): {e}")
             return []
+
+    def count_active_terms(self) -> int:
+        """Retorna o total de termos ativos em TB_BASE_BUSCA"""
+        try:
+            rows = self.access.execute_query("SELECT COUNT(*) as cnt FROM TB_BASE_BUSCA WHERE ATIVO = -1")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0
 
     def delete_base_term(self, id_base: int) -> bool:
         """Marca termo na TB_BASE_BUSCA como inativo (ATIVO = 0). Se falhar, tenta exclusão física."""

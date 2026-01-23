@@ -10,8 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from src.application.services.database_service import DatabaseService
-from src.application.services.robot_controller import request_stop, clear_stop
+from src.application.services.database_application_service import DatabaseApplicationService
+from src.application.services.robot_controller_application_service import request_stop, clear_stop
 
 # Imports opcionais do Flask
 try:
@@ -50,7 +50,7 @@ class DashboardServer:
         self.app.logger.setLevel(logging.INFO)
 
         self.socketio = SocketIO(self.app, cors_allowed_origins="*", logger=False, engineio_logger=False)
-        self.db_service = DatabaseService()
+        self.db_service = DatabaseApplicationService()
         self.is_running = False
         self.server_thread = None
         self.monitor_thread = None
@@ -226,8 +226,8 @@ class DashboardServer:
         @self.app.route('/api/config/cep', methods=['GET'])
         def get_reference_cep():
             try:
-                from src.application.services.zip_code_service import ZipCodeService
-                svc = ZipCodeService()
+                from src.application.services.zip_code_application_service import ZipCodeApplicationService
+                svc = ZipCodeApplicationService()
                 cep_row = svc.get_reference_cep()
                 if not cep_row:
                     # fallback to YAML default - format minimal structure
@@ -245,8 +245,8 @@ class DashboardServer:
                 from flask import request
                 data = request.get_json() or {}
                 cep = data.get('cep')
-                from src.application.services.zip_code_service import ZipCodeService
-                svc = ZipCodeService()
+                from src.application.services.zip_code_application_service import ZipCodeApplicationService
+                svc = ZipCodeApplicationService()
                 ok = svc.set_reference_cep(cep)
                 if not ok:
                     return jsonify({'success': False, 'message': 'CEP inválido ou não encontrado'}), 400
@@ -357,14 +357,14 @@ class DashboardServer:
 
         # ===== TERMOS (API de configuração) =====
         from flask import request
-        from src.application.services.search_term_service import SearchTermService
+        from src.application.services.search_term_application_service import SearchTermApplicationService
         from src.infrastructure.config.config_manager import ConfigManager
 
         @self.app.route('/api/terms')
         def api_terms():
             try:
                 config = ConfigManager()
-                st_service = SearchTermService()
+                st_service = SearchTermApplicationService()
 
                 # Fetch pagination parameters
                 limit = int(request.args.get('limit', 10))
@@ -417,7 +417,7 @@ class DashboardServer:
                 proposto_por = payload.get('proposed_by', 'ui')
                 if not termo:
                     return jsonify({'success': False, 'message': 'Campo termo é obrigatório'}), 400
-                st_service = SearchTermService()
+                st_service = SearchTermApplicationService()
                 change_id = st_service.propose_term(termo, is_test=is_test, proposto_por=proposto_por)
                 # Notificar via websocket (proposta criada)
                 try:
@@ -442,7 +442,7 @@ class DashboardServer:
                     return jsonify({'success': False, 'message': 'Campo termo é obrigatório'}), 400
                 # Respeitar modo de teste da aplicação para a inserção
                 config = ConfigManager()
-                st_service = SearchTermService()
+                st_service = SearchTermApplicationService()
                 new_id = st_service.insert_term(termo, categoria=categoria, is_test=config.is_test_mode)
                 # Emitir evento para atualizar as UIs conectadas
                 try:
@@ -460,7 +460,7 @@ class DashboardServer:
         @self.app.route('/api/terms/<int:term_id>', methods=['DELETE'])
         def api_terms_delete(term_id: int):
             try:
-                st_service = SearchTermService()
+                st_service = SearchTermApplicationService()
                 # Primeiro, tentar remover como termo base (TB_BASE_BUSCA)
                 try:
                     deleted_base = st_service.delete_base_term(term_id)
@@ -484,74 +484,148 @@ class DashboardServer:
         # ===== EXECUÇÃO DO ROBÔ =====
         # Runner simples que executa EmailApplicationService.execute() em background
         class RobotRunner:
-             def __init__(self, socketio):
-                 self.socketio = socketio
-                 self.thread = None
-                 self.running = False
-                 self._stop_requested = False
-                 self.current_job = None
+            def __init__(self, socketio):
+                self.socketio = socketio
+                self.thread = None
+                self.running = False
+                self._stop_requested = False
+                self.current_job = None
 
-             def start(self, job_type: str = 'coleta'):
-                 if self.running:
-                     return False
+            def start(self, job_type: str = 'coleta'):
+                if self.running:
+                    return False
                 # Limpar sinal global de parada (caso tenha sido solicitado anteriormente)
-                 try:
-                     clear_stop()
-                 except Exception:
-                     pass
-                 self._stop_requested = False
-                 self.current_job = job_type
-                 self.thread = threading.Thread(target=self._run, daemon=True)
-                 self.thread.start()
-                 self.running = True
-                 return True
+                try:
+                    clear_stop()
+                except Exception:
+                    pass
+                self._stop_requested = False
+                self.current_job = job_type
+                self.thread = threading.Thread(target=self._run, daemon=True)
+                self.thread.start()
+                self.running = True
+                return True
 
-             def stop(self):
-                 if not self.running:
-                     return False
+            def stop(self):
+                if not self.running:
+                    return False
                 # Sinalizar parada local e globalmente ao serviço
-                 self._stop_requested = True
-                 try:
-                     request_stop()
-                 except Exception:
-                     pass
-                 return True
+                self._stop_requested = True
+                try:
+                    request_stop()
+                except Exception:
+                    pass
+                return True
 
-             def _run(self):
-                 try:
-                     self.socketio.emit('robot_status', {'running': True, 'job': self.current_job})
-                     # Escolher serviço baseado no job
-                     try:
-                         if self.current_job == 'coleta':
-                             from src.application.services.email_application_service import EmailApplicationService
-                             service = EmailApplicationService()
-                             service.execute()
-                         elif self.current_job == 'cep':
-                             from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
-                             service = CepEnrichmentApplicationService()
-                             service.process_cep_enrichment()
-                         elif self.current_job == 'geo':
-                             from src.application.services.geolocation_application_service import GeolocationApplicationService
-                             service = GeolocationApplicationService()
-                             service.process_geolocation()
-                         else:
-                             # Default para coleta
-                             from src.application.services.email_application_service import EmailApplicationService
-                             service = EmailApplicationService()
-                             service.execute()
-                     except Exception as e:
-                         self.socketio.emit('robot_log', {'level': 'error', 'message': str(e)})
-                     finally:
+            def _run(self):
+                try:
+                    try:
+                        # sinaliza início
+                        try:
+                            self.socketio.emit('robot_status', {'running': True, 'job': self.current_job})
+                        except Exception:
+                            pass
+
+                        # Escolher serviço baseado no job
+                        if self.current_job == 'coleta':
+                            from src.application.services.email_application_service import EmailApplicationService
+                            service = EmailApplicationService()
+                            try:
+                                ok = service.execute()
+                                if not ok:
+                                    try:
+                                        import traceback
+                                        tb = traceback.format_exc()
+                                    except Exception:
+                                        tb = None
+                                    try:
+                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'EmailApplicationService.execute returned False', 'trace': tb})
+                                    except Exception:
+                                        pass
+                            except Exception as e:
+                                import traceback
+                                tb = traceback.format_exc()
+                                try:
+                                    self.socketio.emit('robot_log', {'level': 'error', 'message': str(e), 'trace': tb})
+                                except Exception:
+                                    pass
+
+                        elif self.current_job == 'cep':
+                            from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
+                            service = CepEnrichmentApplicationService()
+                            try:
+                                try:
+                                    self.socketio.emit('robot_log', {'level': 'info', 'message': '[CEP] Iniciando enriquecimento CEP (via RobotRunner)'} )
+                                except Exception:
+                                    pass
+                                result = service.process_cep_enrichment()
+                                try:
+                                    summary = f"[CEP] Resultado: processed={result.get('processadas', 0)} enriched={result.get('enriquecidas', 0)} total={result.get('total', 0)}"
+                                    self.socketio.emit('robot_log', {'level': 'info', 'message': summary})
+                                except Exception:
+                                    pass
+                            except Exception as e:
+                                import traceback
+                                tb = traceback.format_exc()
+                                try:
+                                    self.socketio.emit('robot_log', {'level': 'error', 'message': str(e), 'trace': tb})
+                                except Exception:
+                                    pass
+
+                        elif self.current_job == 'geo':
+                            from src.application.services.geolocation_application_service import GeolocationApplicationService
+                            service = GeolocationApplicationService()
+                            try:
+                                service.process_geolocation()
+                            except Exception as e:
+                                import traceback
+                                tb = traceback.format_exc()
+                                try:
+                                    self.socketio.emit('robot_log', {'level': 'error', 'message': str(e), 'trace': tb})
+                                except Exception:
+                                    pass
+
+                        else:
+                            # Default para coleta
+                            from src.application.services.email_application_service import EmailApplicationService
+                            service = EmailApplicationService()
+                            try:
+                                ok = service.execute()
+                                if not ok:
+                                    try:
+                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'Default EmailApplicationService.execute returned False'})
+                                    except Exception:
+                                        pass
+                            except Exception as e:
+                                import traceback
+                                tb = traceback.format_exc()
+                                try:
+                                    self.socketio.emit('robot_log', {'level': 'error', 'message': str(e), 'trace': tb})
+                                except Exception:
+                                    pass
+
                         # Se durante a execução foi solicitada parada, emitir log informativo
-                         if self._stop_requested:
-                             try:
-                                 self.socketio.emit('robot_log', {'level': 'info', 'message': 'Parada solicitada pelo usuário'})
-                             except Exception:
-                                 pass
-                 finally:
-                     self.running = False
-                     self.socketio.emit('robot_status', {'running': False, 'job': self.current_job})
-                     self.current_job = None
+                        if self._stop_requested:
+                            try:
+                                self.socketio.emit('robot_log', {'level': 'info', 'message': 'Parada solicitada pelo usuário'})
+                            except Exception:
+                                pass
+
+                    except Exception as e:
+                        import traceback
+                        tb = traceback.format_exc()
+                        try:
+                            self.socketio.emit('robot_log', {'level': 'error', 'message': str(e), 'trace': tb})
+                        except Exception:
+                            pass
+                finally:
+                    # garantir flags e status
+                    self.running = False
+                    try:
+                        self.socketio.emit('robot_status', {'running': False, 'job': self.current_job})
+                    except Exception:
+                        pass
+                    self.current_job = None
 
         # Instanciar runner único
         if not hasattr(self, '_robot_runner'):
@@ -569,11 +643,11 @@ class DashboardServer:
                 # Parâmetro headless vindo da UI (True/False). Pode ser string 'true'/'false' também.
                 headless = payload.get('headless', None)
                 try:
-                    from src.application.services.user_config_service import UserConfigService
+                    from src.application.services.user_config_application_service import UserConfigApplicationService
                     if browser:
-                        UserConfigService.set_browser(browser)
+                        UserConfigApplicationService.set_browser(browser)
                     if engine:
-                        UserConfigService.set_search_engine(engine)
+                        UserConfigApplicationService.set_search_engine(engine)
                     # Propagar headless se informado (padrão: None = não altera)
                     if headless is not None:
                         # aceitar valores booleanos ou strings
@@ -581,7 +655,7 @@ class DashboardServer:
                             val = headless.lower() in ('1', 'true', 'yes', 'y')
                         else:
                             val = bool(headless)
-                        UserConfigService.set_headless(val)
+                        UserConfigApplicationService.set_headless(val)
                 except Exception:
                     pass
 
@@ -607,7 +681,7 @@ class DashboardServer:
             try:
                 # Resetar dados coletados e re-inicializar termos no banco
                 try:
-                    dbs = DatabaseService()
+                    dbs = DatabaseApplicationService()
                     dbs.reset_data(confirm=True)
                     # Re-inicializar termos (descoberta dinâmica ou estática)
                     count = dbs.initialize_search_terms()
@@ -615,6 +689,36 @@ class DashboardServer:
                     return jsonify({'success': False, 'message': f'Falha ao resetar: {e}'}), 500
 
                 return jsonify({'success': True, 'message': f'Reset concluído. {count} termos preparados.'})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        # ===== WORKFLOW: Municípios (lista paginada via TB_CIDADES) =====
+        @self.app.route('/api/workflow/cities')
+        def api_workflow_cities():
+            try:
+                from flask import request
+                uf = request.args.get('uf') or None
+                try:
+                    limit = int(request.args.get('limit', 10))
+                except Exception:
+                    limit = 10
+                try:
+                    offset = int(request.args.get('offset', 0))
+                except Exception:
+                    offset = 0
+
+                # Use application service to read TB_CIDADES directly (no cache fallback)
+                from src.application.services.cities_application_service import CitiesApplicationService
+                svc = CitiesApplicationService()
+                result = svc.get_paginated_cities(uf=uf, limit=limit, offset=offset)
+
+                normalized = []
+                for r in result.get('cities', []):
+                    nome = (r.get('nome') if isinstance(r, dict) else None) or (r.get('name') if isinstance(r, dict) else None) or ''
+                    idv = (r.get('id') if isinstance(r, dict) else None) or None
+                    normalized.append({'id': idv, 'name': nome})
+
+                return jsonify({'cities': normalized, 'pagination': result.get('pagination', {})})
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 

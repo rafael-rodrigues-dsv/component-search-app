@@ -9,7 +9,7 @@ import webbrowser
 from pathlib import Path
 
 from src.__version__ import __version__
-from src.application.services.database_service import DatabaseService
+from src.application.services.database_application_service import DatabaseApplicationService
 from src.web.dashboard_server import start_dashboard, stop_dashboard
 
 
@@ -157,8 +157,8 @@ def main():
         # Após criação das tabelas, executar carga inicial via InitialDataService (população controlada pela aplicação)
         try:
             from src.infrastructure.logging.initial_load_logger import load_logger
-            from src.application.services.initial_data_service import InitialDataService
-            init_svc = InitialDataService()
+            from src.application.services.initial_data_application_service import InitialDataApplicationService
+            init_svc = InitialDataApplicationService()
             load_logger.info('Iniciando população inicial via InitialDataService...')
             zones_count = init_svc.populate_zones()
             load_logger.info(f'Zonas populadas: {zones_count}')
@@ -166,6 +166,8 @@ def main():
             load_logger.info(f'Termos base populados: {terms_count}')
             zip_ok = init_svc.ensure_zip_seed()
             load_logger.info(f'TB_CEP_CONFIG garantida/seed: {zip_ok}')
+
+
         except Exception as e:
             # Log full stacktrace to the initial load log for debugging
             try:
@@ -176,13 +178,13 @@ def main():
                 print(f'[AVISO] Falha na população inicial via InitialDataService: {e}')
                 pass
 
-        db_service = DatabaseService()
+        db_service = DatabaseApplicationService()
         print("[OK] Conexão singleton estabelecida com sucesso")
 
         # Garantir que a tabela TB_CEP_CONFIG exista e esteja populada ANTES da descoberta dinâmica
         try:
-            from src.application.services.zip_code_service import ZipCodeService
-            zip_svc = ZipCodeService()
+            from src.application.services.zip_code_application_service import ZipCodeApplicationService
+            zip_svc = ZipCodeApplicationService()
             seeded = zip_svc.ensure_table_and_seed()
             if seeded:
                 print('[INFO] TB_CEP_CONFIG garantida e seed aplicada (se necessário) via ZipCodeService')
@@ -223,7 +225,7 @@ def main():
         # Tentar recriar banco
         if _create_database_automatically():
             try:
-                db_service = DatabaseService()
+                db_service = DatabaseApplicationService()
                 terms_count = db_service.initialize_search_terms()
                 print(f"[OK] Banco recriado com {terms_count} termos")
             except Exception as e2:

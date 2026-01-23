@@ -7,13 +7,13 @@ from pathlib import Path
 # Adicionar src ao path
 sys.path.append(str(Path(__file__).parent.parent.parent / "src"))
 
-from application.services.database_service import DatabaseService
+from application.services.database_application_service import DatabaseApplicationService
 
 
 def show_statistics():
     """Mostra estatísticas detalhadas do banco"""
     try:
-        db_service = DatabaseService()
+        db_service = DatabaseApplicationService()
 
         print("📊 ESTATÍSTICAS DO BANCO ACCESS")
         print("=" * 50)

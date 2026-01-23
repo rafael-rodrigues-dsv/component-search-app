@@ -7,13 +7,13 @@ from pathlib import Path
 # Adicionar src ao path
 sys.path.append(str(Path(__file__).parent.parent.parent / "src"))
 
-from application.services.database_service import DatabaseService
+from application.services.database_application_service import DatabaseApplicationService
 
 
 def reset_collected_data():
     """Reset dos dados coletados, mantendo configurações"""
     try:
-        db_service = DatabaseService()
+        db_service = DatabaseApplicationService()
 
         print("⚠️  RESET DOS DADOS COLETADOS")
         print("=" * 40)
