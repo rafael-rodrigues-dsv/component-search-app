@@ -107,3 +107,51 @@ class CompaniesRepository:
             return {'visitadas': visitadas, 'coletadas': coletadas, 'nao_coletadas': nao_coletadas, 'taxa_coleta_pct': taxa}
         except Exception:
             return {'visitadas': 0, 'coletadas': 0, 'nao_coletadas': 0, 'taxa_coleta_pct': 0}
+
+    def get_companies_for_term(self, id_termo: int, limit: int = 10, offset: int = 0):
+        """Fetch companies related to a search term with pagination"""
+        try:
+            sql = "SELECT ID_EMPRESA AS id, ID_TERMO AS id_termo, SITE_URL AS site_url, DOMINIO AS dominio, STATUS_COLETA AS status, NOME_EMPRESA AS nome FROM TB_EMPRESAS WHERE ID_TERMO = ? ORDER BY ID_EMPRESA"
+            rows = self._access.execute_query(sql, [id_termo])
+            if not rows:
+                return []
+            # Parse pagination parameters strictly
+            limit = int(limit) if limit else 10
+            offset = int(offset) if offset else 0
+            return rows[offset: offset + limit]
+        except Exception:
+            return []
+
+    def fetch_models_paginated(self, id_termo: int = None, limit: int = 10, offset: int = 0):
+        """Return list of CompanyModel instances paginated"""
+        from src.domain.models.company_model import CompanyModel
+        # Parse pagination parameters strictly; allow ValueError to propagate
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+
+        sql = "SELECT ID_EMPRESA AS id, ID_TERMO AS id_termo, SITE_URL AS site_url, DOMINIO AS dominio, STATUS_COLETA AS status, NOME_EMPRESA AS nome FROM TB_EMPRESAS"
+        params = None
+        if id_termo:
+            sql += " WHERE ID_TERMO = ?"
+            params = [id_termo]
+        sql += " ORDER BY ID_EMPRESA"
+        rows = self._access.execute_query(sql, params)
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(CompanyModel.from_row(r))
+            except Exception:
+                continue
+        return models
+
+    def count(self, id_termo: int = None) -> int:
+        try:
+            if id_termo:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_EMPRESAS WHERE ID_TERMO = ?", [id_termo])
+            else:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_EMPRESAS")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0

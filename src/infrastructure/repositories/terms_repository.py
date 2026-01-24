@@ -3,7 +3,9 @@ Repository for TB_TERMOS_BUSCA
 Thin wrapper delegating to AccessRepository
 """
 from typing import List, Dict, Any
+from pathlib import Path
 from src.infrastructure.repositories.access_repository import AccessRepository
+from src.domain.models.term_model import TermModel
 
 class TermsRepository:
     def __init__(self):
@@ -13,6 +15,18 @@ class TermsRepository:
         # As Access doesn't support LIMIT/OFFSET in SQL, we fetch and slice
         all_rows = self._repo.execute_query("SELECT ID_TERMO, TERMO_COMPLETO, STATUS_PROCESSAMENTO, TIPO_LOCALIZACAO FROM TB_TERMOS_BUSCA ORDER BY ID_TERMO")
         return all_rows[offset:offset+limit]
+
+    def fetch_models_paginated(self, limit: int, offset: int) -> List[TermModel]:
+        """Retorna lista de TermModel paginada convertida a partir das linhas do DB."""
+        rows = self.fetch_paginated(limit=limit, offset=offset)
+        models = []
+        for r in rows:
+            try:
+                models.append(TermModel.from_row(r))
+            except Exception:
+                # fallback: ignore broken rows
+                continue
+        return models
 
     def count(self) -> int:
         result = self._repo.execute_query("SELECT COUNT(*) as cnt FROM TB_TERMOS_BUSCA")
@@ -71,7 +85,27 @@ class TermsRepository:
                 pass
 
     def delete(self, id_termo: int) -> int:
-        return self._repo.execute_query("DELETE FROM TB_TERMOS_BUSCA WHERE ID_TERMO = ?", [id_termo])
+        # Verify existence first
+        try:
+            exists = self._repo.execute_query("SELECT ID_TERMO FROM TB_TERMOS_BUSCA WHERE ID_TERMO = ?", [id_termo])
+            if not exists:
+                return False
+        except Exception:
+            return False
+
+        # Perform logical delete (mark as REMOVIDO) using explicit SQL via cursor to avoid potential param issues
+        conn = self._repo._get_connection()
+        cursor = conn.cursor()
+        try:
+            sql = f"UPDATE TB_TERMOS_BUSCA SET STATUS_PROCESSAMENTO = 'REMOVIDO', DATA_PROCESSAMENTO = Date() WHERE ID_TERMO = {int(id_termo)}"
+            cursor.execute(sql)
+            conn.commit()
+            return True
+        finally:
+            try:
+                cursor.close()
+            except Exception:
+                pass
 
     def update_status(self, id_termo: int, status: str) -> None:
         self._repo.execute_query("UPDATE TB_TERMOS_BUSCA SET STATUS_PROCESSAMENTO = ?, DATA_PROCESSAMENTO = Date() WHERE ID_TERMO = ?", [status, id_termo])

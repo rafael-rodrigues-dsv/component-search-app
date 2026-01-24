@@ -197,3 +197,29 @@ class CepEnrichmentRepository:
         if rows is None:
             return []
         return rows
+
+    # --- NEW: model pagination helpers ---
+    def fetch_models_paginated(self, limit: int = 10, offset: int = 0):
+        from src.domain.models.cep_enrichment_model import CepEnrichmentModel
+        # Parse strictly
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+        sql = "SELECT ID_CEP_ENRICHMENT AS id_cep_enrichment, ID_EMPRESA AS id_empresa, ID_ENDERECO AS id_endereco, STATUS_PROCESSAMENTO AS status, TENTATIVAS FROM TB_CEP_ENRICHMENT ORDER BY ID_CEP_ENRICHMENT"
+        rows = self._access.execute_query(sql, None)
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(CepEnrichmentModel.from_row(r))
+            except Exception:
+                continue
+        return models
+
+    def count(self) -> int:
+        try:
+            rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_CEP_ENRICHMENT")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0
+

@@ -200,6 +200,23 @@ class CepEnrichmentApplicationService:
         """Obtém estatísticas de enriquecimento CEP"""
         return self.repository.stats()
 
+    def get_paginated_tasks(self, limit: int = 10, offset: int = 0):
+        try:
+            total = self.repository.count()
+            models = self.repository.fetch_models_paginated(limit=limit, offset=offset)
+            items = [m.to_api_dict() for m in models]
+            try:
+                limit = int(limit) if limit else 10
+                offset = int(offset) if offset else 0
+            except Exception:
+                limit = 10
+                offset = 0
+            total_pages = (total + limit - 1) // limit if limit > 0 else 1
+            current_page = (offset // limit) + 1 if limit > 0 else 1
+            return {'tasks': items, 'pagination': {'total': total, 'limit': limit, 'offset': offset, 'total_pages': total_pages, 'current_page': current_page, 'has_next': current_page < total_pages, 'has_previous': current_page > 1}}
+        except Exception:
+            return {'tasks': [], 'pagination': {'total': 0, 'limit': limit, 'offset': offset, 'total_pages': 1, 'current_page': 1, 'has_next': False, 'has_previous': False}}
+
     def _emit_progress_update(self, processadas: int, total: int, enriquecidas: int):
          """Emite atualização de progresso via WebSocket (simples).
          Emite apenas os campos necessários para o front: 'enriquecidas', 'pendentes', 'percentual'.

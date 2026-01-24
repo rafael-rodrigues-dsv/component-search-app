@@ -95,34 +95,38 @@ class AccessRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
+            # execute
             if params:
                 cursor.execute(query, params)
             else:
                 cursor.execute(query)
-        except Exception as e:
-            self.logger.debug(f"execute_query SQL error: {e} - Query: {query} Params: {params}")
-            raise
 
-        columns = None
-        try:
-            columns = [col[0] for col in cursor.description] if cursor.description else None
-        except Exception:
+            # determine columns
             columns = None
-
-        if columns:
-            rows = cursor.fetchall()
-            result = []
-            for row in rows:
-                row_vals = list(row)
-                obj = {columns[i]: row_vals[i] for i in range(len(columns))}
-                result.append(obj)
-            return result
-        else:
             try:
-                conn.commit()
+                columns = [col[0] for col in cursor.description] if cursor.description else None
+            except Exception:
+                columns = None
+
+            if columns:
+                rows = cursor.fetchall()
+                result = []
+                for row in rows:
+                    row_vals = list(row)
+                    obj = {columns[i]: row_vals[i] for i in range(len(columns))}
+                    result.append(obj)
+                return result
+            else:
+                try:
+                    conn.commit()
+                except Exception:
+                    pass
+                return []
+        finally:
+            try:
+                cursor.close()
             except Exception:
                 pass
-            return []
 
     def fetch_scalar(self, query: str, params: list = None):
         """Executa uma query SELECT e retorna o primeiro valor (primeira coluna da primeira linha)"""

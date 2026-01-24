@@ -35,3 +35,23 @@ class PhonesRepository:
             return int(rows[0].get('cnt', 0)) if rows else 0
         except Exception:
             return 0
+
+    def fetch_models_paginated(self, empresa_id: int = None, limit: int = 10, offset: int = 0):
+        from src.domain.models.phone_model import PhoneModel
+        # Parse strictly
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+        sql = "SELECT ID_TELEFONE AS id_telefone, ID_EMPRESA AS id_empresa, TELEFONE AS telefone, TELEFONE_FORMATADO AS telefone_formatado, DDD, TIPO_TELEFONE AS tipo FROM TB_TELEFONES"
+        params = None
+        if empresa_id:
+            sql += " WHERE ID_EMPRESA = ?"
+            params = [empresa_id]
+        sql += " ORDER BY ID_TELEFONE"
+        rows = self._access.execute_query(sql, params)
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(PhoneModel.from_row(r))
+            except Exception:
+                continue
+        return models

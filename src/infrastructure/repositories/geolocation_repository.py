@@ -136,3 +136,28 @@ class GeolocationRepository:
             }
         except Exception as e:
             return {'total_com_endereco': 0, 'geocodificadas': 0, 'pendentes': 0, 'erros': 0, 'percentual': 0}
+
+    # --- NEW: model pagination helpers ---
+    def fetch_models_paginated(self, limit: int = 10, offset: int = 0):
+        from src.domain.models.geolocation_model import GeolocationModel
+        # Parse strictly
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+        sql = "SELECT ID_GEO AS id_geolocalizacao, ID_EMPRESA AS id_empresa, LATITUDE, LONGITUDE, STATUS_PROCESSAMENTO AS status FROM TB_GEOLOCALIZACAO ORDER BY ID_GEO"
+        rows = self._access.execute_query(sql, None)
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(GeolocationModel.from_row(r))
+            except Exception:
+                continue
+        return models
+
+    def count(self) -> int:
+        try:
+            rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_GEOLOCALIZACAO")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0

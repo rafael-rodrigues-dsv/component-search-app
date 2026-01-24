@@ -154,3 +154,32 @@ class CitiesRepository:
             except Exception:
                 pass
             raise
+
+    # --- NEW: model helpers ---
+    def fetch_models_paginated(self, uf: str = None, limit: int = 10, offset: int = 0):
+        """Retorna CityModel paginados a partir da tabela TB_CIDADES"""
+        from src.domain.models.city_model import CityModel
+        # Parse strictly
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+
+        rows = self.list_cities(uf)
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(CityModel.from_row(r))
+            except Exception:
+                continue
+        return models
+
+    def count(self, uf: str = None) -> int:
+        try:
+            if uf:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_CIDADES WHERE UF = ?", [uf])
+            else:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_CIDADES")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0

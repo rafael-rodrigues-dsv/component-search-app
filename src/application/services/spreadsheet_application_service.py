@@ -8,4 +8,11 @@ class SpreadsheetApplicationService:
         return self.repo.save_to_sheet(site_url, emails_str, telefones_str, distancia_km)
 
     def export(self, path: str):
-        return self.repo.export_excel(path)
+        # fix: call export_to_excel
+        return self.repo.export_to_excel(path)
+
+    def list_rows(self, limit: int = None, offset: int = 0):
+        return self.repo.list_rows(limit=limit, offset=offset)
+
+    def count(self) -> int:
+        return self.repo.count()

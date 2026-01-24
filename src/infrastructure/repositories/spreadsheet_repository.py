@@ -50,3 +50,23 @@ class SpreadsheetRepository:
         except Exception:
             pass
         return row - 2
+
+    # --- NEW: pagination helpers ---
+    def list_rows(self, limit: int = None, offset: int = 0):
+        sql = "SELECT SITE AS site, EMAIL AS email, TELEFONE AS telefone, ENDERECO AS endereco, DISTANCIA_KM AS distancia_km FROM TB_PLANILHA ORDER BY DISTANCIA_KM, SITE"
+        rows = self._access.execute_query(sql)
+        if limit is None:
+            return rows
+        # Parse strictly
+        limit = int(limit) if limit is not None else None
+        offset = int(offset) if offset else 0
+        return rows[offset: offset + limit] if rows else []
+
+    def count(self) -> int:
+        try:
+            rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_PLANILHA")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0

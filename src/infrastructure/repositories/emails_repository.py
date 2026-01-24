@@ -42,3 +42,35 @@ class EmailsRepository:
             return result[0] > 0
         except Exception:
             return False
+
+    def fetch_models_paginated(self, empresa_id: int = None, limit: int = 10, offset: int = 0):
+        from src.domain.models.email_model import EmailModel
+        # Parse strictly; let conversion errors propagate
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+        sql = "SELECT ID_EMAIL AS id, ID_EMPRESA AS id_empresa, EMAIL AS email, DOMINIO_EMAIL AS dominio_email, VALIDADO FROM TB_EMAILS"
+        params = None
+        if empresa_id:
+            sql += " WHERE ID_EMPRESA = ?"
+            params = [empresa_id]
+        sql += " ORDER BY ID_EMAIL"
+        rows = self._access.execute_query(sql, params)
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(EmailModel.from_row(r))
+            except Exception:
+                continue
+        return models
+
+    def count(self, empresa_id: int = None) -> int:
+        try:
+            if empresa_id:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_EMAILS WHERE ID_EMPRESA = ?", [empresa_id])
+            else:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_EMAILS")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0

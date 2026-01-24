@@ -44,50 +44,35 @@ class SearchTermApplicationService:
         return self.repo.approve_change(change_id, approver=approver)
 
     def get_paginated_terms(self, limit: int, offset: int) -> Dict[str, Any]:
-        """Fetch paginated terms with metadata using repository pagination where possible."""
+        """Fetch paginated terms with metadata using repository pagination where possible.
+        Returns a dict with 'terms' (list of api dicts) and 'pagination' metadata.
+        """
+        # Parse pagination parameters strictly; let ValueError propagate
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+
         paged = []
         total = 0
+        # Try repository pagination first
         try:
-            # Try to use repository pagination for efficiency
             paged = self.repo.list_paginated_terms(limit=limit, offset=offset)
             total = self.repo.count_active_terms()
         except Exception:
-            # Fallback to in-memory pagination
-            try:
-                all_rows = self.repo.list_active_terms()
-            except Exception:
-                all_rows = []
-            total = len(all_rows)
-            try:
-                offset = int(offset) if offset else 0
-                limit = int(limit) if limit else 10
-            except Exception:
-                offset = 0
-                limit = 10
-            paged = all_rows[offset:offset + limit] if offset < total else []
-
-        try:
-            limit = int(limit) if limit else 10
-            offset = int(offset) if offset else 0
-        except Exception:
-            limit = 10
-            offset = 0
+            # Try models-based repository pagination as a second option
+            models = self.repo.fetch_models_paginated(limit=limit, offset=offset)
+            paged = [m.to_api_dict() for m in models]
+            total = self.repo.count_active_terms() if hasattr(self.repo, 'count_active_terms') else len(paged)
 
         # Fallback: se não encontrou nada no banco, tentar usar as bases estáticas do settings
         if total == 0 and (not paged or len(paged) == 0):
-            try:
-                from config.settings import BASE_TESTES, BASE_BUSCA
-                from src.infrastructure.config.config_manager import ConfigManager
-                cfg = ConfigManager()
-                base = BASE_TESTES if cfg.is_test_mode else BASE_BUSCA
-                # transformar em dicionários compatíveis com o front
-                all_terms = [{'ID_BASE': idx+1, 'TERMO_BUSCA': t, 'CATEGORIA': 'base'} for idx, t in enumerate(base)]
-                offset = int(offset) if offset else 0
-                limit = int(limit) if limit else 10
-                paged = all_terms[offset:offset+limit]
-                total = len(all_terms)
-            except Exception:
-                pass
+            from config.settings import BASE_TESTES, BASE_BUSCA
+            from src.infrastructure.config.config_manager import ConfigManager
+            cfg = ConfigManager()
+            base = BASE_TESTES if cfg.is_test_mode else BASE_BUSCA
+            # transformar em dicionários compatíveis com o front
+            all_terms = [{'ID_BASE': idx+1, 'TERMO_BUSCA': t, 'CATEGORIA': 'base'} for idx, t in enumerate(base)]
+            paged = all_terms[offset:offset+limit]
+            total = len(all_terms)
 
         total_pages = (total + limit - 1) // limit if limit > 0 else 1
         current_page = (offset // limit) + 1 if limit > 0 else 1

@@ -310,6 +310,9 @@
 </div>
 
     <script>
+        // Server-provided initial payload (fast path) — present when dashboard_server injected `initial_stats`.
+        const INITIAL_STATS = {{ initial_stats|tojson|default('null') }};
+
         // Configuração do Socket.IO
         const socket = (typeof window !== 'undefined' && window.socket) ? window.socket : (typeof io !== 'undefined' ? io() : null);
         if (typeof window !== 'undefined' && !window.socket && socket) window.socket = socket;
@@ -337,6 +340,28 @@
             socket.on('disconnect', function() { const conn = document.getElementById('connection-status'); if (conn) conn.innerHTML = '<i class="fas fa-circle text-danger"></i> Desconectado'; });
 
             socket.on('stats_update', function(data) { updateDashboard(data); });
+
+            // Heartbeat/tick handler: update the 'Última atualização' label and running indicator
+            try {
+                socket.on('stats_tick', function(tick) {
+                    try {
+                        var ts = (tick && tick.timestamp) ? new Date(tick.timestamp) : new Date();
+                        var el = document.getElementById('last-update');
+                        if (el) el.textContent = ts.toLocaleString('pt-BR');
+                        // optional running indicator update if present
+                        try {
+                            var runEl = document.getElementById('robot-running-indicator');
+                            if (runEl) {
+                                if (tick && tick.running) {
+                                    runEl.classList.remove('bg-danger'); runEl.classList.add('bg-success'); runEl.textContent = 'Executando';
+                                } else {
+                                    runEl.classList.remove('bg-success'); runEl.classList.add('bg-secondary'); runEl.textContent = 'Parado';
+                                }
+                            }
+                        } catch (e) {}
+                    } catch (e) { /* ignore */ }
+                });
+            } catch (e) { /* ignore if socket not available */ }
 
             socket.on('robot_status', function(data) {
                 try {
@@ -410,25 +435,55 @@
             document.getElementById('geo-pendentes').textContent = geo.pendentes || 0;
             document.getElementById('geo-taxa-box').textContent = `${geo.percentual || 0}%`;
 
-            document.getElementById('last-update').textContent = new Date(data.timestamp || Date.now()).toLocaleString('pt-BR');
+            try {
+                // update last-update if payload contains timestamp
+                if (data && data.timestamp) {
+                    var el = document.getElementById('last-update');
+                    if (el) el.textContent = new Date(data.timestamp).toLocaleString('pt-BR');
+                }
+            } catch (e) {}
 
             updateCardVisibility();
             updateChart(data);
         }
 
         function updateChart(data) {
-            if (!progressChart) return;
-            const now = new Date().toLocaleTimeString();
-            if (progressChart.data.labels.length >= 20) {
-                progressChart.data.labels.shift();
-                progressChart.data.datasets.forEach(dataset => dataset.data.shift());
+            try {
+                if (!progressChart) return;
+                const now = new Date().toLocaleTimeString();
+
+                // Use safe access to coleta values and coerce to numbers
+                const coleta = (data && data.coleta) ? data.coleta : {};
+                const visitadas = Number(coleta.empresas_visitadas) || 0;
+                const coletadas = Number(coleta.empresas_coletadas) || 0;
+                const naoColetadas = Number(coleta.empresas_nao_coletadas) || 0;
+
+                // keep arrays length bounded
+                if (!Array.isArray(progressChart.data.labels)) progressChart.data.labels = [];
+                if (!Array.isArray(progressChart.data.datasets)) progressChart.data.datasets = [ { data: [] }, { data: [] }, { data: [] } ];
+
+                if (progressChart.data.labels.length >= 20) {
+                    progressChart.data.labels.shift();
+                    progressChart.data.datasets.forEach(dataset => { if (Array.isArray(dataset.data)) dataset.data.shift(); });
+                }
+
+                progressChart.data.labels.push(now);
+
+                // ensure each dataset has a data array
+                for (let i = 0; i < 3; i++) {
+                    if (!Array.isArray(progressChart.data.datasets[i].data)) progressChart.data.datasets[i].data = [];
+                }
+
+                progressChart.data.datasets[0].data.push(visitadas);
+                progressChart.data.datasets[1].data.push(coletadas);
+                progressChart.data.datasets[2].data.push(naoColetadas);
+
+                // Update chart without animation to keep it snappy
+                progressChart.update('none');
+            } catch (e) {
+                console.error('Erro em updateChart:', e);
             }
-            progressChart.data.labels.push(now);
-            progressChart.data.datasets[0].data.push(data.coleta.empresas_visitadas || 0);
-            progressChart.data.datasets[1].data.push(data.coleta.empresas_coletadas || 0);
-            progressChart.data.datasets[2].data.push(data.coleta.empresas_nao_coletadas || 0);
-            progressChart.update('none');
-        }
+         }
 
         function updateCardVisibility() {
             const flowEl = document.getElementById('flow-select');
@@ -443,6 +498,23 @@
         document.addEventListener('DOMContentLoaded', function () {
             const flowSelect = document.getElementById('flow-select');
             if (flowSelect) flowSelect.addEventListener('change', updateCardVisibility);
+
+            // If server injected initial stats, use them immediately to populate UI (fast initial render)
+            try {
+                if (typeof INITIAL_STATS !== 'undefined' && INITIAL_STATS) {
+                    try {
+                        updateDashboard(INITIAL_STATS);
+                    } catch (e) {
+                        console.error('updateDashboard(initial)', e);
+                    }
+                } else {
+                    // No initial payload: show current time as last-update so F5 shows a value
+                    try {
+                        var el = document.getElementById('last-update');
+                        if (el) el.textContent = new Date().toLocaleString('pt-BR');
+                    } catch (e) {}
+                }
+            } catch (e) {}
 
             // Inicial fetch
             fetch('/api/stats').then(r => r.json()).then(d => updateDashboard(d)).catch(()=>{});

@@ -150,34 +150,44 @@ class SearchTermRepository:
                 pass
             return False
 
-    def list_paginated_terms(self, limit: int, offset: int) -> List[Dict[str, Any]]:
-        """Lista termos de TB_BASE_BUSCA com paginação em Python (fallback para ODBC incompatível).
-
-        Implementação segura: busca todos os termos ativos via `list_active_terms` e realiza
-        paginação por slice em memória. Evita queries complexas que Access/ODBC podem não aceitar.
-        """
+    def list_terms(self) -> List[Dict[str, Any]]:
+        """Return all terms ordered case-insensitive by TERMO_COMPLETA."""
+        # Prefer ordering in SQL using UCase for case-insensitive alphabetical order
         try:
-            try:
-                all_rows = self.list_active_terms()
-            except Exception:
-                all_rows = []
+            return self.access.execute_query("SELECT ID_BASE AS id, TERMO_BUSCA AS termo_text, TIPO_LOCALIZACAO AS tipo_local, STATUS_PROCESSAMENTO AS status_proc FROM TB_TERMOS_BUSCA ORDER BY UCase(TERMO_COMPLETO)")
+        except Exception:
+            # Fallback to a safer query if UCase isn't supported in this environment
+            return self.access.execute_query("SELECT ID_BASE AS id, TERMO_BUSCA AS termo_text, TIPO_LOCALIZACAO AS tipo_local, STATUS_PROCESSAMENTO AS status_proc FROM TB_TERMOS_BUSCA ORDER BY TERMO_COMPLETO")
 
-            offset = int(offset) if offset else 0
-            limit = int(limit) if limit else 10
-
-            if offset < 0:
-                offset = 0
-            if limit <= 0:
-                limit = 10
-
-            paged = all_rows[offset: offset + limit]
+    # --- NOVOS MÉTODOS: modelos e paginação eficiente (em-mem fallback) ---
+    def list_paginated_terms(self, limit: int, offset: int) -> List[Dict[str, Any]]:
+        """Compat layer para paginação de TB_BASE_BUSCA; retorna dicionários (API legacy format)."""
+        # Parse pagination parameters strictly
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+        try:
+            rows = self.list_active_terms()
+            paged = rows[offset:offset+limit]
             return paged
-        except Exception as e:
-            print(f"Erro ao buscar termos paginados (in-memory): {e}")
+        except Exception:
             return []
 
+    def fetch_models_paginated(self, limit: int, offset: int):
+        """Retorna lista de BaseTermModel paginada a partir de TB_BASE_BUSCA."""
+        from src.domain.models.base_term_model import BaseTermModel
+        # Parse pagination parameters strictly; allow ValueError to surface
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+        rows = self.list_active_terms()
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(BaseTermModel.from_row(r))
+            except Exception:
+                continue
+        return models
+
     def count_active_terms(self) -> int:
-        """Retorna o total de termos ativos em TB_BASE_BUSCA"""
         try:
             rows = self.access.execute_query("SELECT COUNT(*) as cnt FROM TB_BASE_BUSCA WHERE ATIVO = -1")
             if isinstance(rows, list) and rows:

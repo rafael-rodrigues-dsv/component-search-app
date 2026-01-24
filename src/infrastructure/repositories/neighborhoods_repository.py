@@ -100,3 +100,31 @@ class NeighborhoodsRepository:
             return result
         except Exception:
             raise
+
+    # --- NEW: model helpers ---
+    def fetch_models_paginated(self, uf: str = None, limit: int = 10, offset: int = 0):
+        """Return list of NeighborhoodModel instances paginated from TB_BAIRROS"""
+        from src.domain.models.neighborhood_model import NeighborhoodModel
+        # Parse strictly; let exceptions propagate
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
+        rows = self.list_neighborhoods(uf)
+        models = []
+        for r in rows[offset: offset + limit]:
+            try:
+                models.append(NeighborhoodModel.from_row(r))
+            except Exception:
+                continue
+        return models
+
+    def count(self, uf: str = None) -> int:
+        try:
+            if uf:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_BAIRROS WHERE UF = ?", [uf])
+            else:
+                rows = self._access.execute_query("SELECT COUNT(*) as cnt FROM TB_BAIRROS")
+            if isinstance(rows, list) and rows:
+                return int(rows[0].get('cnt', 0) or 0)
+            return 0
+        except Exception:
+            return 0

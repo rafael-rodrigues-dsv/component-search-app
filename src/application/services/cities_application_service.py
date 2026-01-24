@@ -1,4 +1,5 @@
 from src.infrastructure.repositories.cities_repository import CitiesRepository
+from src.domain.models.city_model import CityModel
 
 class CitiesApplicationService:
     def __init__(self):
@@ -17,32 +18,35 @@ class CitiesApplicationService:
         return self.repo.from_cache(uf)
 
     def get_paginated_cities(self, uf: str, limit: int = 10, offset: int = 0):
-        """Return paginated cities from TB_CIDADES (database). Do NOT fallback to cache in this context.
+        """Return paginated cities from TB_CIDADES (database) using CityModel objects.
 
         Raises any exception coming from repository so the caller/API can decide how to handle it.
         """
-        # Consultar diretamente a tabela TB_CIDADES via repositório.
-        # Qualquer exceção deve ser propagada — não usar cache como fallback aqui.
-        all_cities = self.repo.list_cities(uf)
+        # Parse strictly; let ValueError propagate
+        limit = int(limit) if limit else 10
+        offset = int(offset) if offset else 0
 
-        try:
-            limit = int(limit) if limit else 10
-            offset = int(offset) if offset else 0
-        except Exception:
-            limit = 10
-            offset = 0
+        total = self.repo.count(uf)
+        models = self.repo.fetch_models_paginated(uf=uf, limit=limit, offset=offset)
 
-        total = len(all_cities)
-        if limit <= 0:
-            paged = all_cities
-        else:
-            paged = all_cities[offset: offset + limit]
+        cities = []
+        for m in models:
+            try:
+                if isinstance(m, CityModel):
+                    cities.append(m.to_api_dict())
+                elif isinstance(m, dict):
+                    # fallback
+                    cities.append({'id': m.get('id'), 'name': m.get('nome') or m.get('name'), 'uf': m.get('uf')})
+                else:
+                    cities.append({'id': None, 'name': str(m), 'uf': ''})
+            except Exception:
+                continue
 
         total_pages = (total + limit - 1) // limit if limit > 0 else 1
         current_page = (offset // limit) + 1 if limit > 0 else 1
 
         return {
-            'cities': paged,
+            'cities': cities,
             'pagination': {
                 'total': total,
                 'limit': limit,

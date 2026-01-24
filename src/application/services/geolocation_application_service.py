@@ -111,12 +111,29 @@ class GeolocationApplicationService:
         except Exception as e:
             print(f"[GEO] ⚠️  Erro ao criar tarefas: {e}")
 
-
-
     def get_geolocation_stats(self) -> Dict[str, int]:
         """Obtém estatísticas de geolocalização da tabela de controle"""
         return self.domain_service.get_geolocation_statistics()
-    
+
+    def get_paginated_geolocations(self, limit: int = 10, offset: int = 0):
+        try:
+            from ...infrastructure.repositories.geolocation_repository import GeolocationRepository
+            repo = GeolocationRepository()
+            total = repo.count()
+            models = repo.fetch_models_paginated(limit=limit, offset=offset)
+            items = [m.to_api_dict() for m in models]
+            try:
+                limit = int(limit) if limit else 10
+                offset = int(offset) if offset else 0
+            except Exception:
+                limit = 10
+                offset = 0
+            total_pages = (total + limit - 1) // limit if limit > 0 else 1
+            current_page = (offset // limit) + 1 if limit > 0 else 1
+            return {'geolocations': items, 'pagination': {'total': total, 'limit': limit, 'offset': offset, 'total_pages': total_pages, 'current_page': current_page, 'has_next': current_page < total_pages, 'has_previous': current_page > 1}}
+        except Exception:
+            return {'geolocations': [], 'pagination': {'total': 0, 'limit': limit, 'offset': offset, 'total_pages': 1, 'current_page': 1, 'has_next': False, 'has_previous': False}}
+
     def _emit_progress_update(self, processadas: int, total: int, geocodificadas: int):
         """Emite atualização de progresso via WebSocket"""
         try:

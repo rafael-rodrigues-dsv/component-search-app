@@ -3,15 +3,14 @@
 """
 Dashboard Web Server - Monitoramento em tempo real
 """
-import json
 import threading
-import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Optional
 
 from src.application.services.database_application_service import DatabaseApplicationService
 from src.application.services.robot_controller_application_service import request_stop, clear_stop
+from src.infrastructure.services.dashboard_polling_service import DashboardPollingService
 
 # Imports opcionais do Flask
 try:
@@ -166,7 +165,31 @@ class DashboardServer:
             except Exception:
                 show_cep = True
                 show_geo = True
-            return render_template('dashboard/index.html', show_cep=show_cep, show_geo=show_geo)
+
+            # Try to provide initial stats payload directly in the rendered page for instant UI
+            initial_stats = None
+            try:
+                from src.infrastructure.cache.dashboard_cache import DashboardCache
+                cache = DashboardCache.get_instance()
+                initial_stats = cache.get('stats')
+            except Exception:
+                initial_stats = None
+
+            if not initial_stats:
+                try:
+                    from src.infrastructure.services.dashboard_polling_service import DashboardPollingService
+                    qb = DashboardPollingService(db_service=self.db_service)
+                    initial_stats = qb._quick_build_payload()
+                    if initial_stats:
+                        try:
+                            from src.infrastructure.cache.dashboard_cache import DashboardCache
+                            DashboardCache.get_instance().set('stats', initial_stats)
+                        except Exception:
+                            pass
+                except Exception:
+                    initial_stats = None
+
+            return render_template('dashboard/index.html', show_cep=show_cep, show_geo=show_geo, initial_stats=initial_stats)
 
         @self.app.route('/api/export-excel')
         def export_excel():
@@ -181,8 +204,35 @@ class DashboardServer:
         @self.app.route('/api/stats')
         def get_stats():
             try:
+                # First try the in-memory cache (immediate)
+                try:
+                    from src.infrastructure.cache.dashboard_cache import DashboardCache
+                    cache = DashboardCache.get_instance()
+                    cached = cache.get('stats')
+                    if cached and isinstance(cached, dict) and 'coleta' in cached:
+                        return jsonify(cached)
+                except Exception:
+                    cached = None
+
+                # No cache available: build a quick payload (fast path) using DB-only queries
+                try:
+                    from src.infrastructure.services.dashboard_polling_service import DashboardPollingService
+                    quick_builder = DashboardPollingService(db_service=self.db_service)
+                    payload = quick_builder._quick_build_payload()
+                    if payload:
+                        try:
+                            # Save to cache for subsequent fast reads
+                            from src.infrastructure.cache.dashboard_cache import DashboardCache
+                            DashboardCache.get_instance().set('stats', payload)
+                        except Exception:
+                            pass
+                        return jsonify(payload)
+                except Exception:
+                    pass
+
+                # Fallback: compute the full stats (may be slightly slower) but ensures correctness
                 stats = self.db_service.get_statistics()
-                
+
                 # Estatísticas de CEP
                 try:
                     from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
@@ -190,7 +240,7 @@ class DashboardServer:
                     cep_stats = cep_service.get_cep_enrichment_stats()
                 except:
                     cep_stats = {'total': 0, 'concluidos': 0, 'percentual': 0}
-                
+
                 # Estatísticas de geolocalização
                 try:
                     from src.application.services.geolocation_application_service import GeolocationApplicationService
@@ -198,10 +248,10 @@ class DashboardServer:
                     geo_stats = geo_service.get_geolocation_stats()
                 except:
                     geo_stats = {'total_com_endereco': 0, 'geocodificadas': 0, 'percentual': 0}
-                
+
                 # Estatísticas detalhadas de empresas
                 empresas_stats = self.db_service.get_company_collection_stats()
-                
+
                 return jsonify({
                     'timestamp': datetime.now().isoformat(),
                     'coleta': {
@@ -384,129 +434,201 @@ class DashboardServer:
             except Exception:
                 return '404 - Not Found', 404
 
-        # ===== TERMOS (API de configuração) =====
+        # ===== TERMOS (TB_TERMOS_BUSCA) - API paginada para o workflow =====
         from flask import request
-        from src.application.services.search_term_application_service import SearchTermApplicationService
-        from src.infrastructure.config.config_manager import ConfigManager
+        from src.application.services.terms_application_service import TermsApplicationService
 
         @self.app.route('/api/terms')
         def api_terms():
             try:
-                config = ConfigManager()
-                st_service = SearchTermApplicationService()
+                svc = TermsApplicationService()
 
-                # Fetch pagination parameters
+                # Pagination parameters from front (limit=page_size, offset=offset)
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
 
-                # Log para depuração: registrar chamadas e origem
+                # Compute page number expected by TermsApplicationService
+                page_size = max(1, int(limit))
+                page = (int(offset) // page_size) + 1
+
+                # Logging
                 try:
                     client = request.remote_addr or 'unknown'
                 except Exception:
                     client = 'unknown'
-                self.app.logger.info(f"[API] /api/terms called from {client} - limit={limit} offset={offset}")
+                self.app.logger.info(f"[API] /api/terms (TB_TERMOS_BUSCA) called from {client} - limit={limit} offset={offset}")
 
-                # Get paginated terms
-                result = st_service.get_paginated_terms(limit=limit, offset=offset)
+                data = svc.list_paginated(page=page, page_size=page_size)
+                items = data.get('items', [])
+                total = int(data.get('total', 0) or 0)
 
-                # Normalize output
+                # Normalize to expected frontend keys: TERMO_COMPLETO, STATUS_PROCESSAMENTO, TIPO_LOCALIDADE, ID_TERMO
                 normalized = []
-                for row in result['terms']:
-                    if not isinstance(row, dict):
-                        normalized.append(row)
-                        continue
-                    lower_map = {k.lower(): v for k, v in row.items()}
-                    id_base = lower_map.get('id_base') or lower_map.get('id') or lower_map.get('idbase')
-                    termo_busca = lower_map.get('termo_busca') or lower_map.get('termo') or lower_map.get('termo_completo')
-                    categoria = lower_map.get('categoria') or lower_map.get('category') or lower_map.get('categ')
+                for r in items:
+                    if isinstance(r, dict):
+                        lower = {k.lower(): v for k, v in r.items()}
+                        normalized.append({
+                            'ID_TERMO': lower.get('id_termo') or lower.get('id') or lower.get('id_termo'),
+                            'TERMO_COMPLETO': lower.get('termo_completo') or lower.get('termo') or lower.get('termo_busca') or lower.get('termo_text'),
+                            'TIPO_LOCALIDADE': lower.get('tipo_localizacao') or lower.get('tipo') or '',
+                            'STATUS_PROCESSAMENTO': lower.get('status_processamento') or lower.get('status') or ''
+                        })
+                    else:
+                        # If it's a model instance, try to call to_api_dict
+                        try:
+                            normalized.append(r.to_api_dict())
+                        except Exception:
+                            normalized.append(r)
 
-                    nb = {
-                        'ID_BASE': id_base,
-                        'TERMO_BUSCA': termo_busca,
-                        'CATEGORIA': categoria
-                    }
-                    for k, v in row.items():
-                        if k not in nb:
-                            nb[k] = v
-                    normalized.append(nb)
+                total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+                current_page = page
 
                 return jsonify({
                     'terms': normalized,
-                    'pagination': result['pagination']
+                    'pagination': {
+                        'total_pages': total_pages,
+                        'current_page': current_page,
+                        'has_next': current_page < total_pages,
+                        'has_previous': current_page > 1
+                    }
                 })
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
         @self.app.route('/api/terms', methods=['POST'])
-        def api_terms_propose():
+        def api_terms_propose_or_add():
+            """Endpoint simples para adicionar um termo diretamento em TB_TERMOS_BUSCA (POC).
+            Aceita JSON: { 'termo': 'texto', 'categoria': 'cat' }
+            """
             try:
                 payload = request.get_json(force=True) or {}
                 termo = payload.get('termo')
-                is_test = payload.get('is_test', False)
-                proposto_por = payload.get('proposed_by', 'ui')
+                categoria = payload.get('categoria', '')
                 if not termo:
                     return jsonify({'success': False, 'message': 'Campo termo é obrigatório'}), 400
-                st_service = SearchTermApplicationService()
-                change_id = st_service.propose_term(termo, is_test=is_test, proposto_por=proposto_por)
-                # Notificar via websocket (proposta criada)
-                try:
-                    self.socketio.emit('term_change_proposed', {'id': change_id, 'termo': termo, 'proposto_por': proposto_por})
-                except Exception:
-                    pass
-                return jsonify({'success': True, 'change_id': change_id})
-            except Exception as e:
-                import traceback as _tb
-                tb = _tb.format_exc()
-                print(f"[ERRO] api_terms_propose: {e}\n{tb}")
-                return jsonify({'success': False, 'message': str(e), 'traceback': tb}), 500
 
-        # Inserir termo direto (bypass change)
-        @self.app.route('/api/terms/add', methods=['POST'])
-        def api_terms_add():
-            try:
-                payload = request.get_json(force=True) or {}
-                termo = payload.get('termo')
-                categoria = payload.get('categoria', 'base')
-                if not termo:
-                    return jsonify({'success': False, 'message': 'Campo termo é obrigatório'}), 400
-                # Respeitar modo de teste da aplicação para a inserção
-                config = ConfigManager()
-                st_service = SearchTermApplicationService()
-                new_id = st_service.insert_term(termo, categoria=categoria, is_test=config.is_test_mode)
+                svc = TermsApplicationService()
+                new_id = svc.add_term(termo, tipo_localizacao=categoria)
+
                 # Emitir evento para atualizar as UIs conectadas
                 try:
                     self.socketio.emit('term_change_applied', {'id': new_id, 'termo': termo, 'categoria': categoria})
                 except Exception:
                     pass
+
                 return jsonify({'success': True, 'id': new_id})
             except Exception as e:
                 import traceback as _tb
                 tb = _tb.format_exc()
-                print(f"[ERRO] api_terms_add: {e}\n{tb}")
+                print(f"[ERRO] api_terms_propose_or_add: {e}\n{tb}")
                 return jsonify({'success': False, 'message': str(e), 'traceback': tb}), 500
 
-        # Deletar term (marca como inativo)
+        # Deletar term (POC para TB_TERMOS_BUSCA)
         @self.app.route('/api/terms/<int:term_id>', methods=['DELETE'])
         def api_terms_delete(term_id: int):
             try:
-                st_service = SearchTermApplicationService()
-                # Primeiro, tentar remover como termo base (TB_BASE_BUSCA)
+                svc = TermsApplicationService()
+                ok = svc.delete_term(term_id)
                 try:
-                    deleted_base = st_service.delete_base_term(term_id)
-                    if deleted_base:
-                        # Emitir evento para atualizar UIs
-                        try:
-                            self.socketio.emit('term_change_applied', {'id': term_id})
-                        except Exception:
-                            pass
-                        return jsonify({'success': True})
+                    self.socketio.emit('term_change_applied', {'id': term_id})
                 except Exception:
-                    # não conseguir deletar como base não é fatal — tentaremos como termo dinâmico
                     pass
+                return jsonify({'success': bool(ok)})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
 
-                # Se não foi um termo base, tentar deletar como termo em TB_TERMOS_BUSCA
-                ok = st_service.delete_term_direct(term_id)
-                return jsonify({'success': ok})
+        # --- Novos endpoints paginados para repositórios migrados ---
+        @self.app.route('/api/companies')
+        def api_companies():
+            try:
+                from flask import request
+                from src.application.services.companies_application_service import CompaniesApplicationService
+                svc = CompaniesApplicationService
+                term_id = request.args.get('term_id')
+                limit = int(request.args.get('limit', 10))
+                offset = int(request.args.get('offset', 0))
+                client = request.remote_addr or 'unknown'
+                self.app.logger.info(f"[API] /api/companies called from {client} - term_id={term_id} limit={limit} offset={offset}")
+                data = svc.get_paginated_companies_for_term(id_termo=int(term_id) if term_id else None, limit=limit, offset=offset)
+                return jsonify(data)
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/emails')
+        def api_emails():
+            try:
+                from flask import request
+                from src.application.services.email_application_service import EmailApplicationService
+                svc = EmailApplicationService()
+                empresa_id = request.args.get('empresa_id')
+                limit = int(request.args.get('limit', 10))
+                offset = int(request.args.get('offset', 0))
+                data = svc.get_paginated_emails(empresa_id=int(empresa_id) if empresa_id else None, limit=limit, offset=offset)
+                return jsonify(data)
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/phones')
+        def api_phones():
+            try:
+                from flask import request
+                from src.application.services.phones_application_service import PhonesApplicationService
+                svc = PhonesApplicationService()
+                empresa_id = request.args.get('empresa_id')
+                limit = int(request.args.get('limit', 10))
+                offset = int(request.args.get('offset', 0))
+                data = svc.get_paginated_phones(empresa_id=int(empresa_id) if empresa_id else None, limit=limit, offset=offset)
+                return jsonify(data)
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/cep/tasks')
+        def api_cep_tasks():
+            try:
+                from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
+                from flask import request
+                svc = CepEnrichmentApplicationService()
+                limit = int(request.args.get('limit', 10))
+                offset = int(request.args.get('offset', 0))
+                return jsonify(svc.get_paginated_tasks(limit=limit, offset=offset))
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/geo/list')
+        def api_geo_list():
+            try:
+                from src.application.services.geolocation_application_service import GeolocationApplicationService
+                from flask import request
+                svc = GeolocationApplicationService()
+                limit = int(request.args.get('limit', 10))
+                offset = int(request.args.get('offset', 0))
+                return jsonify(svc.get_paginated_geolocations(limit=limit, offset=offset))
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/spreadsheet')
+        def api_spreadsheet():
+            try:
+                from src.application.services.spreadsheet_application_service import SpreadsheetApplicationService
+                from flask import request
+                svc = SpreadsheetApplicationService()
+                limit = request.args.get('limit')
+                offset = int(request.args.get('offset', 0))
+                rows = svc.list_rows(limit=int(limit) if limit else None, offset=offset)
+                total = svc.count()
+                return jsonify({'rows': rows, 'pagination': {'total': total, 'limit': int(limit) if limit else None, 'offset': offset}})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/zones')
+        def api_zones():
+            try:
+                from src.application.services.zones_application_service import ZonesApplicationService
+                from flask import request
+                svc = ZonesApplicationService()
+                limit = int(request.args.get('limit', 10))
+                offset = int(request.args.get('offset', 0))
+                return jsonify(svc.get_paginated_zones(limit=limit, offset=offset))
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -816,6 +938,32 @@ class DashboardServer:
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
+        # DEBUG endpoint: diagnostics for term deletion (temporary)
+        @self.app.route('/api/debug/terms_delete_diag')
+        def api_debug_terms_delete():
+            try:
+                from flask import request
+                term_id = request.args.get('term_id')
+                if not term_id:
+                    return jsonify({'success': False, 'message': 'term_id required'}), 400
+                tid = int(term_id)
+                from src.infrastructure.repositories.access_repository import AccessRepository
+                from src.infrastructure.repositories.terms_repository import TermsRepository
+                access = AccessRepository()
+                tr = TermsRepository()
+                before = access.execute_query('SELECT ID_TERMO, STATUS_PROCESSAMENTO FROM TB_TERMOS_BUSCA WHERE ID_TERMO = ?', [tid])
+                exc = None
+                try:
+                    deleted = tr.delete(tid)
+                except Exception as e:
+                    deleted = False
+                    import traceback as _tb
+                    exc = str(e) + '\n' + _tb.format_exc()
+                after = access.execute_query('SELECT ID_TERMO, STATUS_PROCESSAMENTO FROM TB_TERMOS_BUSCA WHERE ID_TERMO = ?', [tid])
+                return jsonify({'success': True, 'term_id': tid, 'before': before, 'after': after, 'deleted': bool(deleted), 'exception': exc})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
         @self.app.route('/api/ui/reset')
         def api_ui_reset():
             try:
@@ -846,80 +994,57 @@ class DashboardServer:
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
+        # Start polling service (cache updater)
+        try:
+            self._polling_service = DashboardPollingService(
+                db_service=self.db_service,
+                socketio=self.socketio,
+                poll_interval=2.0,
+                robot_running_check=lambda: bool(getattr(self, '_robot_runner', None) and getattr(self._robot_runner, 'running', False))
+            )
+            # Try synchronous population so /api/stats can return immediately when client requests
+            try:
+                self._polling_service.refresh_once()
+            except Exception:
+                pass
+        except Exception:
+            self._polling_service = None
+
+        print(f"[OK] Dashboard iniciado em http://127.0.0.1:{self.port}")
+
+        # finally start poller thread (non-blocking) so live updates continue
+        try:
+            if self._polling_service:
+                self._polling_service.start()
+        except Exception:
+            pass
+
     def _setup_socketio(self):
         """Configura WebSocket events"""
         
         @self.socketio.on('connect')
         def handle_connect():
             emit('status', {'message': 'Conectado ao dashboard'})
-        
+            # Ao conectar, enviar imediatamente o snapshot em cache (se houver)
+            try:
+                from src.infrastructure.cache.dashboard_cache import DashboardCache
+                cache = DashboardCache.get_instance()
+                stats = cache.get('stats')
+                if stats and isinstance(stats, dict):
+                    try:
+                        emit('stats_update', stats)
+                    except Exception:
+                        # emitir via self.socketio se emit falhar no contexto do handler
+                        try:
+                            self.socketio.emit('stats_update', stats)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
         @self.socketio.on('disconnect')
         def handle_disconnect():
             pass
-    
-    def _monitor_loop(self):
-        """Loop de monitoramento em background"""
-        while self.is_running:
-            try:
-                stats = self.db_service.get_statistics()
-                if not isinstance(stats, dict):
-                    stats = {}
-
-                # Estatísticas de CEP
-                try:
-                    from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
-                    cep_service = CepEnrichmentApplicationService()
-                    cep_stats = cep_service.get_cep_enrichment_stats()
-                except:
-                    cep_stats = {'total': 0, 'concluidos': 0, 'percentual': 0}
-
-                # Estatísticas de geolocalização
-                try:
-                    from src.application.services.geolocation_application_service import GeolocationApplicationService
-                    geo_service = GeolocationApplicationService()
-                    geo_stats = geo_service.get_geolocation_stats()
-                except:
-                    geo_stats = {'total_com_endereco': 0, 'geocodificadas': 0, 'percentual': 0}
-
-                # Estatísticas detalhadas de empresas
-                empresas_stats = self.db_service.get_company_collection_stats()
-
-                data = {
-                    'timestamp': datetime.now().isoformat(),
-                    'coleta': {
-                        'termos_total': stats.get('termos_total', 0),
-                        'termos_concluidos': stats.get('termos_concluidos', 0),
-                        'progresso_pct': stats.get('progresso_pct', 0),
-                        'empresas_total': stats.get('empresas_total', 0),
-                        'empresas_visitadas': empresas_stats.get('visitadas', 0),
-                        'empresas_coletadas': empresas_stats.get('coletadas', 0),
-                        'empresas_nao_coletadas': empresas_stats.get('nao_coletadas', 0),
-                        'taxa_coleta_pct': empresas_stats.get('taxa_coleta_pct', 0),
-                        'emails_total': stats.get('emails_total', 0),
-                        'telefones_total': stats.get('telefones_total', 0)
-                    },
-                    'cep': {
-                        'total': cep_stats.get('total', 0),
-                        'concluidos': cep_stats.get('concluidos', 0),
-                        'pendentes': cep_stats.get('pendentes', 0),
-                        'erros': cep_stats.get('erros', 0),
-                        'percentual': cep_stats.get('percentual', 0)
-                    },
-                    'geo': {
-                        'total': geo_stats.get('total_com_endereco', 0),
-                        'geocodificadas': geo_stats.get('geocodificadas', 0),
-                        'pendentes': geo_stats.get('pendentes', 0),
-                        'erros': geo_stats.get('erros', 0),
-                        'percentual': geo_stats.get('percentual', 0)
-                    }
-                }
-                
-                self.socketio.emit('stats_update', data)
-                time.sleep(2)  # Atualiza a cada 2 segundos
-                
-            except Exception as e:
-                print(f"[ERRO] Monitor dashboard: {e}")
-                time.sleep(5)
     
     def start(self):
         """Inicia o servidor web em thread separada"""
@@ -946,15 +1071,8 @@ class DashboardServer:
             daemon=True
         )
         
-        # Thread de monitoramento
-        self.monitor_thread = threading.Thread(
-            target=self._monitor_loop,
-            daemon=True
-        )
-        
         self.server_thread.start()
-        self.monitor_thread.start()
-        
+
         print(f"[OK] Dashboard iniciado em http://127.0.0.1:{self.port}")
     
     def stop(self):
@@ -962,8 +1080,6 @@ class DashboardServer:
         self.is_running = False
         if self.server_thread:
             self.server_thread.join(timeout=1)
-        if self.monitor_thread:
-            self.monitor_thread.join(timeout=1)
 
 
 # Instância global do servidor
