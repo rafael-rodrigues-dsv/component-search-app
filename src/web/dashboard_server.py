@@ -259,11 +259,28 @@ class DashboardServer:
                 raio_km = data.get('raio_km')
                 from src.application.services.zip_code_application_service import ZipCodeApplicationService
                 svc = ZipCodeApplicationService()
+                # Do not allow updating CEP while robot is running
+                try:
+                    if hasattr(self, '_robot_runner') and getattr(self._robot_runner, 'running', False):
+                        return jsonify({'success': False, 'message': 'Robô em execução. Não é possível atualizar o CEP enquanto o robô estiver ativo.'}), 400
+                except Exception:
+                    pass
                 ok = svc.set_reference_cep(cep, raio_km=raio_km)
                 if not ok:
                     return jsonify({'success': False, 'message': 'CEP inválido ou não encontrado'}), 400
-                # Return updated row
+
+                # Optionally perform destructive reset+initialize if frontend requested it
+                reset_flag = bool(data.get('reset', False) or data.get('reset_and_seed', False))
                 row = svc.get_reference_cep()
+                if reset_flag:
+                    try:
+                        from src.application.services.initialize_database_service import InitializeDatabaseService
+                        init_svc = InitializeDatabaseService()
+                        reseed_result = init_svc.reset_and_initialize()
+                        return jsonify({'success': True, 'data': row, 'reseed': reseed_result})
+                    except Exception as e:
+                        return jsonify({'success': False, 'message': f'Falha no reset: {e}'}), 500
+
                 return jsonify({'success': True, 'data': row})
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
@@ -811,6 +828,21 @@ class DashboardServer:
                         pass
                     return jsonify({'reset': True})
                 return jsonify({'reset': False})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/robot/status')
+        def api_robot_status():
+            try:
+                running = False
+                job = None
+                try:
+                    if hasattr(self, '_robot_runner'):
+                        running = bool(getattr(self._robot_runner, 'running', False))
+                        job = getattr(self._robot_runner, 'current_job', None)
+                except Exception:
+                    pass
+                return jsonify({'success': True, 'running': running, 'job': job})
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 

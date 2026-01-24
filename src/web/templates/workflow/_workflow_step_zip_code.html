@@ -3,10 +3,13 @@
   <p class="text-muted">Digite o CEP que será usado no processamento de municípios/bairros (POC).</p>
 
   <div class="form-inline">
-    <input id="cepInput" class="form-control mr-2" placeholder="Digite CEP" />
+    <input id="cepInput" class="form-control mr-2" placeholder="Digite CEP" aria-label="CEP" />
     <label for="cepRaioInput" class="ml-2 mr-1">Raio (km):</label>
-    <input id="cepRaioInput" type="number" min="1" step="1" class="form-control mr-2" style="width:100px" placeholder="km" />
-    <button id="saveCep" class="btn btn-primary btn-sm">Salvar</button>
+    <input id="cepRaioInput" type="number" min="1" step="1" class="form-control mr-2" style="width:100px" placeholder="km" aria-label="Raio (km)" />
+    <!-- Botão padronizado com o mesmo estilo do 'Iniciar Coleta', mas em amarelo -->
+    <button id="saveCep" class="btn btn-warning" title="Iniciar reprocessamento">
+      <i class="fas fa-play mr-2"></i>Iniciar Reprocessamento
+    </button>
   </div>
 
   <div class="mt-3">
@@ -15,6 +18,13 @@
     <div><strong>Estado:</strong> <span id="cepEstado">-</span></div>
     <div><strong>Logradouro:</strong> <span id="cepLogradouro">-</span></div>
     <div><strong>Raio (km):</strong> <span id="cepRaioCurrent">-</span></div>
+  </div>
+
+  <!-- CEP processing logs (shows only GEO and OK messages) -->
+  <div class="mt-3">
+    <h6>Logs de Geolocalização</h6>
+    <pre id="cep-logs" class="border p-2" style="height:180px; overflow:auto; background:#0b0b0b; color:#e6ffed; font-size:12px;"></pre>
+    <div class="mt-2"><span id="cep-processing-indicator" class="badge badge-secondary">Parado</span></div>
   </div>
 </div>
 
