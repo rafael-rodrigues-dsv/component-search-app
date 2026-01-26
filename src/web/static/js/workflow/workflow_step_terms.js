@@ -21,6 +21,7 @@
     }
 
     function renderTerms(terms) {
+        console.log('[renderTerms] Renderizando', terms.length, 'termos');
         const tbody = document.querySelector('#terms-table tbody');
         if (!tbody) return;
         // preserve the new-row if present
@@ -50,6 +51,7 @@
             btnDelete.addEventListener('click', () => {
                 const idToDelete = btnDelete.dataset.id ? Number(btnDelete.dataset.id) : null;
                 if (!idToDelete) { console.warn('ID do termo inválido. Não foi possível remover.'); return; }
+                console.log('[renderTerms] Botão remover clicado para ID:', idToDelete);
                 deleteTerm(idToDelete);
             });
 
@@ -62,6 +64,7 @@
 
             tbody.appendChild(tr);
         });
+        console.log('[renderTerms] Tabela renderizada com sucesso');
 
         // Attach handlers for open / ok / cancel and input keydown so editor works after re-render
         try{
@@ -85,6 +88,7 @@
 
     async function loadTerms(reload = false, page = null) {
         try {
+            console.log('[loadTerms] Iniciando - reload:', reload, 'page:', page, 'currentPage:', currentPage, 'offset:', offset);
             if (reload) {
                 offset = 0;
                 currentPage = 1;
@@ -94,17 +98,21 @@
                 offset = (page - 1) * PAGE_SIZE;
             }
 
-            const url = `/api/terms?limit=${PAGE_SIZE}&offset=${offset}`;
+            // Use base_terms endpoint (TB_BASE_BUSCA) for the 'Define os Termos' workflow
+            const url = `/api/workflow/base_terms?limit=${PAGE_SIZE}&offset=${offset}`;
+            console.log('[loadTerms] Fazendo fetch para:', url);
             const res = await fetch(url);
             if (!res.ok) {
                 console.error('Falha ao carregar termos', res.status);
                 return;
             }
             const json = await res.json();
+            console.log('[loadTerms] Dados recebidos:', json);
 
+            // The workflow/base_terms endpoint returns { terms: [...], pagination: { current_page, total_pages, has_next, has_previous } }
             if (json && json.pagination) {
-                currentPage = json.pagination.current_page;
-                totalPages = json.pagination.total_pages;
+                currentPage = json.pagination.current_page || 1;
+                totalPages = json.pagination.total_pages || 1;
                 const infoEl = document.getElementById('pagination-info');
                 if (infoEl) infoEl.textContent = `Página ${currentPage} de ${totalPages}`;
                 const prevBtn = document.getElementById('btn-prev-page');
@@ -115,6 +123,7 @@
             }
 
             if (json.terms && Array.isArray(json.terms)) {
+                console.log('[loadTerms] Chamando renderTerms com', json.terms.length, 'termos');
                 renderTerms(json.terms);
             }
         } catch (e) {
@@ -131,7 +140,9 @@
     async function addTermDirect(termo, categoria='base') {
         try {
             categoria = (typeof categoria === 'string') ? categoria.trim() : categoria;
-            const res = await fetch('/api/terms/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termo, categoria }) });
+            // Use workflow base_terms endpoint (operates on TB_BASE_BUSCA)
+            const payload = { term: termo, category: categoria };
+            const res = await fetch('/api/workflow/base_terms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const j = await res.json();
             if (j.success) {
                 try { const el = document.getElementById('new-term'); if (el) el.value = ''; const cat = document.getElementById('new-term-category'); if (cat) cat.value = ''; } catch(e) {}
@@ -148,14 +159,23 @@
     async function deleteTerm(id) {
         try {
             if (!id) return console.warn('ID inválido para exclusão');
-            const res = await fetch(`/api/terms/${id}`, { method: 'DELETE' });
-            const j = await res.json();
-            if (j.success) { loadTerms(true); }
-            else console.error('Erro ao remover termo:', j.message || j);
+            console.log('[deleteTerm] Deletando termo ID:', id);
+            const res = await fetch(`/api/workflow/base_terms/${id}`, { method: 'DELETE' });
+            console.log('[deleteTerm] Status HTTP:', res.status);
+            // Não valida resposta - se a API respondeu, assume que funcionou
+            if (res.ok) {
+                console.log('[deleteTerm] API respondeu OK. Atualizando tabela...');
+                await loadTerms(true);
+            } else {
+                console.error('[deleteTerm] Erro HTTP:', res.status, res.statusText);
+            }
         } catch (e) {
             console.error('Erro deleteTerm', e);
         }
     }
+
+    // Expose refresh wrapper so reprocess events can reload base terms
+    window.refreshBaseTerms = function(){ try{ offset = 0; currentPage = 1; loadTerms(true); }catch(e){ console.warn(e); } };
 
     function doInit(){
         if (window._workflow_terms_initialized) return; // guard against double initialization
@@ -242,5 +262,6 @@
 
     if (socket && typeof socket.on === 'function') {
         socket.on('term_change_applied', (_) => { loadTerms(true); });
+        socket.on('base_term_changed', (_) => { loadTerms(true); });
     }
 })();

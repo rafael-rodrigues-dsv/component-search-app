@@ -54,6 +54,11 @@ class DashboardServer:
         # Clients should call GET /api/ui/reset on init; if {'reset': true} is returned they must clear persisted UI prefs.
         self.ui_reset_required = True
         self.is_running = False
+        # In-memory admin tasks store (task_id -> status/result)
+        self._admin_tasks = {}
+        # Guard to avoid concurrent admin resets
+        self._admin_reset_lock = threading.Lock()
+        self._admin_reset_running = False
         self.server_thread = None
         self.monitor_thread = None
 
@@ -315,23 +320,56 @@ class DashboardServer:
                         return jsonify({'success': False, 'message': 'Robô em execução. Não é possível atualizar o CEP enquanto o robô estiver ativo.'}), 400
                 except Exception:
                     pass
-                ok = svc.set_reference_cep(cep, raio_km=raio_km)
-                if not ok:
+
+                # Persist CEP and read back the persisted row (with full address). This returns row or raises on error
+                try:
+                    row = svc.set_and_get_reference(cep, raio_km=raio_km)
+                except Exception as e:
+                    # network errors or external service errors may surface here
+                    return jsonify({'success': False, 'message': f'Erro ao validar/consultar ViaCEP: {e}'}), 502
+
+                if not row:
                     return jsonify({'success': False, 'message': 'CEP inválido ou não encontrado'}), 400
 
-                # Optionally perform destructive reset+initialize if frontend requested it
+                # If frontend requests a reset+reinitialize, run it in background and return a task id
                 reset_flag = bool(data.get('reset', False) or data.get('reset_and_seed', False))
-                row = svc.get_reference_cep()
+
+                # Ensure we return the freshest persisted row (svc.get_reference_cep reads DB)
+                try:
+                    current_row = svc.get_reference_cep()
+                except Exception:
+                    current_row = row
+
                 if reset_flag:
                     try:
-                        from src.application.services.initialize_database_service import InitializeDatabaseService
-                        init_svc = InitializeDatabaseService()
-                        reseed_result = init_svc.reset_and_initialize()
-                        return jsonify({'success': True, 'data': row, 'reseed': reseed_result})
-                    except Exception as e:
-                        return jsonify({'success': False, 'message': f'Falha no reset: {e}'}), 500
+                        # Prevent concurrent admin resets even for synchronous calls
+                        try:
+                            with self._admin_reset_lock:
+                                if getattr(self, '_admin_reset_running', False):
+                                    return jsonify({'success': False, 'message': 'Reset já em execução'}), 409
+                                # mark as running for this synchronous operation
+                                self._admin_reset_running = True
+                        except Exception:
+                            return jsonify({'success': False, 'message': 'Não foi possível iniciar reset (lock error)'}), 500
 
-                return jsonify({'success': True, 'data': row})
+                        # Execute synchronously similar to main: delete/reset and run initial load
+                        try:
+                            from src.application.services.initialize_database_service import InitializeDatabaseService
+                            init_svc = InitializeDatabaseService()
+                            # This will perform delete of tables (preserving TB_CEP_CONFIG per implementation) and run initial sequence
+                            results = init_svc.reset_and_initialize()
+                            return jsonify({'success': True, 'data': current_row, 'reseed': results})
+                        finally:
+                            # clear running flag so next admin reset can start
+                            try:
+                                with self._admin_reset_lock:
+                                    self._admin_reset_running = False
+                            except Exception:
+                                self._admin_reset_running = False
+                    except Exception as e:
+                        return jsonify({'success': False, 'message': f'Falha no reprocessamento: {e}'}), 500
+
+                return jsonify({'success': True, 'data': current_row})
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -342,25 +380,38 @@ class DashboardServer:
                 cep = request.args.get('cep')
                 if not cep:
                     return jsonify({'success': False, 'message': 'CEP é obrigatório'}), 400
-                # Use domain service to lookup via ViaCEP
+
+                import re
+                cep_clean = re.sub(r'\D', '', cep or '')
+                if len(cep_clean) != 8:
+                    return jsonify({'success': False, 'message': 'CEP inválido (deve conter 8 dígitos)'}), 400
+
+                # Format CEP as 12345-678
+                formatted = f"{cep_clean[:5]}-{cep_clean[5:]}"
+
+                # Try to fetch full address using domain AddressEnrichmentService (ViaCEP)
                 try:
                     from src.domain.services.address_enrichment_service import AddressEnrichmentService
                     svc = AddressEnrichmentService()
-                    cep_data = svc._fetch_cep_data(cep)
+                    # _fetch_cep_data returns the ViaCEP raw dict or None
+                    cep_data = svc._fetch_cep_data(formatted)
+                    if not cep_data:
+                        return jsonify({'success': False, 'message': 'CEP não encontrado via ViaCEP'}), 404
+
+                    # Normalize response keys expected by frontend
+                    resp = {
+                        'cep': cep_data.get('cep') or formatted,
+                        'logradouro': cep_data.get('logradouro') or '',
+                        'bairro': cep_data.get('bairro') or cep_data.get('complemento') or '',
+                        'cidade': cep_data.get('localidade') or cep_data.get('cidade') or '',
+                        'estado': cep_data.get('uf') or cep_data.get('estado') or ''
+                    }
+
+                    return jsonify({'success': True, 'data': resp})
                 except Exception as e:
-                    return jsonify({'success': False, 'message': f'Erro na consulta do CEP: {e}'}), 500
-                if not cep_data:
-                    return jsonify({'success': False, 'message': 'CEP não encontrado'}), 404
-                # Normalize and return useful fields
-                cep_clean = cep_data.get('cep') or cep
-                result = {
-                    'cep': cep_clean,
-                    'logradouro': cep_data.get('logradouro', ''),
-                    'bairro': cep_data.get('bairro', ''),
-                    'cidade': cep_data.get('localidade', cep_data.get('localidade', '')),
-                    'estado': cep_data.get('uf', '')
-                }
-                return jsonify({'success': True, 'data': result})
+                    # Domain service may raise on network/ssl errors; return 502 to indicate upstream failure
+                    return jsonify({'success': False, 'message': f'Erro ao consultar ViaCEP: {e}'}), 502
+
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -587,7 +638,7 @@ class DashboardServer:
             try:
                 from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
                 from flask import request
-                svc = CepEnrichmentApplicationService()
+                svc = CepEnrichmentApplicationService
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
                 return jsonify(svc.get_paginated_tasks(limit=limit, offset=offset))
@@ -599,7 +650,7 @@ class DashboardServer:
             try:
                 from src.application.services.geolocation_application_service import GeolocationApplicationService
                 from flask import request
-                svc = GeolocationApplicationService()
+                svc = GeolocationApplicationService
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
                 return jsonify(svc.get_paginated_geolocations(limit=limit, offset=offset))
@@ -739,7 +790,7 @@ class DashboardServer:
                         else:
                             # Default para coleta
                             from src.application.services.email_application_service import EmailApplicationService
-                            service = EmailApplicationService()
+                            service = EmailApplicationService
                             try:
                                 ok = service.execute()
                                 if not ok:
@@ -843,6 +894,101 @@ class DashboardServer:
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
+        # Endpoint administrativo: reset parcial (preserva TB_CEP_CONFIG e TB_TERMOS_BUSCA) e re-inicializa
+        @self.app.route('/api/admin/reset-and-initialize', methods=['POST'])
+        def api_admin_reset_and_initialize():
+            try:
+                from flask import request
+                # Prevent running while robot is active
+                try:
+                    if hasattr(self, '_robot_runner') and getattr(self._robot_runner, 'running', False):
+                        return jsonify({'success': False, 'message': 'Robô em execução. Pare o robô antes de resetar.'}), 409
+                except Exception:
+                    pass
+
+                # Prevent concurrent admin resets
+                try:
+                    with self._admin_reset_lock:
+                        if getattr(self, '_admin_reset_running', False):
+                            return jsonify({'success': False, 'message': 'Reset já em execução'}), 409
+                        self._admin_reset_running = True
+                except Exception:
+                    return jsonify({'success': False, 'message': 'Não foi possível iniciar reset (lock error)'}), 500
+
+                # Create task record
+                import uuid, traceback
+                task_id = str(uuid.uuid4())
+                self._admin_tasks[task_id] = {'status': 'pending', 'started_at': datetime.now().isoformat(), 'progress': 0, 'message': None}
+
+                def _background_task():
+                    try:
+                        self._admin_tasks[task_id]['status'] = 'running'
+                        self._admin_tasks[task_id]['message'] = 'Executando reset e inicialização'
+                        try:
+                            self.socketio.emit('reset_status', {'task_id': task_id, 'status': 'running', 'message': self._admin_tasks[task_id]['message']})
+                        except Exception:
+                            pass
+
+                        from src.application.services.initialize_database_service import InitializeDatabaseService
+                        init_svc = InitializeDatabaseService()
+                        result = init_svc.reset_and_initialize()
+
+                        self._admin_tasks[task_id]['status'] = 'done'
+                        self._admin_tasks[task_id]['result'] = result
+                        self._admin_tasks[task_id]['message'] = 'Concluído'
+                        try:
+                            self.socketio.emit('reset_status', {'task_id': task_id, 'status': 'done', 'result': result})
+                        except Exception:
+                            pass
+                        # Emit a higher-level event to notify clients to refresh all workflow grids
+                        try:
+                            self.socketio.emit('reprocess_complete', {'task_id': task_id, 'result': result})
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        tb = traceback.format_exc()
+                        self._admin_tasks[task_id]['status'] = 'failed'
+                        self._admin_tasks[task_id]['message'] = str(e)
+                        self._admin_tasks[task_id]['traceback'] = tb
+                        try:
+                            self.socketio.emit('reset_status', {'task_id': task_id, 'status': 'failed', 'message': str(e)})
+                        except Exception:
+                            pass
+                    finally:
+                        # clear running flag so next admin reset can start
+                        try:
+                            with self._admin_reset_lock:
+                                self._admin_reset_running = False
+                        except Exception:
+                            self._admin_reset_running = False
+
+                thread = threading.Thread(target=_background_task, daemon=True)
+                thread.start()
+
+                return jsonify({'success': True, 'task_id': task_id}), 202
+            except Exception as e:
+                # ensure flag cleared on unexpected failure before return
+                try:
+                    with self._admin_reset_lock:
+                        self._admin_reset_running = False
+                except Exception:
+                    self._admin_reset_running = False
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/admin/reset-status')
+        def api_admin_reset_status():
+            try:
+                from flask import request
+                task_id = request.args.get('task_id')
+                if not task_id:
+                    return jsonify({'success': False, 'message': 'task_id required'}), 400
+                tasks = getattr(self, '_admin_tasks', {})
+                if task_id not in tasks:
+                    return jsonify({'success': False, 'message': 'task not found'}), 404
+                return jsonify({'success': True, 'task': tasks[task_id]})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
         # ===== WORKFLOW: Municípios (lista paginada via TB_CIDADES) =====
         @self.app.route('/api/workflow/cities')
         def api_workflow_cities():
@@ -865,14 +1011,20 @@ class DashboardServer:
 
                 normalized = []
                 for r in result.get('cities', []):
-                    nome = (r.get('nome') if isinstance(r, dict) else None) or (r.get('name') if isinstance(r, dict) else None) or ''
-                    idv = (r.get('id') if isinstance(r, dict) else None) or None
-                    # Normalize UF (handle different casing)
-                    uf_val = ''
                     if isinstance(r, dict):
-                        uf_val = r.get('uf') or r.get('UF') or r.get('Uf') or ''
-                        if isinstance(uf_val, str):
-                            uf_val = uf_val.strip()
+                        lower = {k.lower(): v for k, v in r.items()}
+                        nome = lower.get('nome') or lower.get('name') or lower.get('nome_cidade') or ''
+                        idv = lower.get('id') or lower.get('id_cidade') or None
+                        uf_val = (lower.get('uf') or '').strip() if isinstance(lower.get('uf'), str) else ''
+                    else:
+                        try:
+                            nome = r.name
+                            idv = getattr(r, 'id', None)
+                            uf_val = getattr(r, 'uf', '')
+                        except Exception:
+                            nome = ''
+                            idv = None
+                            uf_val = ''
                     normalized.append({'id': idv, 'name': nome, 'uf': uf_val})
 
                 return jsonify({'cities': normalized, 'pagination': result.get('pagination', {})})
@@ -899,23 +1051,32 @@ class DashboardServer:
 
                 normalized = []
                 for r in result.get('neighborhoods', []):
-                    nome = (r.get('nome') if isinstance(r, dict) else None) or ''
-                    idv = (r.get('id') if isinstance(r, dict) else None) or None
-                    uf_val = ''
-                    city_name = ''
                     if isinstance(r, dict):
-                        uf_val = r.get('uf') or r.get('UF') or ''
-                        if isinstance(uf_val, str):
-                            uf_val = uf_val.strip()
-                        city_name = r.get('cidade') or r.get('cidade') or r.get('city') or ''
+                        lower = {k.lower(): v for k, v in r.items()}
+                        nome = lower.get('nome') or lower.get('name') or lower.get('nome_bairro') or ''
+                        idv = lower.get('id') or lower.get('id_bairro') or None
+                        uf_val = (lower.get('uf') or '').strip() if isinstance(lower.get('uf'), str) else ''
+                        city_name = (lower.get('cidade') or lower.get('city') or lower.get('nome_cidade') or '')
                         if isinstance(city_name, str):
                             city_name = city_name.strip()
+                    else:
+                        try:
+                            nome = getattr(r, 'name', '')
+                            idv = getattr(r, 'id', None)
+                            uf_val = getattr(r, 'uf', '')
+                            city_name = getattr(r, 'city', '')
+                        except Exception:
+                            nome = ''
+                            idv = None
+                            uf_val = ''
+                            city_name = ''
                     normalized.append({'id': idv, 'name': nome, 'uf': uf_val, 'city': city_name})
 
                 return jsonify({'neighborhoods': normalized, 'pagination': result.get('pagination', {})})
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
+        # ===== WORKFLOW: Termos Processados (TB_TERMOS_BUSCA) =====
         @self.app.route('/api/workflow/processed_terms')
         def api_workflow_processed_terms():
             try:
@@ -931,10 +1092,82 @@ class DashboardServer:
 
                 from src.application.services.processed_terms_application_service import ProcessedTermsApplicationService
                 svc = ProcessedTermsApplicationService()
-                result = svc.get_paginated_processed_terms(limit=limit, offset=offset)
+                data = svc.get_paginated_processed_terms(limit=limit, offset=offset)
 
-                # Return as terms with fields termo_completo, tipo_localidade, status
-                return jsonify({'terms': result.get('terms', []), 'pagination': result.get('pagination', {})})
+                # Expecting {'terms': [...], 'pagination': {...}}
+                return jsonify(data)
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        # ===== Base terms (TB_BASE_BUSCA) - paginated endpoint for workflow Define os Termos =====
+        @self.app.route('/api/workflow/base_terms')
+        def api_workflow_base_terms():
+            try:
+                from flask import request
+                try:
+                    limit = int(request.args.get('limit', 10))
+                except Exception:
+                    limit = 10
+                try:
+                    offset = int(request.args.get('offset', 0))
+                except Exception:
+                    offset = 0
+
+                from src.application.services.base_search_application_service import BaseSearchApplicationService
+                svc = BaseSearchApplicationService()
+                # compute page number
+                page_size = max(1, int(limit))
+                page = (int(offset) // page_size) + 1
+                data = svc.list_paginated(page=page, page_size=page_size)
+                items = data.get('items', [])
+                total = int(data.get('total', 0) or 0)
+
+                # Return as-is; frontend's renderTerms is tolerant to different key names
+                return jsonify({
+                    'terms': items,
+                    'pagination': {
+                        'total_pages': (total + page_size - 1) // page_size if page_size > 0 else 1,
+                        'current_page': page,
+                        'has_next': page * page_size < total,
+                        'has_previous': page > 1
+                    }
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/workflow/base_terms', methods=['POST'])
+        def api_workflow_base_terms_add():
+            try:
+                from flask import request
+                payload = request.get_json(force=True) or {}
+                term = payload.get('term') or payload.get('termo') or payload.get('termo_busca')
+                category = payload.get('category') or payload.get('categoria') or ''
+                is_test = bool(payload.get('is_test', False))
+                if not term:
+                    return jsonify({'success': False, 'message': 'Campo term é obrigatório'}), 400
+                from src.application.services.base_search_application_service import BaseSearchApplicationService
+                svc = BaseSearchApplicationService()
+                new_id = svc.add_term(term, category=category, is_test=is_test)
+                # Emit socket event so UI updates
+                try:
+                    self.socketio.emit('base_term_changed', {'action': 'add', 'id': new_id, 'term': term})
+                except Exception:
+                    pass
+                return jsonify({'success': True, 'id': new_id})
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/workflow/base_terms/<int:id_base>', methods=['DELETE'])
+        def api_workflow_base_terms_delete(id_base: int):
+            try:
+                from src.application.services.base_search_application_service import BaseSearchApplicationService
+                svc = BaseSearchApplicationService()
+                ok = svc.delete_term(id_base)
+                try:
+                    self.socketio.emit('base_term_changed', {'action': 'delete', 'id': id_base})
+                except Exception:
+                    pass
+                return jsonify({'success': bool(ok)})
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 

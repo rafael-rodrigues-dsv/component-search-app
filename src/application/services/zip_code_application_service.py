@@ -100,6 +100,42 @@ class ZipCodeApplicationService:
             # Propagate exception to caller (caller may handle/log as needed)
             raise
 
+    def upsert_and_get_reference(self, cep: str, cidade: str, estado: str, logradouro: str, raio_km: Optional[int] = None, retries: int = 5, delay: float = 0.1) -> Optional[dict]:
+        """Helper: upsert the CEP row and read it back with retries to ensure caller gets full persisted data.
+
+        Returns the row dict on success or None on failure.
+        """
+        import time
+        try:
+            # pass optional raio to repo
+            if raio_km is not None:
+                try:
+                    self.repo._last_raio_km = int(raio_km)
+                except Exception:
+                    pass
+            ok = self.repo.upsert_reference(cep, cidade, estado, logradouro)
+            try:
+                if hasattr(self.repo, '_last_raio_km'):
+                    del self.repo._last_raio_km
+            except Exception:
+                pass
+            if not ok:
+                return None
+
+            # attempt to read persisted row, with small retries to allow DB flush
+            for attempt in range(retries):
+                try:
+                    row = self.repo.get_reference()
+                    if row and row.get('cep'):
+                        return row
+                except Exception:
+                    pass
+                time.sleep(delay)
+                delay *= 2
+            return None
+        except Exception:
+            return None
+
     def set_reference_cep(self, cep: str, raio_km: int = None) -> bool:
         # validate input
         if not cep or not isinstance(cep, str):
@@ -138,6 +174,38 @@ class ZipCodeApplicationService:
             return ok
         except Exception as e:
             logger.warning("[AVISO] Falha ao consultar ViaCEP/validar CEP: %s", e)
+            raise
+
+    def set_and_get_reference(self, cep: str, raio_km: int = None, retries: int = 5, delay: float = 0.1) -> Optional[dict]:
+        """Fetch CEP via AddressEnrichmentService, persist it and return the persisted row.
+
+        Returns the persisted row dict on success; raises on unrecoverable errors or returns None if upsert/read failed.
+        """
+        # validate input same as set_reference_cep
+        if not cep or not isinstance(cep, str):
+            return None
+        import re, time
+        cep_clean = re.sub(r'\D', '', cep)
+        if len(cep_clean) != 8:
+            return None
+
+        try:
+            from src.domain.services.address_enrichment_service import AddressEnrichmentService
+            svc = AddressEnrichmentService()
+            cep_data = svc._fetch_cep_data(cep)
+            if not cep_data:
+                return None
+
+            cidade = cep_data.get('localidade', '')
+            estado = cep_data.get('uf', '')
+            logradouro = cep_data.get('logradouro', '')
+            formatted = f"{cep_clean[:5]}-{cep_clean[5:]}"
+
+            # Use upsert_and_get_reference to persist and read back reliably
+            row = self.upsert_and_get_reference(formatted, cidade, estado, logradouro, raio_km=raio_km, retries=retries, delay=delay)
+            return row
+        except Exception:
+            # propagate external exceptions to caller to allow clear error handling
             raise
 
     def invalidate_cache(self):

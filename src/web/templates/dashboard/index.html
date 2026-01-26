@@ -554,15 +554,84 @@
                 const resp = await fetch('/api/execute', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'start', job_type: jobType, browser: browser, engine: engine, headless: headless}) });
                 const json = await resp.json();
                 if (json.success) { if(badge){ badge.textContent='Em execução'; badge.className='d-inline-block badge badge-success'; } if(jobEl) jobEl.textContent = `Tarefa: ${jobType}`; }
-                else { if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent = json.message || 'Falha ao iniciar'; alert('Erro: '+(json.message||'Falha ao iniciar')); }
-            } catch(e){ if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent='Erro ao chamar API'; alert('Erro ao chamar API: '+e); }
+                else { if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent = json.message || 'Falha ao iniciar'; showGlobalMessage('Erro', (json.message||'Falha ao iniciar')); }
+            } catch(e){ if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent='Erro ao chamar API'; showGlobalMessage('Erro', 'Erro ao chamar API: '+e); }
         }
 
         async function stopJob(){ const badge=document.getElementById('robot-status'); const jobEl=document.getElementById('robot-current-job');
-            try{ const resp = await fetch('/api/execute',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'stop'}) }); const json = await resp.json(); if(json.success){ badge.textContent='Parado'; badge.className='d-inline-block badge badge-secondary'; jobEl.textContent='Nenhuma tarefa ativa'; } else { badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent = json.message || 'Falha ao parar'; alert('Erro: '+(json.message||'Falha ao parar')); } } catch(e){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent='Erro ao chamar API'; alert('Erro ao chamar API: '+e); }
+            try{ const resp = await fetch('/api/execute',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'stop'}) }); const json = await resp.json(); if(json.success){ badge.textContent='Parado'; badge.className='d-inline-block badge badge-secondary'; jobEl.textContent='Nenhuma tarefa ativa'; } else { badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent = json.message || 'Falha ao parar'; showGlobalMessage('Erro', (json.message||'Falha ao parar')); } } catch(e){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent='Erro ao chamar API'; showGlobalMessage('Erro', 'Erro ao chamar API: '+e); }
         }
 
-        function exportExcel(){ const btn=document.getElementById('export-btn'); const result=document.getElementById('export-result'); btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Gerando...'; result.innerHTML=''; fetch('/api/export-excel').then(r=>r.json()).then(data=>{ if(data.success){ result.innerHTML = `<div class="alert alert-success"><i class="fas fa-check mr-2"></i>${data.message}</div>`; } else { result.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times mr-2"></i>Erro: ${data.message}</div>`; } }).catch(error=>{ result.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times mr-2"></i>Erro: ${error.message}</div>`; }).finally(()=>{ btn.disabled=false; btn.innerHTML='<i class="fas fa-download mr-2"></i>Gerar Planilha Excel'; }); }
+        // small helper: global modal for messages (avoid native alert)
+        function _createGlobalModalIfMissing(){
+            if(document.getElementById('globalMessageModal')) return document.getElementById('globalMessageModal');
+            const wrapper = document.createElement('div');
+            wrapper.id = 'globalMessageModal';
+            wrapper.className = 'modal fade';
+            wrapper.setAttribute('tabindex','-1');
+            wrapper.setAttribute('role','dialog');
+            wrapper.innerHTML = `
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="globalMessageModalLabel">Mensagem</h5>
+                    <button type="button" class="close" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+                  </div>
+                  <div class="modal-body"><p id="globalMessageModalBody">Mensagem</p></div>
+                  <div class="modal-footer">
+                    <button type="button" id="globalMessageModalCancel" class="btn btn-secondary" style="display:none">Cancelar</button>
+                    <button type="button" id="globalMessageModalOk" class="btn btn-primary">OK</button>
+                  </div>
+                </div>
+              </div>
+            `;
+            document.body.appendChild(wrapper);
+            // close button
+            try{ wrapper.querySelector('.close').addEventListener('click', function(){ wrapper.classList.remove('show'); wrapper.style.display='none'; const b=document.querySelector('.modal-backdrop.fade.show'); if(b) b.remove(); }); }catch(e){}
+            return wrapper;
+        }
+
+        function showGlobalMessage(title, message){
+            try{
+                const modal = _createGlobalModalIfMissing();
+                const label = modal.querySelector('#globalMessageModalLabel');
+                const body = modal.querySelector('#globalMessageModalBody');
+                const ok = modal.querySelector('#globalMessageModalOk');
+                const cancel = modal.querySelector('#globalMessageModalCancel');
+                if(label) label.textContent = title || 'Mensagem';
+                if(body) body.textContent = message || '';
+                cancel.style.display = 'none';
+                const cleanup = ()=>{ try{ modal.classList.remove('show'); modal.style.display='none'; const b=document.querySelector('.modal-backdrop.fade.show'); if(b) b.remove(); }catch(e){} ok.removeEventListener('click', okHandler); };
+                const okHandler = function(){ cleanup(); };
+                ok.addEventListener('click', okHandler);
+                // show modal
+                try{ modal.style.display='block'; modal.classList.add('show'); const backdrop=document.createElement('div'); backdrop.className='modal-backdrop fade show'; document.body.appendChild(backdrop); }catch(e){ console.error('showGlobalMessage failed', e); }
+            }catch(e){ console.error('showGlobalMessage', e); }
+        }
+
+        // Override native alert to use modal (prevent native blocking alerts)
+        (function(){
+            try{
+                const originalAlert = window.alert;
+                window.alert = function(msg){
+                    try{
+                        // prefer modal
+                        if(typeof showGlobalMessage === 'function'){
+                            showGlobalMessage('Aviso', String(msg));
+                        } else {
+                            // fallback: create simple temporary modal
+                            const temp = document.createElement('div');
+                            temp.className = 'modal fade';
+                            temp.innerHTML = `<div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Aviso</h5></div><div class="modal-body"><p>${String(msg)}</p></div><div class="modal-footer"><button class="btn btn-primary">OK</button></div></div></div>`;
+                            document.body.appendChild(temp);
+                            const btn = temp.querySelector('.btn'); btn.addEventListener('click', function(){ try{ temp.remove(); }catch(e){} });
+                            try{ temp.style.display='block'; const backdrop=document.createElement('div'); backdrop.className='modal-backdrop fade show'; document.body.appendChild(backdrop); }catch(e){}
+                        }
+                    }catch(e){ try{ originalAlert(msg); }catch(e){} }
+                };
+            }catch(e){ /* ignore */ }
+        })();
+
     </script>
 <!-- AdminLTE JS -->
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>

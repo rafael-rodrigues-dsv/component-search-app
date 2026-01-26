@@ -90,7 +90,7 @@ class AccessRepository:
 
     def execute_query(self, query: str, params: list = None):
         """Executa uma query SQL. Para SELECT retorna lista de dicts {col: value}.
-        Para INSERT/UPDATE/DELETE executa e commita, retornando lista vazia.
+        Para INSERT/UPDATE/DELETE executa e commita, retornando o rowcount.
         """
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -121,7 +121,8 @@ class AccessRepository:
                     conn.commit()
                 except Exception:
                     pass
-                return []
+                # Para DELETE/UPDATE/INSERT retorna rowcount em vez de lista vazia
+                return cursor.rowcount if hasattr(cursor, 'rowcount') else 0
         finally:
             try:
                 cursor.close()

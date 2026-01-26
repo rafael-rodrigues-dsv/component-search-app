@@ -23,7 +23,7 @@
 
     function showToast(msg, type='success'){
         const container = document.getElementById('toast-container-mun'); if(!container) return;
-        const div = document.createElement('div'); div.className = `toast ${type==='success'?'bg-success text-white':''}`; div.innerHTML = `<div class=\"toast-body\">${msg}</div>`; container.appendChild(div); setTimeout(()=>div.remove(), 2500);
+        const div = document.createElement('div'); div.className = `toast ${type==='success'?'bg-success text-white':''}`; div.innerHTML = `<div class="toast-body">${msg}</div>`; container.appendChild(div); setTimeout(()=>div.remove(), 2500);
     }
 
     async function fetchAndRender(){
@@ -100,6 +100,8 @@
 
         fetchAndRender();
     }
+
+    window.refreshCitiesGrid = function(){ try{ currentPage = 1; fetchAndRender(); }catch(e){ console.warn(e); } };
 
     window.init_municipios_grid = function(){ try{ doInit(); }catch(e){ console.warn(e); } };
 })();

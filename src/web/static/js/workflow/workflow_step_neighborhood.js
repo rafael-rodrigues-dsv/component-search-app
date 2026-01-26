@@ -93,6 +93,9 @@
         fetchAndRender();
     }
 
+    // Expose refresh wrapper for neighborhoods grid to be triggered by reprocess event.
+    window.refreshNeighborhoodsGrid = function(){ try{ currentPage = 1; fetchAndRender(); }catch(e){ console.warn(e); } };
+
     // Keep same init name used by shims: window.init_bairros_grid
     window.init_bairros_grid = function(){ try{ doInit(); }catch(e){ console.warn(e); } };
 })();

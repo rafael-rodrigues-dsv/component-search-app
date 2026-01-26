@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 import requests
 
 from ...infrastructure.config.config_manager import ConfigManager
+from src.infrastructure.logging.initial_load_logger import load_logger
 
 
 class DynamicGeographicDiscoveryService:
@@ -127,7 +128,7 @@ class DynamicGeographicDiscoveryService:
                     
                     # Mostrar as 5 maiores cidades encontradas
                     if municipalities_with_pop:
-                        print(f"[GEO] 🏙️  Maiores cidades encontradas:")
+                        load_logger.info(f"[GEO] 🏙️  Maiores cidades encontradas:")
                         for i, city in enumerate(municipalities_with_pop[:5]):
                             pop = city.get('population', 0)
                             print(f"[GEO]    {i+1}. {city['nome']} - {pop:,} habitantes")
@@ -203,7 +204,7 @@ class DynamicGeographicDiscoveryService:
             url = self.config.get_config_value('geographic_discovery.apis.ibge.url')
             full_url = f"{url}/estados/{uf}/municipios"
             
-            print(f"[GEO] 🌐 Consultando API IBGE: {full_url}")
+            load_logger.info(f"[GEO] 🌐 Consultando API IBGE: {full_url}")
             response = self.session.get(full_url, timeout=15)
             response.raise_for_status()
             
@@ -371,7 +372,7 @@ class DynamicGeographicDiscoveryService:
             large_cities = [c for c in formatted_cities if c['population'] >= min_population]
             
             if not large_cities:
-                print(f"[GEO] ⚠️  Nenhuma cidade >= {min_population:,} hab - usando top 15")
+                load_logger.warning(f"[GEO] ⚠️  Nenhuma cidade >= {min_population:,} hab - usando top 15")
                 large_cities = formatted_cities[:15]
             
             print(f"[GEO] 📊 {len(large_cities)} cidades grandes selecionadas")

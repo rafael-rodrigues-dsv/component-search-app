@@ -13,7 +13,7 @@
         else { const sel = document.getElementById('tp-page-size'); if(sel && sel.value) PAGE_SIZE = parseInt(sel.value,10) || PAGE_SIZE; }
     }catch(e){ PAGE_SIZE = PAGE_SIZE || 5; }
 
-    function showToast(msg){ const c = document.getElementById('toast-container-tp'); if(!c) return; const d = document.createElement('div'); d.className='toast'; d.innerHTML = `<div class=\"toast-body\">${msg}</div>`; c.appendChild(d); setTimeout(()=>d.remove(),2500); }
+    function showToast(msg){ const c = document.getElementById('toast-container-tp'); if(!c) return; const d = document.createElement('div'); d.className='toast'; d.innerHTML = `<div class="toast-body">${msg}</div>`; c.appendChild(d); setTimeout(()=>d.remove(),2500); }
 
     async function fetchAndRender(){
         const offset = (currentPage-1)*PAGE_SIZE;
@@ -61,6 +61,9 @@
         document.getElementById('btn-next-tp')?.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; fetchAndRender(); } });
         fetchAndRender();
     }
+
+    // Expose a refresh wrapper so external events can trigger a reload without reinitializing the grid state
+    window.refreshProcessedTerms = function(){ try{ currentPage = 1; fetchAndRender(); }catch(e){ console.warn(e); } };
 
     // init name used by shims
     window.init_termos_processados_grid = function(){ try{ doInit(); }catch(e){ console.warn(e); } };

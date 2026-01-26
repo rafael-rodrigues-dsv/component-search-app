@@ -89,25 +89,37 @@ class GeolocationApplicationService:
     def _create_missing_geolocation_tasks(self):
         """Cria tarefas de geolocalização para empresas que não têm"""
         try:
+            # Use AccessRepository.execute_query (compatível) para obter empresas com endereço
             from ...infrastructure.repositories.access_repository import AccessRepository
-            repo = AccessRepository()
-            
-            # Buscar empresas com endereço mas sem tarefa de geolocalização
-            results = repo.fetch_all("""
-                SELECT e.ID_EMPRESA, e.ID_ENDERECO 
-                FROM TB_EMPRESAS e 
-                WHERE e.ID_ENDERECO IS NOT NULL 
+            from ...infrastructure.repositories.geolocation_repository import GeolocationRepository
+
+            access = AccessRepository()
+            geo_repo = GeolocationRepository()
+
+            sql = """
+                SELECT e.ID_EMPRESA AS ID_EMPRESA, e.ID_ENDERECO AS ID_ENDERECO
+                FROM TB_EMPRESAS e
+                WHERE e.ID_ENDERECO IS NOT NULL
                 AND NOT EXISTS (
-                    SELECT 1 FROM TB_GEOLOCALIZACAO g 
-                    WHERE g.ID_EMPRESA = e.ID_EMPRESA
+                    SELECT 1 FROM TB_GEOLOCALIZACAO g WHERE g.ID_EMPRESA = e.ID_EMPRESA
                 )
-            """)
-            
-            print(f"[GEO] 🔧 Criando tarefas para {len(results)} empresas sem geolocalização")
-            
-            for empresa_id, endereco_id in results:
-                repo.create_geolocation_task(empresa_id, endereco_id)
-                
+            """
+
+            results = access.execute_query(sql, None)
+            # execute_query returns list of dicts; normalize
+            created = 0
+            for row in results:
+                try:
+                    empresa_id = row.get('ID_EMPRESA') if isinstance(row, dict) else row[0]
+                    endereco_id = row.get('ID_ENDERECO') if isinstance(row, dict) else row[1]
+                    if empresa_id and endereco_id:
+                        geo_repo.create_task(empresa_id, endereco_id)
+                        created += 1
+                except Exception:
+                    continue
+
+            print(f"[GEO] 🔧 Criando tarefas para {created} empresas sem geolocalização")
+
         except Exception as e:
             print(f"[GEO] ⚠️  Erro ao criar tarefas: {e}")
 

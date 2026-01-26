@@ -1,17 +1,10 @@
 import logging
-from pathlib import Path
 
-# Logger de carga inicial: apenas saída no console (sem arquivo)
+# Logger de carga inicial: rely on root logger handlers and propagate so SocketIOLogHandler receives messages
 _logger = logging.getLogger('initial_load')
 _logger.setLevel(logging.DEBUG)
-
-# Prevent adding multiple handlers if module reloaded
-if not _logger.handlers:
-    # Console handler that mirrors the old style [LEVEL] message
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter('%(message)s'))
-    _logger.addHandler(ch)
+# Ensure messages propagate to root handlers (so SocketIOLogHandler attached to root will capture them)
+_logger.propagate = True
 
 
 class InitialLoadLogger:

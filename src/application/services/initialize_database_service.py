@@ -3,8 +3,8 @@ InitializeDatabaseService
 Encapsula o fluxo de inicialização usado no startup e o reset-destructivo solicitado.
 
 Comportamento:
-- initialize(): roda o fluxo original de inicialização (InitialLoadApplicationService.run(), ensure zip seed, Dynamic discovery, geolocation, generate terms)
-- reset_and_initialize(): limpa as tabelas de dados (preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA) e então chama initialize()
+- initialize(run_geolocation=True): roda o fluxo original de inicialização (InitialLoadApplicationService.run(), ensure zip seed, Dynamic discovery, geolocation, generate terms)
+- reset_and_initialize(): limpa as tabelas de dados (preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA) e então chama initialize(run_geolocation=False)
 
 Essa implementação reusa os serviços existentes (InitialLoadApplicationService, DynamicGeographicDiscoveryService,
 GeolocationApplicationService, DatabaseApplicationService) sem alterar a lógica deles.
@@ -50,7 +50,6 @@ class InitializeDatabaseService:
                 except Exception as e:
                     # Log and continue
                     load_logger.warning(f"Falha ao limpar tabela {t}: {e}")
-            # Preserve TB_TERMOS_BUSCA rows and statuses (do not modify)
             conn.commit()
         finally:
             try:
@@ -58,8 +57,11 @@ class InitializeDatabaseService:
             except Exception:
                 pass
 
-    def initialize(self) -> Dict[str, Any]:
+    def initialize(self, run_geolocation: bool = True) -> Dict[str, Any]:
         """Executa o fluxo original de inicialização (sem deletar nada).
+
+        Args:
+            run_geolocation (bool): controla se a etapa de processamento de geolocalização será executada.
 
         Retorna um dicionário com contadores/resultados.
         """
@@ -72,7 +74,7 @@ class InitializeDatabaseService:
         results['base_terms'] = run_res.get('terms', 0)
         results['zip_ok'] = run_res.get('zip_ok', False)
 
-        # 2) Dynamic geographic discovery (uses same algorithm as startup)
+        # 2) Dynamic geographic discovery
         try:
             load_logger.info('[GEO] Iniciando descoberta dinâmica de localizações (cidades/bairros)')
             discovery_svc = DynamicGeographicDiscoveryService()
@@ -83,16 +85,19 @@ class InitializeDatabaseService:
             results['discovery'] = {'error': str(e)}
             load_logger.error(f"[GEO] Falha na descoberta dinâmica: {e}")
 
-        # 3) Geolocation processing
-        try:
-            load_logger.info('[GEO] Iniciando processamento de geolocalização (GeolocationApplicationService)')
-            geo_svc = GeolocationApplicationService()
-            geo_res = geo_svc.process_geolocation()
-            results['geolocation'] = geo_res
-            load_logger.info(f"[GEO] Geolocalização concluída: {geo_res}")
-        except Exception as e:
-            results['geolocation'] = {'error': str(e)}
-            load_logger.error(f"[GEO] Falha no processamento de geolocalização: {e}")
+        # 3) Geolocation processing (optional)
+        if run_geolocation:
+            try:
+                load_logger.info('[GEO] Iniciando processamento de geolocalização (GeolocationApplicationService)')
+                geo_svc = GeolocationApplicationService()
+                geo_res = geo_svc.process_geolocation()
+                results['geolocation'] = geo_res
+                load_logger.info(f"[GEO] Geolocalização concluída: {geo_res}")
+            except Exception as e:
+                results['geolocation'] = {'error': str(e)}
+                load_logger.error(f"[GEO] Falha no processamento de geolocalização: {e}")
+        else:
+            load_logger.info('[GEO] Pulando processamento de geolocalização (run_geolocation=False)')
 
         # 4) Generate search terms
         try:
@@ -110,5 +115,18 @@ class InitializeDatabaseService:
         """Limpa as tabelas (preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA) e executa initialize()."""
         load_logger.info('[LOAD] Executando reset destrutivo (preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA)')
         self._delete_tables_preserve_cep_and_terms()
-        load_logger.info('[LOAD] Reset concluído, iniciando initialize()')
-        return self.initialize()
+        load_logger.info('[LOAD] Reset concluído, iniciando população inicial (initialize(run_geolocation=False))...')
+
+        try:
+            # For reset we intentionally DO NOT run geolocation to avoid unexpected geo-processing during admin reset
+            results = self.initialize(run_geolocation=False)
+            return {'reset': True, 'initialization': results}
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            try:
+                load_logger.error(f'Falha na população inicial durante reset: {e}\n{tb}')
+            except Exception:
+                print(f"[ERRO] Falha na população inicial durante reset: {e}\n{tb}")
+            # re-raise to let caller handle
+            raise
