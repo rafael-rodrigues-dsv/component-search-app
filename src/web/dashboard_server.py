@@ -307,9 +307,12 @@ class DashboardServer:
 
         @self.app.route('/api/config/cep', methods=['POST'])
         def set_reference_cep():
+            import threading
+            print(f"\n🔵 [API /api/config/cep] REQUEST RECEBIDO - Thread: {threading.current_thread().name}")
             try:
                 from flask import request
                 data = request.get_json() or {}
+                print(f"🔵 [API /api/config/cep] Dados recebidos: {data}")
                 cep = data.get('cep')
                 raio_km = data.get('raio_km')
                 from src.application.services.zip_code_application_service import ZipCodeApplicationService
@@ -326,7 +329,7 @@ class DashboardServer:
                     row = svc.set_and_get_reference(cep, raio_km=raio_km)
                 except Exception as e:
                     # network errors or external service errors may surface here
-                    return jsonify({'success': False, 'message': f'Erro ao validar/consultar ViaCEP: {e}'}), 502
+                    return jsonify({'success': False, 'message': f'Erro ao validar/consultar API de CEP: {e}'}), 502
 
                 if not row:
                     return jsonify({'success': False, 'message': 'CEP inválido ou não encontrado'}), 400
@@ -356,8 +359,10 @@ class DashboardServer:
                         try:
                             from src.application.services.initialize_database_service import InitializeDatabaseService
                             init_svc = InitializeDatabaseService()
+                            print(f"🔵 [API /api/config/cep] Iniciando reset_and_initialize()")
                             # This will perform delete of tables (preserving TB_CEP_CONFIG per implementation) and run initial sequence
                             results = init_svc.reset_and_initialize()
+                            print(f"🔵 [API /api/config/cep] reset_and_initialize() concluído")
                             return jsonify({'success': True, 'data': current_row, 'reseed': results})
                         finally:
                             # clear running flag so next admin reset can start
@@ -389,14 +394,14 @@ class DashboardServer:
                 # Format CEP as 12345-678
                 formatted = f"{cep_clean[:5]}-{cep_clean[5:]}"
 
-                # Try to fetch full address using domain AddressEnrichmentService (ViaCEP)
+                # Try to fetch full address using domain AddressEnrichmentService (BrasilAPI)
                 try:
                     from src.domain.services.address_enrichment_service import AddressEnrichmentService
                     svc = AddressEnrichmentService()
-                    # _fetch_cep_data returns the ViaCEP raw dict or None
+                    # _fetch_cep_data returns the BrasilAPI raw dict or None
                     cep_data = svc._fetch_cep_data(formatted)
                     if not cep_data:
-                        return jsonify({'success': False, 'message': 'CEP não encontrado via ViaCEP'}), 404
+                        return jsonify({'success': False, 'message': 'CEP não encontrado'}), 404
 
                     # Normalize response keys expected by frontend
                     resp = {
@@ -410,7 +415,7 @@ class DashboardServer:
                     return jsonify({'success': True, 'data': resp})
                 except Exception as e:
                     # Domain service may raise on network/ssl errors; return 502 to indicate upstream failure
-                    return jsonify({'success': False, 'message': f'Erro ao consultar ViaCEP: {e}'}), 502
+                    return jsonify({'success': False, 'message': f'Erro ao consultar API de CEP: {e}'}), 502
 
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500

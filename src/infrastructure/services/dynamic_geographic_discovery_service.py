@@ -22,6 +22,14 @@ class DynamicGeographicDiscoveryService:
             'User-Agent': 'PythonSearchApp/4.0.0 (Geographic Discovery)'
         })
 
+        # Inicializar cache de coordenadas de cidades
+        from ...infrastructure.cache.cities_coordinates_cache import CitiesCoordinatesCache
+        self.cities_cache = CitiesCoordinatesCache()
+
+        # Inicializar cache de distâncias
+        from ...infrastructure.cache.distance_cache import DistanceCache
+        self.distance_cache = DistanceCache()
+
     def discover_locations_from_config(self) -> Dict:
         """Descobre localizações baseado na configuração YAML com perfil automático"""
         cep = self.config.reference_cep
@@ -73,22 +81,20 @@ class DynamicGeographicDiscoveryService:
         }
 
     def _get_cep_coordinates(self, cep: str) -> Optional[Dict]:
-        """Obter coordenadas via ViaCEP"""
-        if not self.config.get_config_value('geographic_discovery.apis.viacep.enabled', True):
+        """Obter coordenadas via BrasilAPI com cache"""
+        if not self.config.get_config_value('geographic_discovery.apis.brasilapi.enabled', True):
             return None
             
         try:
-            url = self.config.get_config_value('geographic_discovery.apis.viacep.url')
-            clean_cep = cep.replace('-', '').replace('.', '')
-            
-            response = self.session.get(f"{url}/{clean_cep}/json/", timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            if 'erro' in data:
+            # Usar CepResolverService (BrasilAPI + Cache)
+            from ...infrastructure.services.cep_resolver_service import CepResolverService
+            cep_service = CepResolverService()
+
+            data = cep_service.get_cep_data(cep)
+            if not data:
                 return None
             
-            # Geocodificar cidade via Nominatim
+            # Geocodificar cidade via Nominatim/Cache
             coords = self._geocode_city(data['localidade'], data['uf'])
             
             return {
@@ -100,7 +106,7 @@ class DynamicGeographicDiscoveryService:
             }
             
         except Exception as e:
-            print(f"[GEO] Erro ViaCEP: {e}")
+            print(f"[GEO] Erro BrasilAPI: {e}")
             return None
 
     def _discover_nearby_cities(self, base_info: Dict, radius_km: int) -> List[Dict]:
@@ -148,47 +154,73 @@ class DynamicGeographicDiscoveryService:
             else:
                 print(f"[GEO] 📈 {len(municipalities_with_pop)} municípios total, {len(large_cities)} selecionadas")
             
-            # 3. Geocodificar cidades grandes (limitado apenas pelo raio)
+            # 3. Geocodificar cidades grandes (OTIMIZADO: cache em batch mas logs completos)
             cities_in_radius = []
             
-            for i, municipality in enumerate(large_cities[:50]):  # Máximo 50 cidades grandes
-                
+            # Limitar a 50 cidades
+            cities_to_process = large_cities[:50]
+            total_cities = len(cities_to_process)
+
+            print(f"[GEO] 🔄 Iniciando processamento de {total_cities} cidades...")
+
+            # OTIMIZAÇÃO: Verificar cache e geocodificar em tempo real com logs
+            cities_with_coords = []
+
+            for i, municipality in enumerate(cities_to_process):
                 city_name = municipality['nome']
-                is_base_city = city_name.lower() == base_info['cidade'].lower()
-                
-                print(f"    [GEO] Processando {i+1}/{min(len(large_cities), 50)}: {city_name} ({municipality.get('population', 0):,} hab)")
-                
-                # Geocodificar cidade
-                coords = self._geocode_city(city_name, base_info['uf'])
+
+                # LOG IMEDIATO: Processando cidade
+                print(f"    [GEO] Processando {i+1}/{total_cities}: {city_name} ({municipality.get('population', 0):,} hab)")
+
+                # Tentar cache primeiro (instantâneo)
+                coords = self.cities_cache.get_city_coordinates(city_name, base_info['uf'])
+                from_cache = bool(coords)
+
+                # Se não tem cache, geocodificar agora
                 if not coords:
-                    continue
-                
-                # Calcular distância
-                distance = self._calculate_distance(
-                    base_info['lat'], base_info['lng'],
-                    coords[0], coords[1]
-                )
-                
-                # Cidade base sempre entra, outras só se no raio
-                if is_base_city or distance <= radius_km:
-                    status = "🎯 BASE" if is_base_city else f"{round(distance, 1)}km"
-                    print(f"    [GEO] ✅ Incluída: {city_name} ({municipality.get('population', 0):,} hab) - {status}")
-                    
-                    cities_in_radius.append({
-                        'name': city_name,
-                        'state': base_info['uf'],
-                        'distance_km': round(distance, 1),
-                        'coordinates': coords,
-                        'ibge_code': municipality['id'],
-                        'population': municipality.get('population', 0),
-                        'is_base_city': is_base_city
+                    coords = self._geocode_city(city_name, base_info['uf'])
+                    if coords:
+                        from_cache = False
+                    time.sleep(0.2)  # Rate limiting apenas para novas geocodificações
+
+                # Se conseguiu coordenadas (cache ou geocodificação), adicionar
+                if coords:
+                    cities_with_coords.append({
+                        'municipality': municipality,
+                        'coords': coords,
+                        'from_cache': from_cache
                     })
-                else:
-                    print(f"    [GEO] ❌ Excluída: {city_name} ({municipality.get('population', 0):,} hab) - {round(distance, 1)}km - fora do raio")
-                
-                # Rate limiting otimizado
-                time.sleep(0.2)  # Reduzido de 1s para 200ms
-            
+
+                    # Calcular distância IMEDIATAMENTE e mostrar resultado
+                    is_base_city = city_name.lower() == base_info['cidade'].lower()
+
+                    distance = self._calculate_distance(
+                        base_info['lat'], base_info['lng'],
+                        coords[0], coords[1]
+                    )
+
+                    # Cidade base sempre entra, outras só se no raio
+                    if is_base_city or distance <= radius_km:
+                        status = "🎯 BASE" if is_base_city else f"{round(distance, 1)}km"
+                        print(f"    [GEO] ✅ Incluída: {city_name} ({municipality.get('population', 0):,} hab) - {status}")
+
+                        cities_in_radius.append({
+                            'name': city_name,
+                            'state': base_info['uf'],
+                            'distance_km': round(distance, 1),
+                            'coordinates': coords,
+                            'ibge_code': municipality['id'],
+                            'population': municipality.get('population', 0),
+                            'is_base_city': is_base_city
+                        })
+                    else:
+                        print(f"    [GEO] ❌ Excluída: {city_name} ({municipality.get('population', 0):,} hab) - {round(distance, 1)}km - fora do raio")
+
+            print(f"[GEO] 🏙️ {len(cities_in_radius)} cidades encontradas")
+
+            # Ordenar por distância (cidade base primeiro)
+            cities_in_radius.sort(key=lambda x: (not x.get('is_base_city', False), x['distance_km']))
+
             # Ordenar por distância (cidade base primeiro)
             cities_in_radius.sort(key=lambda x: (not x.get('is_base_city', False), x['distance_km']))
             
@@ -383,10 +415,17 @@ class DynamicGeographicDiscoveryService:
             return []
 
     def _geocode_city(self, city: str, state: str) -> Optional[Tuple[float, float]]:
-        """Geocodificar cidade via Nominatim"""
+        """Geocodificar cidade via Cache → Nominatim (otimizado)"""
         if not self.config.get_config_value('geographic_discovery.apis.nominatim.enabled', True):
             return None
-            
+
+        # 1. TENTAR CACHE PRIMEIRO (instantâneo)
+        cached_coords = self.cities_cache.get_city_coordinates(city, state)
+        if cached_coords:
+            # print(f"[GEO] ⚡ Cache HIT: {city}/{state}")
+            return cached_coords
+
+        # 2. CHAMAR NOMINATIM (lento)
         try:
             url = self.config.get_config_value('geographic_discovery.apis.nominatim.url')
             params = {
@@ -401,8 +440,13 @@ class DynamicGeographicDiscoveryService:
             
             data = response.json()
             if data:
-                return (float(data[0]['lat']), float(data[0]['lon']))
-            
+                lat, lon = float(data[0]['lat']), float(data[0]['lon'])
+
+                # 3. SALVAR NO CACHE para próximas vezes
+                self.cities_cache.set_city_coordinates(city, state, lat, lon)
+
+                return (lat, lon)
+
             return None
             
         except Exception as e:
@@ -568,10 +612,16 @@ class DynamicGeographicDiscoveryService:
             print(f"[GEO] ⚠️ Erro ao salvar no banco: {e}")
     
     def _calculate_distance(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-        """Calcular distância usando fórmula de Haversine"""
+        """Calcular distância usando fórmula de Haversine com cache"""
         if not all([lat1, lng1, lat2, lng2]):
             return float('inf')
-            
+
+        # 1. Verificar cache primeiro (instantâneo)
+        cached_distance = self.distance_cache.get(lat1, lng1, lat2, lng2)
+        if cached_distance is not None:
+            return cached_distance
+
+        # 2. Calcular distância (Haversine)
         # Converter para radianos
         lat1, lng1, lat2, lng2 = map(math.radians, [lat1, lng1, lat2, lng2])
         
@@ -583,9 +633,17 @@ class DynamicGeographicDiscoveryService:
         
         # Raio da Terra em km
         r = 6371
-        
-        return c * r
-    
+        distance_km = c * r
+
+        # 3. Salvar no cache para próximas consultas
+        self.distance_cache.set(
+            math.degrees(lat1), math.degrees(lng1),
+            math.degrees(lat2), math.degrees(lng2),
+            distance_km
+        )
+
+        return distance_km
+
     def _detect_profile_from_cep(self, cep: str) -> str:
         """Detecta perfil (metropolitan/rural) baseado no CEP"""
         if not self.config.get_config_value('geographic_discovery.auto_profile_detection.enabled', True):

@@ -35,6 +35,13 @@ class GeolocationService:
         self.lon_referencia = None
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'PythonSearchApp/2.2.2'})
+
+        # Inicializar caches de geocodificação
+        from ...infrastructure.cache.geocoding_cache import GeocodingCache
+        from ...infrastructure.cache.cities_coordinates_cache import CitiesCoordinatesCache
+        self.geocoding_cache = GeocodingCache()
+        self.cities_cache = CitiesCoordinatesCache()
+
         self._inicializar_ponto_referencia()
 
     def _inicializar_ponto_referencia(self):
@@ -147,6 +154,25 @@ class GeolocationService:
     
     def _try_geocode_with_params(self, params: dict, tipo: str) -> GeoResult:
         """Tenta geocodificar com parâmetros específicos"""
+
+        # 1. Verificar cache de cidades primeiro (mais rápido)
+        if 'city' in params and 'state' in params and tipo in ['cidade', 'bairro']:
+            city = params['city'].split(',')[0].strip()  # Remove bairro se houver
+            state = params['state'].strip()
+
+            coords = self.cities_cache.get_city_coordinates(city, state)
+            if coords:
+                # self.logger.debug(f"[GEO] Cache HIT - {city}/{state}")
+                return GeoResult(latitude=coords[0], longitude=coords[1], success=True)
+
+        # 2. Verificar cache geral de geocodificação
+        cache_key = str(params)
+        cached_coords = self.geocoding_cache.get(cache_key)
+        if cached_coords:
+            # self.logger.debug(f"[GEO] Cache HIT - {tipo}")
+            return GeoResult(latitude=cached_coords[0], longitude=cached_coords[1], success=True)
+
+        # 3. Chamar Nominatim (lento)
         try:
             from src.infrastructure.config.config_manager import ConfigManager
             config = ConfigManager()
@@ -168,7 +194,16 @@ class GeolocationService:
             data = response.json()
             if data:
                 lat, lon = float(data[0]['lat']), float(data[0]['lon'])
-                # log removido: structured ok
+
+                # Salvar em ambos os caches
+                self.geocoding_cache.set(cache_key, lat, lon, "nominatim")
+
+                # Se for cidade, salvar no cache de cidades também
+                if 'city' in params and 'state' in params and tipo == 'cidade':
+                    city = params['city'].split(',')[0].strip()
+                    state = params['state'].strip()
+                    self.cities_cache.set_city_coordinates(city, state, lat, lon)
+
                 # self.logger.info(f"[GEO] Structured {tipo} OK: {lat}, {lon}")
                 return GeoResult(latitude=lat, longitude=lon, success=True)
 
@@ -326,7 +361,7 @@ class GeolocationService:
         return endereco.strip()
 
     def _geocodificar_cep_interno(self, cep: str) -> GeoResult:
-        """Geocodifica CEP usando ViaCEP + Nominatim"""
+        """Geocodifica CEP usando BrasilAPI + Cache + Nominatim"""
         try:
             cep_limpo = re.sub(r'\D', '', cep)
             if len(cep_limpo) != 8:
@@ -335,18 +370,15 @@ class GeolocationService:
             # log removido: debug cep
             # self.logger.debug(f"[GEO] Geocodificando CEP: {cep}")
 
-            # Rate limiting para ViaCEP
+            # Rate limiting
             time.sleep(0.3)
 
-            from src.infrastructure.config.config_manager import ConfigManager
-            config = ConfigManager()
-            viacep_url = config.get('geographic_discovery.apis.viacep.url', 'https://viacep.com.br/ws')
-            
-            response = self.session.get(f"{viacep_url}/{cep_limpo}/json/", timeout=5)
-            response.raise_for_status()
+            # Usar CepResolverService (BrasilAPI + Cache)
+            from src.infrastructure.services.cep_resolver_service import CepResolverService
+            cep_service = CepResolverService()
 
-            data = response.json()
-            if 'erro' in data:
+            data = cep_service.get_cep_data(cep_limpo)
+            if not data:
                 return GeoResult()
 
             endereco = f"{data.get('logradouro', '')}, {data.get('bairro', '')}, {data.get('localidade', '')}, {data.get('uf', '')}"

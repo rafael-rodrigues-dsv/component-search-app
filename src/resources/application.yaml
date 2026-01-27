@@ -6,10 +6,10 @@ search:
   engines:
     google:
       enabled: true
-      max_pages: 3
+      max_pages: 50
     duckduckgo:
       enabled: true
-      max_pages: 3
+      max_pages: 50
   delays:
     google:
       page_load_min: 0.1
@@ -62,11 +62,11 @@ ui:
       enabled: false
 
 mode:
-  is_test: true
+  is_test: false
   complete_threshold: 1000
 
 geolocation:
- reference_cep: "18015-000" # CEP de referência para cálculo de distâncias
+ reference_cep: "04761-000" # CEP de referência para cálculo de distâncias
 
 geographic_discovery:
   enabled: true
@@ -78,9 +78,9 @@ geographic_discovery:
   
   # APIs de descoberta (100% dinâmico)
   apis:
-    viacep:
+    brasilapi:
       enabled: true
-      url: "https://viacep.com.br/ws"
+      url: "https://brasilapi.com.br/api"
     ibge:
       enabled: true
       url: "https://servicodados.ibge.gov.br/api/v1/localidades"

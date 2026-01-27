@@ -17,7 +17,7 @@ class ZipCodeApplicationService:
 
         If no row exists, attempt to seed the table with the CEP defined in
         application.yaml at 'geolocation.reference_cep'. When seeding, call the
-        AddressEnrichmentService (ViaCEP) to obtain the full address info; if
+        AddressEnrichmentService (BrasilAPI) to obtain the full address info; if
         the CEP is invalid the method will raise ValueError.
         """
         try:
@@ -145,13 +145,13 @@ class ZipCodeApplicationService:
         if len(cep_clean) != 8:
             return False
 
-        # Use domain service to fetch CEP data (ViaCEP) and then upsert
+        # Use domain service to fetch CEP data (BrasilAPI) and then upsert
         try:
             from src.domain.services.address_enrichment_service import AddressEnrichmentService
             svc = AddressEnrichmentService()
             logger.debug("[ZipCodeService] Looking up CEP via AddressEnrichmentService: %s", cep)
             cep_data = svc._fetch_cep_data(cep)
-            logger.debug("[ZipCodeService] ViaCEP result: %s", cep_data)
+            logger.debug("[ZipCodeService] BrasilAPI result: %s", cep_data)
             if not cep_data:
                 return False
             cidade = cep_data.get('localidade', '')

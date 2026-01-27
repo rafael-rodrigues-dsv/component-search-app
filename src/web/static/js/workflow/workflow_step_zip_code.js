@@ -98,22 +98,72 @@
     const cleanup = ()=>{
       try{ modalEl.classList.remove('show'); modalEl.style.display = 'none'; modalEl.setAttribute('aria-hidden','true'); }catch(e){}
       try{ const existing = document.querySelector('.modal-backdrop.fade.show'); if(existing) existing.remove(); }catch(e){}
-      try{ if(okBtn) okBtn.removeEventListener('click', okHandler); }catch(e){}
-      try{ if(cancelBtn) cancelBtn.removeEventListener('click', cancelHandler); }catch(e){}
+      try{
+        if(okBtn && okBtn._cep_ok_handler){
+          okBtn.removeEventListener('click', okBtn._cep_ok_handler);
+          okBtn._cep_ok_handler = null;
+        }
+      }catch(e){}
+      try{
+        if(cancelBtn && cancelBtn._cep_cancel_handler){
+          cancelBtn.removeEventListener('click', cancelBtn._cep_cancel_handler);
+          cancelBtn._cep_cancel_handler = null;
+        }
+      }catch(e){}
       // clear pending global callback
       try{ if(window && window._cep_pending_onok) window._cep_pending_onok = null; }catch(e){}
+      console.log('[CEP Modal] Cleanup executado');
     };
 
-    const okHandler = function(ev){ try{ if(typeof window !== 'undefined' && window._cep_pending_onok){ try{ window._cep_pending_onok(ev); }catch(e){} } }finally{ cleanup(); } };
+    const okHandler = function(ev){ 
+      console.log('[CEP Modal] OK button clicked');
+      try{ 
+        if(typeof window !== 'undefined' && window._cep_pending_onok){ 
+          console.log('[CEP Modal] Executando callback pendente');
+          try{ window._cep_pending_onok(ev); }catch(e){ console.error('[CEP Modal] Erro no callback:', e); } 
+        } 
+      }finally{ cleanup(); } 
+    };
     const cancelHandler = function(ev){ try{ if(typeof options.onCancel === 'function') options.onCancel(ev); }catch(e){} finally{ cleanup(); } };
 
-    // Instead of attaching the action directly to the button (which may duplicate if other code attaches too),
-    // store the callback in a shared place and let the global confirm hook call it. Attach a lightweight click
-    // handler to close the modal which will trigger the shared callback via existing setupConfirm.
-    try{ window._cep_pending_onok = (typeof options.onOk === 'function') ? options.onOk : null; }catch(e){}
-    // Attach a safe UI-level click that simply delegates to the shared callback via okHandler (no duplicate business logic)
-    try{ if(okBtn && (!okBtn.dataset || !okBtn.dataset.cepOkWired)){ okBtn.addEventListener('click', okHandler); if(okBtn.dataset) okBtn.dataset.cepOkWired = '1'; } }catch(e){}
-    try{ if(cancelBtn && (!cancelBtn.dataset || !cancelBtn.dataset.cepCancelWired)){ cancelBtn.addEventListener('click', cancelHandler); if(cancelBtn.dataset) cancelBtn.dataset.cepCancelWired = '1'; } }catch(e){}
+    // Store the callback in a shared place (window._cep_pending_onok)
+    try{ 
+      window._cep_pending_onok = (typeof options.onOk === 'function') ? options.onOk : null; 
+      console.log('[CEP Modal] Callback armazenado:', window._cep_pending_onok ? 'SIM' : 'NÃO');
+    }catch(e){}
+    
+    // Attach click handler - remover listener antigo antes de anexar novo
+    try{
+      if(okBtn){
+        // Se já tinha um listener, remover antes de anexar novo
+        if(okBtn._cep_ok_handler){
+          console.log('[CEP Modal] Removendo listener OK antigo');
+          okBtn.removeEventListener('click', okBtn._cep_ok_handler);
+          okBtn._cep_ok_handler = null;
+        }
+
+        // Anexar novo listener e guardar referência
+        okBtn._cep_ok_handler = okHandler;
+        okBtn.addEventListener('click', okHandler);
+        if(okBtn.dataset) okBtn.dataset.cepOkWired = '1';
+        console.log('[CEP Modal] Listener OK anexado (novo)');
+      }
+    }catch(e){ console.error('[CEP Modal] Erro ao anexar listener OK:', e); }
+
+    try{
+      if(cancelBtn){
+        // Se já tinha um listener, remover antes de anexar novo
+        if(cancelBtn._cep_cancel_handler){
+          cancelBtn.removeEventListener('click', cancelBtn._cep_cancel_handler);
+          cancelBtn._cep_cancel_handler = null;
+        }
+
+        // Anexar novo listener e guardar referência
+        cancelBtn._cep_cancel_handler = cancelHandler;
+        cancelBtn.addEventListener('click', cancelHandler);
+        if(cancelBtn.dataset) cancelBtn.dataset.cepCancelWired = '1';
+      }
+    }catch(e){}
 
     // show modal
     try{
@@ -327,18 +377,24 @@
   }
 
   async function doSaveConfirmed(data){
-    // Prevent re-entrancy / double-submit
+    // Prevent re-entrancy / double-submit - ROBUST GUARD
     if(window._cep_processing){
-      console.warn('doSaveConfirmed: already processing, ignoring duplicate call');
+      console.warn('[CEP] doSaveConfirmed: já processando, ignorando chamada duplicada');
       return;
     }
+    
+    // Set processing flag IMMEDIATELY to block any concurrent calls
     window._cep_processing = true;
-    // additional guard to ensure only one network request is sent
+    
+    // Additional guard to ensure only one network request is sent
     if(window._cep_request_sent){
-      console.warn('doSaveConfirmed: request already sent, ignoring duplicate');
+      console.warn('[CEP] doSaveConfirmed: requisição já enviada, ignorando duplicata');
       window._cep_processing = false;
       return;
     }
+    
+    // Log entry for debugging
+    console.log('[CEP] doSaveConfirmed: iniciando processamento único');
     // set UI processing state
     try{ setProcessingState(true); }catch(e){}
     let serverAccepted = false; // mark if backend accepted request
@@ -402,7 +458,9 @@
       // Save CEP and request a full reprocess (reset + initialize) on the server
       // This will instruct the backend to clear data (preserving CEP config) and run the startup flow
       payload.reset = true;
+      console.log('[FETCH] 🚀 Chamando API /api/config/cep com payload:', payload);
       const res = await fetch('/api/config/cep', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      console.log('[FETCH] ✅ API /api/config/cep respondeu com status:', res.status);
 
       // Safely parse JSON body (backend may return empty body or non-JSON in some cases)
       let j = null;
@@ -493,6 +551,7 @@
       window._cep_processing = false;
       // clear request-sent guard
       try{ window._cep_request_sent = false; }catch(e){}
+      console.log('[CEP] doSaveConfirmed: processamento finalizado');
     }
   }
 
@@ -527,22 +586,12 @@
   function setupConfirm(){
     const btn = document.getElementById('cepConfirmBtn');
     if(btn){
-      // Attach only if this button hasn't been wired by showDOMModal
+      // REMOVIDO: Listener duplicado que causava execução 2x
+      // O listener já é anexado por showDOMModal() via window._cep_pending_onok
+      // Apenas marcar como wired para evitar re-anexação
       try{
         if(!btn.dataset || !btn.dataset.cepOkWired){
-          btn.addEventListener('click', function(){
-            try{
-              const confirmModal = document.getElementById('cepConfirmModal');
-              if(confirmModal) hideDOMModal(confirmModal);
-              if(window._cep_processing) return;
-              // Prefer shared pending callback if present (set by showDOMModal), otherwise fallback to direct call
-              if(typeof window !== 'undefined' && window._cep_pending_onok){
-                try{ window._cep_pending_onok(pendingLookupData); }catch(e){ /* swallow */ }
-              } else {
-                doSaveConfirmed(pendingLookupData);
-              }
-            }finally{ pendingLookupData = null; }
-          });
+          // Não anexar listener aqui - showDOMModal já faz isso
           if(btn.dataset) btn.dataset.cepOkWired = '1';
         }
       }catch(e){}

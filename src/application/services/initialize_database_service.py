@@ -77,11 +77,13 @@ class InitializeDatabaseService:
         results['zip_ok'] = run_res.get('zip_ok', False)
 
         # 2) Dynamic geographic discovery
+        discovery_locations = None
         try:
             load_logger.info('[GEO] Iniciando descoberta dinâmica de localizações (cidades/bairros)')
             discovery_svc = DynamicGeographicDiscoveryService()
             discovery_res = discovery_svc.discover_locations_from_config()
             results['discovery'] = discovery_res
+            discovery_locations = discovery_res  # Guardar para passar ao initialize_search_terms
             load_logger.info(f"[GEO] Descoberta concluída: {discovery_res.get('total_locations', 0)} locais")
         except Exception as e:
             results['discovery'] = {'error': str(e)}
@@ -101,10 +103,18 @@ class InitializeDatabaseService:
         else:
             load_logger.info('[GEO] Pulando processamento de geolocalização (run_geolocation=False)')
 
-        # 4) Generate search terms
+        # 4) Generate search terms - PASSA localizações já descobertas para evitar duplicação
         try:
             load_logger.info('[LOAD] Gerando termos de busca...')
-            terms_count = self._db_app.initialize_search_terms()
+            # Se descoberta foi bem-sucedida, passar localizações para evitar redescoberta
+            if discovery_locations:
+                from src.application.services.database_application_service import DatabaseApplicationService
+                db_svc = DatabaseApplicationService()
+                # Chamar _generate_terms_from_locations diretamente com localizações já descobertas
+                terms_count = db_svc._generate_terms_from_locations(discovery_locations)
+            else:
+                # Fallback: deixar initialize_search_terms fazer descoberta
+                terms_count = self._db_app.initialize_search_terms()
             results['terms_generated'] = terms_count
             load_logger.info(f"[OK] {terms_count} termos de busca gerados")
         except Exception as e:

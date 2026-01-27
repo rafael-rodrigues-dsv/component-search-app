@@ -12,8 +12,10 @@ class BaseSearchRepository:
     def fetch_paginated(self, limit: int, offset: int) -> List[Dict[str, Any]]:
         query = "SELECT ID_BASE, TERMO_BUSCA, CATEGORIA, ATIVO, IS_TEST FROM TB_BASE_BUSCA ORDER BY ID_BASE"
         params = None
-        # Access ODBC doesn't support LIMIT/OFFSET, pagination should be handled by callers or by query patterns.
-        return self._repo.execute_query(query, params)[:limit]
+        # Access ODBC doesn't support LIMIT/OFFSET natively, so we fetch all and slice in Python
+        all_results = self._repo.execute_query(query, params)
+        # Apply offset and limit via Python slicing
+        return all_results[offset:offset+limit]
 
     def count(self) -> int:
         return self._repo.execute_query("SELECT COUNT(*) as cnt FROM TB_BASE_BUSCA")[0].get('cnt', 0) if self._repo.execute_query("SELECT COUNT(*) as cnt FROM TB_BASE_BUSCA") else 0

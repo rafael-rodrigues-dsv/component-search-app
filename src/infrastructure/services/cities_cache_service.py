@@ -1,5 +1,6 @@
 """
 Serviço de Cache de Cidades - Base de dados local otimizada
+Usa banco unificado cache.db
 """
 import sqlite3
 from pathlib import Path
@@ -14,7 +15,7 @@ class CitiesCacheService:
     def __init__(self):
         self.cache_dir = Path("data/cache")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = self.cache_dir / "cities_brazil.db"
+        self.db_path = self.cache_dir / "cache.db"  # ✅ Banco unificado
         self.session = requests.Session()
 
     def _ensure_cache_db(self):
@@ -25,11 +26,14 @@ class CitiesCacheService:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS cities (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    uf TEXT(2),
-                    nome TEXT(200),
-                    ibge TEXT(20),
-                    population INTEGER
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    state TEXT,
+                    population INTEGER,
+                    is_capital BOOLEAN,
+                    region_type TEXT,
+                    latitude REAL,
+                    longitude REAL
                 )
                 """
             )
@@ -51,17 +55,27 @@ class CitiesCacheService:
             cursor = conn.cursor()
             inserted = 0
             for c in cities:
-                nome = c.get('nome') or c.get('name') or c.get('municipio')
-                ibge = c.get('codigo_ibge') or c.get('ibge') or c.get('codigo') or None
-                population = c.get('population') or None
+                name = c.get('nome') or c.get('name') or c.get('municipio')
+                city_id = c.get('codigo_ibge') or c.get('ibge') or c.get('codigo') or c.get('id')
+                population = c.get('population') or 0
+
+                # Usar codigo_ibge como ID se disponível, senão criar ID único
+                if not city_id:
+                    city_id = f"{uf}_{name}".lower().replace(' ', '_')
+
                 try:
-                    cursor.execute("SELECT id FROM cities WHERE uf = ? AND UPPER(nome) = UPPER(?)", (uf, nome))
+                    # Verificar se já existe
+                    cursor.execute("SELECT id FROM cities WHERE state = ? AND UPPER(name) = UPPER(?)", (uf, name))
                     if cursor.fetchone():
                         continue
                 except Exception:
                     pass
+
                 try:
-                    cursor.execute("INSERT INTO cities (uf, nome, ibge, population) VALUES (?, ?, ?, ?)", (uf, nome, ibge, population))
+                    cursor.execute(
+                        "INSERT INTO cities (id, name, state, population, is_capital, region_type) VALUES (?, ?, ?, ?, ?, ?)",
+                        (str(city_id), name, uf, population, False, 'unknown')
+                    )
                     inserted += 1
                 except Exception:
                     continue
@@ -82,11 +96,16 @@ class CitiesCacheService:
         conn.row_factory = sqlite3.Row
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT nome, ibge, population FROM cities WHERE uf = ? ORDER BY nome", (uf,))
+            cursor.execute("SELECT name, id, population FROM cities WHERE state = ? ORDER BY name", (uf,))
             rows = cursor.fetchall()
             result = []
             for r in rows:
-                result.append({'nome': r['nome'], 'ibge': r['ibge'], 'population': r['population']})
+                result.append({
+                    'nome': r['name'],
+                    'codigo_ibge': r['id'] if r['id'] and r['id'].isdigit() else None,
+                    'id': r['id'],
+                    'population': r['population']
+                })
             return result
         finally:
             try:

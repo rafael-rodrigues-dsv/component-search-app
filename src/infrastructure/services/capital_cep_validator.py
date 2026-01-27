@@ -22,7 +22,7 @@ class CapitalCepValidator:
     def validate_capital_cep(self, cep: str) -> Dict:
         """Valida se CEP é de capital brasileira via APIs"""
         try:
-            # 1. Obter dados do CEP via ViaCEP
+            # 1. Obter dados do CEP via BrasilAPI
             cep_info = self._get_cep_info(cep)
             if not cep_info:
                 return {
@@ -62,16 +62,14 @@ class CapitalCepValidator:
             }
 
     def _get_cep_info(self, cep: str) -> Optional[Dict]:
-        """Obter informações do CEP via ViaCEP"""
+        """Obter informações do CEP via BrasilAPI com cache"""
         try:
-            url = self.config.get_config_value('geographic_discovery.apis.viacep.url')
-            clean_cep = cep.replace('-', '').replace('.', '')
-            
-            response = self.session.get(f"{url}/{clean_cep}/json/", timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            if 'erro' in data:
+            # Usar CepResolverService (BrasilAPI + Cache)
+            from ...infrastructure.services.cep_resolver_service import CepResolverService
+            cep_service = CepResolverService()
+
+            data = cep_service.get_cep_data(cep)
+            if not data:
                 return None
             
             return {

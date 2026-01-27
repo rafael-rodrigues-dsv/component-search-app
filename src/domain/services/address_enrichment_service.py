@@ -70,7 +70,7 @@ class AddressEnrichmentService:
     
     def address_was_enriched(self, original: AddressModel, enriched: AddressModel) -> bool:
         """
-        Verifica se ViaCEP realmente melhorou os dados
+        Verifica se API realmente melhorou os dados
         """
         # Verificar se houve melhoria real nos dados
         improvements = []
@@ -98,21 +98,21 @@ class AddressEnrichmentService:
             print(f"      ⚠️ Sem melhorias detectadas")
             return False
     
-    def _choose_best_value(self, original: str, viacep: str) -> str:
+    def _choose_best_value(self, original: str, api_data: str) -> str:
         """
-        ESTRATÉGIA AGRESSIVA: Sempre priorizar ViaCEP quando disponível
+        ESTRATÉGIA AGRESSIVA: Sempre priorizar dados da API quando disponível
         """
-        # Se ViaCEP tem dados, SEMPRE usar (dados oficiais)
-        if viacep and viacep.strip():
-            return viacep.strip()
-            
+        # Se API tem dados, SEMPRE usar (dados oficiais)
+        if api_data and api_data.strip():
+            return api_data.strip()
+
         # Caso contrário, manter original
         return original or ''
     
     def _fetch_cep_data(self, cep: str) -> Optional[dict]:
         """
-        Busca dados do CEP usando ViaCEP API
-        
+        Busca dados do CEP usando BrasilAPI com cache
+
         Args:
             cep: CEP (8 dígitos ou com hífen)
             
@@ -139,16 +139,12 @@ class AddressEnrichmentService:
                 
             print(f"      🔧 CEP processado: {cep} -> {cep_clean}")
             
-            # Formatar CEP com hífen
-            cep_formatted = f"{cep_clean[:5]}-{cep_clean[5:]}"
-            
-            # Obter URL do ViaCEP da configuração
-            from ...infrastructure.config.config_manager import ConfigManager
-            config = ConfigManager()
-            base_url = config.get('geographic_discovery.apis.viacep.url', 'https://viacep.com.br/ws')
-            
+            # Usar CepResolverService (BrasilAPI + Cache)
+            from ...infrastructure.services.cep_resolver_service import CepResolverService
+            cep_service = CepResolverService()
+
             # Tentar CEP original
-            data = self._try_viacep_request(base_url, cep_formatted)
+            data = cep_service.get_cep_data(cep_clean)
             if data:
                 return data
                 
@@ -157,10 +153,9 @@ class AddressEnrichmentService:
             similar_ceps = self._generate_similar_ceps(cep_clean)
             
             for similar_cep in similar_ceps[:2]:
-                similar_formatted = f"{similar_cep[:5]}-{similar_cep[5:]}"
-                print(f"      🔍 CEP similar: {similar_formatted}")
-                
-                data = self._try_viacep_request(base_url, similar_formatted)
+                print(f"      🔍 CEP similar: {similar_cep}")
+
+                data = cep_service.get_cep_data(similar_cep)
                 if data:
                     print(f"      ✅ CEP similar funcionou: {data}")
                     return data
@@ -171,27 +166,6 @@ class AddressEnrichmentService:
             
         except Exception:
             return None
-    
-    def _try_viacep_request(self, base_url: str, cep_formatted: str) -> Optional[dict]:
-        """Tenta requisição no ViaCEP"""
-        try:
-            import requests
-            url = f"{base_url}/{cep_formatted}/json/"
-            response = requests.get(url, timeout=5)
-            
-            if response.status_code != 200:
-                return None
-                
-            data = response.json()
-            
-            if data.get('erro'):
-                return None
-                
-            return data
-        except Exception:
-            return None
-    
-
     
     def _generate_similar_ceps(self, cep_clean: str) -> List[str]:
         """Gera CEPs similares para fallback"""

@@ -609,6 +609,55 @@
             }catch(e){ console.error('showGlobalMessage', e); }
         }
 
+        // Export to Excel function
+        async function exportExcel() {
+            const btn = document.getElementById('export-btn');
+            const resultDiv = document.getElementById('export-result');
+
+            try {
+                // Disable button and show loading
+                if(btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Gerando...';
+                }
+                if(resultDiv) resultDiv.innerHTML = '<div class="text-info"><i class="fas fa-spinner fa-spin mr-2"></i>Processando...</div>';
+
+                // Call API
+                const response = await fetch('/api/export-excel');
+                const data = await response.json();
+
+                if(response.ok && data.success) {
+                    // Success - apenas mensagem verde simples
+                    const message = `<div class="alert alert-success">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        Excel gerado com sucesso!
+                    </div>`;
+                    if(resultDiv) resultDiv.innerHTML = message;
+                } else {
+                    // Error
+                    const errorMsg = data.message || 'Erro ao gerar planilha';
+                    const message = `<div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <strong>Erro:</strong> ${errorMsg}
+                    </div>`;
+                    if(resultDiv) resultDiv.innerHTML = message;
+                }
+            } catch(error) {
+                console.error('Erro ao exportar Excel:', error);
+                const message = `<div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <strong>Erro:</strong> ${error.message || 'Falha ao gerar planilha'}
+                </div>`;
+                if(resultDiv) resultDiv.innerHTML = message;
+            } finally {
+                // Re-enable button
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-download mr-2"></i>Gerar Planilha Excel';
+                }
+            }
+        }
+
         // Override native alert to use modal (prevent native blocking alerts)
         (function(){
             try{
