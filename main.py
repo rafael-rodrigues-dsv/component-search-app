@@ -106,22 +106,6 @@ def main():
             load_logger.error(f"Timeout aguardando liberação do arquivo .accdb: {last_exc}")
             raise last_exc
 
-        # Após criação das tabelas, executar carga inicial via InitialLoadApplicationService
-        try:
-            from src.application.services.initial_load_application_service import InitialLoadApplicationService
-            loader = InitialLoadApplicationService()
-            results = loader.run()
-            # results contains 'zones','terms','zip_ok'
-        except Exception as e:
-            # Log full stacktrace to the initial load log for debugging
-            try:
-                from src.infrastructure.logging.initial_load_logger import load_logger
-                import traceback
-                load_logger.error(f'Falha na população inicial: {e}\n{traceback.format_exc()}')
-            except Exception:
-                print(f'[AVISO] Falha na população inicial via InitialLoadApplicationService: {e}')
-                pass
-
         db_service = DatabaseApplicationService()
         print("[OK] Conexão singleton estabelecida com sucesso")
 
@@ -137,47 +121,9 @@ def main():
         except Exception as e:
             print(f"[AVISO] Erro verificando/seed TB_CEP_CONFIG via service: {e}")
 
-        print("[INFO] Gerando termos de busca...")
-        terms_count = db_service.initialize_search_terms()
-
-        if terms_count == 0:
-            print("[ERRO] Falha ao inicializar termos de busca")
-            return 1
-
-        mode_text = "TESTE" if config.is_test_mode else "PRODUÇÃO"
-        print(f"[OK] {terms_count} termos de busca gerados (modo {mode_text})")
-        # Log the source of terms (db / base_testes / base_busca / static_fallback)
-        try:
-            src = getattr(db_service, 'last_terms_source', None)
-            if src == 'db':
-                print('[INFO] Origem dos termos: TB_BASE_BUSCA (termos ativos no banco)')
-            elif src == 'base_testes':
-                print('[INFO] Origem dos termos: BASE_TESTES (modo de teste)')
-            elif src == 'base_busca':
-                print('[INFO] Origem dos termos: BASE_BUSCA (modo produção)')
-            elif src == 'static_fallback':
-                print('[INFO] Origem dos termos: fallback estático')
-            else:
-                print(f'[INFO] Origem dos termos: desconhecida ({src})')
-        except Exception:
-            pass
-
     except Exception as e:
         print(f"[ERRO] Falha ao conectar com banco: {e}")
         print("[INFO] Tentando recriar banco...")
-        
-        # Tentar recriar banco
-        if _create_database_automatically():
-            try:
-                db_service = DatabaseApplicationService()
-                terms_count = db_service.initialize_search_terms()
-                print(f"[OK] Banco recriado com {terms_count} termos")
-            except Exception as e2:
-                print(f"[ERRO] Falha mesmo após recriar: {e2}")
-                return 1
-        else:
-            print("[ERRO] Não foi possível recriar o banco")
-            return 1
 
     # Iniciar dashboard web (interface principal de execução)
     print("\n=== PYTHON SEARCH APP ===")
