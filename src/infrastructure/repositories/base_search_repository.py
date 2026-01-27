@@ -26,5 +26,11 @@ class BaseSearchRepository:
         result = self._repo.fetch_one("SELECT @@IDENTITY")
         return result[0] if result else None
 
-    def delete(self, id_base: int) -> int:
-        return self._repo.execute_query("DELETE FROM TB_BASE_BUSCA WHERE ID_BASE = ?", [id_base])
+    def delete(self, id_base: int) -> bool:
+        """Deleta termo da TB_BASE_BUSCA. Retorna True se sucesso (mesmo que nenhuma linha afetada)."""
+        try:
+            self._repo.execute_query("DELETE FROM TB_BASE_BUSCA WHERE ID_BASE = ?", [id_base])
+            return True
+        except Exception as e:
+            print(f"[ERRO] Falha ao deletar termo ID {id_base}: {e}")
+            return False

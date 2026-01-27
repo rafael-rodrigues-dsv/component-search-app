@@ -62,11 +62,11 @@ ui:
       enabled: false
 
 mode:
-  is_test: false
+  is_test: true
   complete_threshold: 1000
 
 geolocation:
- reference_cep: "04761-000" # CEP de referência para cálculo de distâncias
+ reference_cep: "18015-000" # CEP de referência para cálculo de distâncias
 
 geographic_discovery:
   enabled: true

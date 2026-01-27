@@ -53,8 +53,24 @@ class InitialLoadApplicationService:
         return inserted
 
     def populate_base_terms(self) -> int:
-        """Populate TB_BASE_BUSCA with base terms depending on is_test mode."""
+        """Populate TB_BASE_BUSCA with base terms depending on is_test mode.
+
+        IMPORTANTE: Se TB_BASE_BUSCA já tem termos, NÃO insere novos.
+        Isso preserva as customizações do usuário durante reprocessamento.
+        """
+        # Verificar se já existem termos ativos
+        try:
+            total_existing = self.term_service.repo.count_active_terms()
+            if total_existing > 0:
+                load_logger.info(f"[SKIP] TB_BASE_BUSCA já possui {total_existing} termos ativos - pulando população")
+                return total_existing
+        except Exception as e:
+            load_logger.error(f"Falha ao validar TB_BASE_BUSCA antes da inserção: {e}")
+            return 0
+
+        # Se chegou aqui, tabela está vazia - popular com termos do config
         is_test = self.config.is_test_mode
+        load_logger.info(f"[INITIAL] TB_BASE_BUSCA vazia - populando termos base (is_test={is_test})...")
 
         # Determine base terms from config.settings - if import fails, raise
         try:
@@ -65,15 +81,6 @@ class InitialLoadApplicationService:
 
         base = BASE_TESTES if is_test else BASE_BUSCA
         count = 0
-        load_logger.info(f"Populando termos base (is_test={is_test})...")
-
-        # Try a light validation that the table exists by delegating to repository count via service
-        try:
-            total_existing = self.term_service.repo.count_active_terms()
-            load_logger.debug(f"Verificação TB_BASE_BUSCA: {total_existing} registros ativos existentes")
-        except Exception as e:
-            load_logger.error(f"Falha ao validar TB_BASE_BUSCA antes da inserção: {e}")
-            return 0
 
         for term in base:
             try:

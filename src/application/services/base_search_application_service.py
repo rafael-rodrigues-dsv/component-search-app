@@ -17,5 +17,5 @@ class BaseSearchApplicationService:
     def add_term(self, term: str, category: str = '', is_test: bool = False) -> int:
         return self.repo.insert(term, category, is_test)
 
-    def delete_term(self, id_base: int) -> int:
+    def delete_term(self, id_base: int) -> bool:
         return self.repo.delete(id_base)

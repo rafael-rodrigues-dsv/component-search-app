@@ -4,7 +4,7 @@ Encapsula o fluxo de inicialização usado no startup e o reset-destructivo soli
 
 Comportamento:
 - initialize(run_geolocation=True): roda o fluxo original de inicialização (InitialLoadApplicationService.run(), ensure zip seed, Dynamic discovery, geolocation, generate terms)
-- reset_and_initialize(): limpa as tabelas de dados (preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA) e então chama initialize(run_geolocation=False)
+- reset_and_initialize(): limpa as tabelas de dados (preservando TB_CEP_CONFIG e TB_BASE_BUSCA) e então chama initialize(run_geolocation=False)
 
 Essa implementação reusa os serviços existentes (InitialLoadApplicationService, DynamicGeographicDiscoveryService,
 GeolocationApplicationService, DatabaseApplicationService) sem alterar a lógica deles.
@@ -26,15 +26,15 @@ class InitializeDatabaseService:
         self._db_app = DatabaseApplicationService()
 
     def _delete_tables_preserve_cep_and_terms(self):
-        """Executa DELETE nas tabelas de dados, preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA."""
+        """Executa DELETE nas tabelas de dados, preservando TB_CEP_CONFIG, TB_BASE_BUSCA e TB_TERMOS_BUSCA."""
         conn = self._access._get_connection()
         cursor = conn.cursor()
-        # Tabelas que podem ser limpas (não incluir TB_CEP_CONFIG e TB_TERMOS_BUSCA)
+        # Tabelas que podem ser limpas (NÃO incluir TB_CEP_CONFIG, TB_BASE_BUSCA e TB_TERMOS_BUSCA)
         tables_to_clear = [
             "TB_BAIRROS",
             "TB_ZONAS",
             "TB_CIDADES",
-            "TB_TERMOS_BUSCA",
+            "TB_TERMOS_BUSCA",  # Termos gerados (combinação de base + localização)
             "TB_ENDERECOS",
             "TB_EMPRESAS",
             "TB_EMAILS",
@@ -43,6 +43,7 @@ class InitializeDatabaseService:
             "TB_PLANILHA",
             "TB_CEP_ENRICHMENT"
         ]
+        # TB_BASE_BUSCA é PRESERVADA (termos base gerenciados pelo usuário)
         try:
             for t in tables_to_clear:
                 try:
@@ -51,6 +52,7 @@ class InitializeDatabaseService:
                     # Log and continue
                     load_logger.warning(f"Falha ao limpar tabela {t}: {e}")
             conn.commit()
+            load_logger.info("[RESET] Tabelas limpas. TB_BASE_BUSCA e TB_CEP_CONFIG preservadas.")
         finally:
             try:
                 cursor.close()
@@ -112,8 +114,8 @@ class InitializeDatabaseService:
         return results
 
     def reset_and_initialize(self) -> Dict[str, Any]:
-        """Limpa as tabelas (preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA) e executa initialize()."""
-        load_logger.info('[LOAD] Executando reset destrutivo (preservando TB_CEP_CONFIG e TB_TERMOS_BUSCA)')
+        """Limpa as tabelas (preservando TB_CEP_CONFIG e TB_BASE_BUSCA) e executa initialize()."""
+        load_logger.info('[LOAD] Executando reset destrutivo (preservando TB_CEP_CONFIG e TB_BASE_BUSCA)')
         self._delete_tables_preserve_cep_and_terms()
         load_logger.info('[LOAD] Reset concluído, iniciando população inicial (initialize(run_geolocation=False))...')
 

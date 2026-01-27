@@ -85,29 +85,47 @@ class DatabaseApplicationService:
             # Limpar termos existentes
             self.domain_service.clear_search_terms()
             
-            # Verificar modo de teste e usar constants do service
+            # Verificar modo de teste
             is_test_mode = config.is_test_mode
-            
-            # Tentar obter termos do banco (TB_BASE_BUSCA) via SearchTermService
+            print(f"[INFO] Modo de execução: {'TESTE' if is_test_mode else 'PRODUÇÃO'}")
+
+            # Tentar obter termos do banco (TB_BASE_BUSCA)
+            base_busca = None
             try:
                 from .search_term_application_service import SearchTermApplicationService
                 st_service = SearchTermApplicationService()
-                active_terms = [r['TERMO_BUSCA'] for r in st_service.get_active_terms(is_test=is_test_mode)]
-                if active_terms:
-                    base_busca = active_terms
-                    print(f"[INFO] Usando {len(base_busca)} termos ativos do banco")
-                    self.last_terms_source = 'db'
-                else:
-                    raise Exception("Sem termos ativos no banco")
-            except Exception:
-                # Fallback para constants do settings
+                # Obter todos os termos ativos (independente do modo teste)
+                active_rows = st_service.get_active_terms(is_test=False)
+                print(f"[INFO] Encontrados {len(active_rows)} termos na TB_BASE_BUSCA")
+
+                if active_rows:
+                    # Extrair apenas o texto dos termos
+                    active_terms = []
+                    for r in active_rows:
+                        termo = r.get('TERMO_BUSCA') or r.get('termo_busca') or r.get('TERMO') or r.get('termo')
+                        if termo:
+                            active_terms.append(termo)
+
+                    if active_terms:
+                        base_busca = active_terms
+                        print(f"[INFO] ✅ Usando {len(base_busca)} termos ativos da TB_BASE_BUSCA: {base_busca}")
+                        self.last_terms_source = 'db'
+                    else:
+                        print("[AVISO] Nenhum termo válido encontrado na TB_BASE_BUSCA")
+            except Exception as e:
+                print(f"[AVISO] Erro ao ler termos da TB_BASE_BUSCA: {e}")
+                import traceback
+                print(traceback.format_exc())
+
+            # Fallback para constants do settings se não encontrou termos no banco
+            if not base_busca:
                 from config.settings import BASE_BUSCA, BASE_TESTES
                 if is_test_mode:
-                    print("[INFO] Modo TESTE ativado - fallback para BASE_TESTES")
+                    print("[INFO] ⚠️  Fallback para BASE_TESTES do config/settings.py")
                     base_busca = BASE_TESTES
                     self.last_terms_source = 'base_testes'
                 else:
-                    print("[INFO] Modo PRODUÇÃO ativado - fallback para BASE_BUSCA")
+                    print("[INFO] ⚠️  Fallback para BASE_BUSCA do config/settings.py")
                     base_busca = BASE_BUSCA
                     self.last_terms_source = 'base_busca'
 
