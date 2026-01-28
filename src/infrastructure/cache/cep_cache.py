@@ -1,6 +1,6 @@
 """
 Cache de CEP - Armazena dados de CEP já consultados
-Usa banco unificado cache.db
+Usa banco unificado pythonsearchcache.db
 """
 import sqlite3
 import time
@@ -14,31 +14,8 @@ class CepCache:
     def __init__(self):
         self.cache_dir = Path("data/cache")
         self.cache_dir.mkdir(exist_ok=True, parents=True)
-        self.db_path = self.cache_dir / "cache.db"  # ✅ Banco unificado
-        self._init_cache_table()
-
-    def _init_cache_table(self):
-        """Inicializa tabela de cache de CEP (se não existir)"""
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS cep_cache (
-                cep TEXT PRIMARY KEY,
-                cidade TEXT,
-                uf TEXT,
-                bairro TEXT,
-                logradouro TEXT,
-                complemento TEXT,
-                source TEXT,
-                timestamp INTEGER,
-                hit_count INTEGER DEFAULT 1
-            )
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_cep_uf 
-            ON cep_cache(uf)
-        """)
-        conn.commit()
-        conn.close()
+        self.db_path = self.cache_dir / "pythonsearchcache.db"  # ✅ Banco unificado
+        # Tabela criada por scripts/database/create_cache_db.py
 
     def get(self, cep: str) -> Optional[Dict]:
         """Busca dados do CEP no cache"""

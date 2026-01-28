@@ -149,13 +149,25 @@ class DatabaseApplicationService:
             # Gerar termos para bairros
             for neighborhood in locations.get('neighborhoods', []):
                 for categoria in base_busca:
-                    termo = f"{categoria} {neighborhood['name']}"
+                    # Concatenar cidade ao bairro se o nome da cidade não estiver no nome do bairro
+                    neighborhood_name = neighborhood['name']
+                    city_name = neighborhood.get('city', '')
+
+                    # Verificar se o nome da cidade já está no nome do bairro (case-insensitive)
+                    if city_name and city_name.lower() not in neighborhood_name.lower():
+                        # Cidade não está no nome do bairro, então concatena
+                        location_text = f"{neighborhood_name} {city_name}"
+                    else:
+                        # Cidade já está no nome ou não há cidade definida
+                        location_text = neighborhood_name
+
+                    termo = f"{categoria} {location_text}"
                     terms.append({
                         'id': term_id,
                         'termo': termo,
-                        'localizacao': neighborhood['name'],
+                        'localizacao': location_text,  # Salvar com cidade concatenada
                         'tipo_localizacao': 'BAIRRO',
-                        'cidade_pai': neighborhood.get('city'),
+                        'cidade_pai': city_name,
                         'distancia_km': neighborhood['distance_km'],
                         'status': 'PENDENTE'
                     })

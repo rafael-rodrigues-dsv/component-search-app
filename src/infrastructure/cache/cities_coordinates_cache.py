@@ -1,6 +1,6 @@
 """
 Cache de Coordenadas de Cidades Brasileiras
-Usa banco unificado cache.db
+Usa banco unificado pythonsearchcache.db
 """
 import sqlite3
 from pathlib import Path
@@ -12,36 +12,25 @@ class CitiesCoordinatesCache:
 
     def __init__(self):
         self.cache_dir = Path("data/cache")
-        self.db_path = self.cache_dir / "cache.db"  # ✅ Banco unificado
-        self._ensure_coordinates_column()
+        self.db_path = self.cache_dir / "pythonsearchcache.db"  # ✅ Banco unificado
+        self._conn = None  # Conexão persistente
+        # Tabela criada por scripts/database/create_cache_db.py
 
-    def _ensure_coordinates_column(self):
-        """Garante que a tabela de cidades tem colunas de coordenadas"""
-        if not self.db_path.exists():
-            return
+    def _get_connection(self):
+        """Retorna conexão persistente (singleton)"""
+        if self._conn is None:
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging para performance
+            self._conn.execute("PRAGMA synchronous=NORMAL")  # Performance otimizada
+        return self._conn
 
-        try:
-            conn = sqlite3.connect(self.db_path)
-
-            # Verificar se colunas já existem
-            cursor = conn.execute("PRAGMA table_info(cities)")
-            columns = [row[1] for row in cursor.fetchall()]
-
-            if 'latitude' not in columns:
-                conn.execute("ALTER TABLE cities ADD COLUMN latitude REAL")
-            if 'longitude' not in columns:
-                conn.execute("ALTER TABLE cities ADD COLUMN longitude REAL")
-
-            # Criar índice para buscas rápidas
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_cities_search 
-                ON cities(name, state)
-            """)
-
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
+    def __del__(self):
+        """Fecha conexão ao destruir objeto"""
+        if self._conn:
+            try:
+                self._conn.close()
+            except:
+                pass
 
     def get_city_coordinates(self, city: str, state: str) -> Optional[Tuple[float, float]]:
         """Busca coordenadas de uma cidade no cache"""
@@ -49,7 +38,7 @@ class CitiesCoordinatesCache:
             return None
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.execute("""
                 SELECT latitude, longitude 
                 FROM cities 
@@ -61,7 +50,6 @@ class CitiesCoordinatesCache:
             """, (city.strip(), state.strip()))
 
             row = cursor.fetchone()
-            conn.close()
 
             if row and row[0] and row[1]:
                 return (float(row[0]), float(row[1]))
@@ -72,19 +60,25 @@ class CitiesCoordinatesCache:
 
     def set_city_coordinates(self, city: str, state: str, latitude: float, longitude: float):
         """Armazena coordenadas de uma cidade no cache"""
-        if not self.db_path.exists():
-            return
-
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn = self._get_connection()
+
+            # Primeiro tenta UPDATE
+            cursor = conn.execute("""
                 UPDATE cities 
                 SET latitude = ?, longitude = ?
                 WHERE LOWER(name) = LOWER(?) 
                 AND LOWER(state) = LOWER(?)
             """, (latitude, longitude, city.strip(), state.strip()))
+
+            # Se não atualizou nenhuma linha, INSERT
+            if cursor.rowcount == 0:
+                conn.execute("""
+                    INSERT OR IGNORE INTO cities (id, name, state, latitude, longitude, population, is_capital, region_type)
+                    VALUES (?, ?, ?, ?, ?, 0, 0, 'UNKNOWN')
+                """, (f"{city.strip()}_{state.strip()}", city.strip(), state.strip(), latitude, longitude))
+
             conn.commit()
-            conn.close()
         except Exception:
             pass
 
@@ -94,7 +88,7 @@ class CitiesCoordinatesCache:
             return []
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("""
                 SELECT name, state, latitude, longitude, population
@@ -114,7 +108,6 @@ class CitiesCoordinatesCache:
                     'population': row['population']
                 })
 
-            conn.close()
             return cities
         except Exception:
             return []
@@ -125,7 +118,7 @@ class CitiesCoordinatesCache:
             return {'total': 0, 'with_coords': 0, 'coverage': 0}
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
 
             cursor = conn.execute("SELECT COUNT(*) FROM cities")
             total = cursor.fetchone()[0]
@@ -136,7 +129,6 @@ class CitiesCoordinatesCache:
             """)
             with_coords = cursor.fetchone()[0]
 
-            conn.close()
 
             coverage = (with_coords / total * 100) if total > 0 else 0
 

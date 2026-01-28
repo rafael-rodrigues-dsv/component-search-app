@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Script para verificar instalação do Python
 """
@@ -29,7 +30,7 @@ def verificar_versao_python():
 
 
 def verificar_dependencias():
-    """Verifica se as dependências estão instaladas"""
+    """Verifica se as dependências estão instaladas e retorna lista de faltantes"""
     # Mapeamento: nome_pacote -> nome_import
     dependencias = {
         'selenium': 'selenium',
@@ -49,61 +50,103 @@ def verificar_dependencias():
 
     print("[INFO] Verificando dependências...")
 
+    faltantes = []
     for nome_pacote, nome_import in dependencias.items():
         try:
             __import__(nome_import)
             print(f"[OK] {nome_pacote} instalado")
         except ImportError:
             print(f"[AVISO] {nome_pacote} não encontrado")
-            return False
+            faltantes.append(nome_pacote)
 
-    print("[OK] Todas as dependências estão instaladas")
-    return True
+    if not faltantes:
+        print("[OK] Todas as dependências estão instaladas")
+        return True, []
+
+    return False, faltantes
 
 
-def instalar_dependencias():
-    """Instala as dependências necessárias"""
-    print("[INFO] Instalando dependências...")
+def instalar_dependencias(faltantes):
+    """Instala apenas as dependências faltantes"""
+    if not faltantes:
+        print("[OK] Nenhuma dependência para instalar")
+        return True
+
+    print(f"[INFO] Instalando {len(faltantes)} dependência(s) faltante(s): {', '.join(faltantes)}")
+
+    # Mapeamento para versões específicas
+    versoes = {
+        'selenium': 'selenium>=4.0.0',
+        'openpyxl': 'openpyxl>=3.0.0',
+        'tldextract': 'tldextract>=3.0.0',
+        'requests': 'requests>=2.25.0',
+        'pyyaml': 'pyyaml>=6.0',
+        'flask': 'flask>=3.0.0',
+        'flask-socketio': 'flask-socketio>=5.3.0',
+        'pyodbc': 'pyodbc>=4.0.0',
+        'pywin32': 'pywin32>=306'
+    }
 
     try:
+        # Atualizar pip silenciosamente
         subprocess.run([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'],
                        check=True, capture_output=True)
 
-        # Instalar dependências individuais com tratamento especial para pyodbc
-        deps = ['selenium>=4.0.0', 'openpyxl>=3.0.0', 'tldextract>=3.0.0',
-                'requests>=2.25.0', 'pyyaml>=6.0', 'flask>=3.0.0', 'flask-socketio>=5.3.0']
+        # Instalar apenas os pacotes faltantes
+        pacotes = [versoes.get(dep, dep) for dep in faltantes]
 
-        for dep in deps:
-            subprocess.run([sys.executable, '-m', 'pip', 'install', dep],
-                           check=True, capture_output=True)
+        print(f"[INFO] Instalando pacotes: {', '.join(pacotes)}")
 
-        # Instalar pyodbc com tratamento especial
-        print("[INFO] Instalando pyodbc...")
+        # Tentar instalação em lote primeiro
         try:
-            subprocess.run([sys.executable, '-m', 'pip', 'install', 'pyodbc>=4.0.0'],
-                           check=True, capture_output=True)
-            print("[OK] pyodbc instalado")
-        except subprocess.CalledProcessError:
-            print("[AVISO] Falha na instalação do pyodbc, tentando alternativa...")
-            subprocess.run([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'pyodbc'],
-                           check=True, capture_output=True)
-        
-        # Instalar pywin32 no Windows
-        import platform
-        if platform.system() == 'Windows':
-            print("[INFO] Instalando pywin32...")
-            try:
-                subprocess.run([sys.executable, '-m', 'pip', 'install', 'pywin32>=306'],
-                               check=True, capture_output=True)
-                print("[OK] pywin32 instalado")
-            except subprocess.CalledProcessError:
-                print("[AVISO] Falha na instalação do pywin32")
+            subprocess.run(
+                [sys.executable, '-m', 'pip', 'install'] + pacotes,
+                check=True,
+                capture_output=False,  # Mostrar progresso
+                timeout=300
+            )
+            print("[OK] Dependências instaladas com sucesso")
+            return True
 
-        print("[OK] Dependências instaladas")
-        return True
+        except subprocess.CalledProcessError as e:
+            # Se falhar, tentar um por um
+            print("[AVISO] Instalação em lote falhou, tentando individualmente...")
+            for pacote in pacotes:
+                try:
+                    print(f"[INFO] Instalando {pacote}...")
+                    subprocess.run(
+                        [sys.executable, '-m', 'pip', 'install', pacote],
+                        check=True,
+                        capture_output=True
+                    )
+                    print(f"[OK] {pacote} instalado")
+                except subprocess.CalledProcessError as e_individual:
+                    print(f"[ERRO] Falha ao instalar {pacote}: {e_individual}")
+
+                    # Tratamento especial para pyodbc
+                    if 'pyodbc' in pacote:
+                        print("[INFO] Tentando reinstalar pyodbc...")
+                        try:
+                            subprocess.run(
+                                [sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'pyodbc'],
+                                check=True,
+                                capture_output=False
+                            )
+                            print("[OK] pyodbc reinstalado")
+                        except:
+                            print("[AVISO] pyodbc pode precisar de configuração manual")
+                            continue
+                    else:
+                        return False
+
+            print("[OK] Dependências instaladas")
+            return True
 
     except subprocess.CalledProcessError as e:
         print(f"[ERRO] Falha na instalação: {e}")
+        return False
+    except Exception as e:
+        print(f"[ERRO] Erro inesperado: {e}")
         return False
 
 
@@ -117,8 +160,11 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Verificar dependências
-    if not verificar_dependencias():
-        if not instalar_dependencias():
+    todas_instaladas, faltantes = verificar_dependencias()
+
+    if not todas_instaladas:
+        if not instalar_dependencias(faltantes):
+            print("\n[ERRO] Falha na instalação de dependências")
             sys.exit(1)
 
     print("\n✅ Python e dependências OK!")

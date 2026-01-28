@@ -1,6 +1,6 @@
 """
 Cache de Distâncias - Armazena distâncias já calculadas entre pares de localizações
-Usa banco unificado cache.db
+Usa banco unificado pythonsearchcache.db
 """
 import sqlite3
 import time
@@ -14,30 +14,26 @@ class DistanceCache:
     def __init__(self):
         self.cache_dir = Path("data/cache")
         self.cache_dir.mkdir(exist_ok=True, parents=True)
-        self.db_path = self.cache_dir / "cache.db"  # ✅ Banco unificado
-        self._init_cache_table()
+        self.db_path = self.cache_dir / "pythonsearchcache.db"  # ✅ Banco unificado
+        self._conn = None  # Conexão persistente
+        # Tabela criada por scripts/database/create_cache_db.py
 
-    def _init_cache_table(self):
-        """Inicializa tabela de cache de distâncias (se não existir)"""
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS distance_cache (
-                origin_lat REAL,
-                origin_lon REAL,
-                dest_lat REAL,
-                dest_lon REAL,
-                distance_km REAL,
-                timestamp INTEGER,
-                hit_count INTEGER DEFAULT 1,
-                PRIMARY KEY (origin_lat, origin_lon, dest_lat, dest_lon)
-            )
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_distance_origin 
-            ON distance_cache(origin_lat, origin_lon)
-        """)
-        conn.commit()
-        conn.close()
+    def _get_connection(self):
+        """Retorna conexão persistente (singleton)"""
+        if self._conn is None:
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging para performance
+            self._conn.execute("PRAGMA synchronous=NORMAL")  # Performance otimizada
+        return self._conn
+
+    def __del__(self):
+        """Fecha conexão ao destruir objeto"""
+        if self._conn:
+            try:
+                self._conn.close()
+            except:
+                pass
+
 
     def _make_key(self, origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: float) -> tuple:
         """Cria chave única para o par de coordenadas (arredondado para 4 casas decimais)"""
@@ -56,7 +52,7 @@ class DistanceCache:
         key = self._make_key(origin_lat, origin_lon, dest_lat, dest_lon)
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.execute("""
                 SELECT distance_km
                 FROM distance_cache 
@@ -77,10 +73,8 @@ class DistanceCache:
                     AND dest_lat = ? AND dest_lon = ?
                 """, key)
                 conn.commit()
-                conn.close()
                 return distance_km
 
-            conn.close()
             return None
 
         except Exception:
@@ -95,21 +89,20 @@ class DistanceCache:
         timestamp = int(time.time())
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.execute("""
                 INSERT OR REPLACE INTO distance_cache 
                 (origin_lat, origin_lon, dest_lat, dest_lon, distance_km, timestamp, hit_count)
                 VALUES (?, ?, ?, ?, ?, ?, 1)
             """, (*key, distance_km, timestamp))
             conn.commit()
-            conn.close()
         except Exception:
             pass
 
     def get_stats(self) -> dict:
         """Retorna estatísticas do cache"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total_entries,
@@ -119,7 +112,6 @@ class DistanceCache:
                 FROM distance_cache
             """)
             row = cursor.fetchone()
-            conn.close()
 
             if row:
                 return {
@@ -138,14 +130,13 @@ class DistanceCache:
         cutoff = int(time.time()) - (days * 86400)
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.execute("""
                 DELETE FROM distance_cache 
                 WHERE timestamp < ? AND hit_count < 2
             """, (cutoff,))
             deleted = cursor.rowcount
             conn.commit()
-            conn.close()
             return deleted
         except Exception:
             return 0

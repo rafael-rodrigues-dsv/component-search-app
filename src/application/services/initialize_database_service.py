@@ -13,6 +13,7 @@ from typing import Dict, Any
 
 from src.infrastructure.repositories.access_repository import AccessRepository
 from src.application.services.initial_load_application_service import InitialLoadApplicationService
+from src.application.services.geographic_load_application_service import GeographicLoadApplicationService
 from src.infrastructure.services.dynamic_geographic_discovery_service import DynamicGeographicDiscoveryService
 from src.application.services.geolocation_application_service import GeolocationApplicationService
 from src.application.services.database_application_service import DatabaseApplicationService
@@ -67,7 +68,18 @@ class InitializeDatabaseService:
 
         Retorna um dicionário com contadores/resultados.
         """
-        results = {'zones': 0, 'base_terms': 0, 'zip_ok': False, 'discovery': None, 'geolocation': None, 'terms_generated': 0}
+        results = {'zones': 0, 'base_terms': 0, 'zip_ok': False, 'geographic_data': None, 'discovery': None, 'geolocation': None, 'terms_generated': 0}
+
+        # 0) Garantir dados geográficos carregados (estados + municípios IBGE)
+        try:
+            load_logger.info('[GEO-LOAD] Verificando dados geográficos...')
+            geo_load_svc = GeographicLoadApplicationService()
+            geo_load_result = geo_load_svc.ensure_geographic_data_loaded()
+            results['geographic_data'] = geo_load_result
+            load_logger.info(f"[GEO-LOAD] {geo_load_result['message']}")
+        except Exception as e:
+            results['geographic_data'] = {'error': str(e)}
+            load_logger.error(f"[GEO-LOAD] Falha ao carregar dados geográficos: {e}")
 
         # 1) Run initial loader (zones, base terms, ensure cep seed)
         load_logger.info('[LOAD] Iniciando população inicial via InitialLoadApplicationService...')

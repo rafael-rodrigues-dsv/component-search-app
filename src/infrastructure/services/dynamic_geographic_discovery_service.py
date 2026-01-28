@@ -15,6 +15,37 @@ from src.infrastructure.logging.initial_load_logger import load_logger
 class DynamicGeographicDiscoveryService:
     """Serviço para descoberta dinâmica de localizações geográficas"""
 
+    # Mapa de estados vizinhos do Brasil (fronteiras reais)
+    NEIGHBORING_STATES = {
+        'AC': ['AM', 'RO'],
+        'AL': ['SE', 'PE', 'BA'],
+        'AP': ['PA'],
+        'AM': ['RR', 'PA', 'MT', 'RO', 'AC'],
+        'BA': ['SE', 'AL', 'PE', 'PI', 'TO', 'GO', 'MG', 'ES'],
+        'CE': ['RN', 'PB', 'PE', 'PI'],
+        'DF': ['GO'],
+        'ES': ['BA', 'MG', 'RJ'],
+        'GO': ['TO', 'BA', 'MG', 'MS', 'MT', 'DF'],
+        'MA': ['PI', 'TO', 'PA'],
+        'MT': ['RO', 'AM', 'PA', 'TO', 'GO', 'MS'],
+        'MS': ['MT', 'GO', 'MG', 'SP', 'PR'],
+        'MG': ['BA', 'ES', 'RJ', 'SP', 'MS', 'GO'],
+        'PA': ['AP', 'AM', 'RR', 'MT', 'TO', 'MA'],
+        'PB': ['RN', 'CE', 'PE'],
+        'PR': ['SP', 'MS', 'SC'],
+        'PE': ['PB', 'CE', 'PI', 'BA', 'AL'],
+        'PI': ['MA', 'TO', 'BA', 'PE', 'CE'],
+        'RJ': ['ES', 'MG', 'SP'],
+        'RN': ['CE', 'PB'],
+        'RS': ['SC'],
+        'RO': ['AC', 'AM', 'MT'],
+        'RR': ['AM', 'PA'],
+        'SC': ['PR', 'RS'],
+        'SP': ['MG', 'RJ', 'PR', 'MS'],
+        'SE': ['BA', 'AL'],
+        'TO': ['MA', 'PI', 'BA', 'GO', 'MT', 'PA']
+    }
+
     def __init__(self):
         self.config = ConfigManager()
         self.session = requests.Session()
@@ -29,6 +60,10 @@ class DynamicGeographicDiscoveryService:
         # Inicializar cache de distâncias
         from ...infrastructure.cache.distance_cache import DistanceCache
         self.distance_cache = DistanceCache()
+
+
+        # Pré-carregar coordenadas das principais cidades (uma única vez)
+        self._preload_major_cities_if_needed()
 
     def discover_locations_from_config(self) -> Dict:
         """Descobre localizações baseado na configuração YAML com perfil automático"""
@@ -110,41 +145,51 @@ class DynamicGeographicDiscoveryService:
             return None
 
     def _discover_nearby_cities(self, base_info: Dict, radius_km: int) -> List[Dict]:
-        """Descobrir cidades próximas via IBGE (QUALQUER CIDADE COMO BASE)"""
+        """Descobrir cidades próximas - BUSCA MULTI-ESTADO INTELIGENTE baseada no raio"""
         if not self.config.get_config_value('geographic_discovery.apis.ibge.enabled', True):
             return []
             
         try:
-            # 1. Obter municípios com população via IBGE
-            municipalities_with_pop = self._get_state_municipalities_with_population(base_info['uf'])
-            
-            # 2. Obter configurações do perfil detectado
+            # 1. Determinar quais estados buscar baseado no raio
+            states_to_search = self._get_states_to_search(base_info['uf'], radius_km)
+
+            print(f"[GEO] 🇧🇷 Raio de {radius_km}km → Buscando em {len(states_to_search)} estado(s): {', '.join(states_to_search)}")
+
+            # 2. Buscar municípios dos estados relevantes
+            municipalities_with_pop = []
+            for uf in states_to_search:
+                uf_cities = self._get_state_municipalities_with_population(uf)
+                municipalities_with_pop.extend(uf_cities)
+                print(f"[GEO]    ✅ {uf}: {len(uf_cities)} municípios obtidos")
+
+            # 3. Obter configurações do perfil detectado
             profile = self._detect_profile_from_cep(self.config.reference_cep)
             min_population = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.min_city_population', 500000)
             target_cities = self.config.get_config_value(f'geographic_discovery.profiles.{profile}.target_large_cities', 10)
             
-            # 3. Filtrar por população ANTES de geocodificar (economia massiva)
+            # 4. Filtrar por população ANTES de geocodificar (economia massiva)
             large_cities = [m for m in municipalities_with_pop if m.get('population', 0) >= min_population]
             
             # Tratamento quando API IBGE não encontra cidades com população mínima
             if len(large_cities) == 0:
                 if min_population > 0:
                     print(f"[GEO] ⚠️  AVISO: Nenhuma cidade encontrada com população >= {min_population:,} habitantes")
-                    print(f"[GEO] 📊 Total de municípios no estado: {len(municipalities_with_pop)}")
-                    
+                    print(f"[GEO] 📊 Total de municípios nos estados: {len(municipalities_with_pop)}")
+
                     # Mostrar as 5 maiores cidades encontradas
                     if municipalities_with_pop:
-                        load_logger.info(f"[GEO] 🏙️  Maiores cidades encontradas:")
-                        for i, city in enumerate(municipalities_with_pop[:5]):
+                        municipalities_with_pop_sorted = sorted(municipalities_with_pop, key=lambda x: x.get('population', 0), reverse=True)
+                        print(f"[GEO] 🏙️  Maiores cidades encontradas:")
+                        for i, city in enumerate(municipalities_with_pop_sorted[:5]):
                             pop = city.get('population', 0)
-                            print(f"[GEO]    {i+1}. {city['nome']} - {pop:,} habitantes")
-                    
-                    # Usar fallback apenas se existirem municípios
-                    if municipalities_with_pop:
+                            city_uf = city.get('uf', 'N/A')
+                            print(f"[GEO]    {i+1}. {city['nome']}/{city_uf} - {pop:,} habitantes")
+
+                        # Usar fallback apenas se existirem municípios
                         print(f"[GEO] 🔄 Usando fallback: primeiras 10 cidades por população")
-                        large_cities = municipalities_with_pop[:10]
+                        large_cities = municipalities_with_pop_sorted[:10]
                     else:
-                        print(f"[GEO] ❌ ERRO: API do IBGE não retornou dados de municípios para {base_info['uf']}")
+                        print(f"[GEO] ❌ ERRO: API do IBGE não retornou dados de municípios")
                         return []
                 else:
                     large_cities = municipalities_with_pop[:30]
@@ -154,12 +199,27 @@ class DynamicGeographicDiscoveryService:
             else:
                 print(f"[GEO] 📈 {len(municipalities_with_pop)} municípios total, {len(large_cities)} selecionadas")
             
-            # 3. Geocodificar cidades grandes (OTIMIZADO: cache em batch mas logs completos)
-            cities_in_radius = []
-            
-            # Limitar a 50 cidades
-            cities_to_process = large_cities[:50]
+            # 5. Distribuir cidades de forma equilibrada entre os estados
+            # Pegar até 50 cidades por estado (prioritizando as maiores de cada estado)
+            cities_to_process = []
+            cities_by_state = {}
+
+            # Agrupar cidades por estado
+            for city in large_cities:
+                uf = city.get('uf', base_info['uf'])
+                if uf not in cities_by_state:
+                    cities_by_state[uf] = []
+                cities_by_state[uf].append(city)
+
+            # Pegar até 50 cidades de cada estado (já ordenadas por população)
+            max_per_state = 50
+            for uf in sorted(cities_by_state.keys()):
+                cities_to_process.extend(cities_by_state[uf][:max_per_state])
+
             total_cities = len(cities_to_process)
+
+            # 6. Geocodificar cidades selecionadas (OTIMIZADO: cache em batch mas logs completos)
+            cities_in_radius = []
 
             print(f"[GEO] 🔄 Iniciando processamento de {total_cities} cidades...")
 
@@ -168,27 +228,28 @@ class DynamicGeographicDiscoveryService:
 
             for i, municipality in enumerate(cities_to_process):
                 city_name = municipality['nome']
+                city_uf = municipality.get('uf', base_info['uf'])
 
                 # LOG IMEDIATO: Processando cidade
-                print(f"    [GEO] Processando {i+1}/{total_cities}: {city_name} ({municipality.get('population', 0):,} hab)")
+                print(f"    [GEO] Processando {i+1}/{total_cities}: {city_name}/{city_uf} ({municipality.get('population', 0):,} hab)")
 
                 # Tentar cache primeiro (instantâneo)
-                coords = self.cities_cache.get_city_coordinates(city_name, base_info['uf'])
-                from_cache = bool(coords)
+                coords = self.cities_cache.get_city_coordinates(city_name, city_uf)
+                coords_from_cache = bool(coords)
 
                 # Se não tem cache, geocodificar agora
                 if not coords:
-                    coords = self._geocode_city(city_name, base_info['uf'])
+                    coords = self._geocode_city(city_name, city_uf)
                     if coords:
-                        from_cache = False
-                    time.sleep(0.2)  # Rate limiting apenas para novas geocodificações
+                        coords_from_cache = False
+                        time.sleep(0.1)  # Rate limiting reduzido - Photon é mais rápido
 
                 # Se conseguiu coordenadas (cache ou geocodificação), adicionar
                 if coords:
                     cities_with_coords.append({
                         'municipality': municipality,
                         'coords': coords,
-                        'from_cache': from_cache
+                        'from_cache': coords_from_cache
                     })
 
                     # Calcular distância IMEDIATAMENTE e mostrar resultado
@@ -199,14 +260,17 @@ class DynamicGeographicDiscoveryService:
                         coords[0], coords[1]
                     )
 
+                    # Determinar origem das coordenadas
+                    source = "📦 CACHE" if coords_from_cache else "🌐 PHOTON"
+
                     # Cidade base sempre entra, outras só se no raio
                     if is_base_city or distance <= radius_km:
                         status = "🎯 BASE" if is_base_city else f"{round(distance, 1)}km"
-                        print(f"    [GEO] ✅ Incluída: {city_name} ({municipality.get('population', 0):,} hab) - {status}")
+                        print(f"    [GEO] ✅ Incluída: {city_name}/{city_uf} ({municipality.get('population', 0):,} hab) - {status} [{source}]")
 
                         cities_in_radius.append({
                             'name': city_name,
-                            'state': base_info['uf'],
+                            'state': city_uf,
                             'distance_km': round(distance, 1),
                             'coordinates': coords,
                             'ibge_code': municipality['id'],
@@ -214,16 +278,13 @@ class DynamicGeographicDiscoveryService:
                             'is_base_city': is_base_city
                         })
                     else:
-                        print(f"    [GEO] ❌ Excluída: {city_name} ({municipality.get('population', 0):,} hab) - {round(distance, 1)}km - fora do raio")
+                        print(f"    [GEO] ❌ Excluída: {city_name}/{city_uf} ({municipality.get('population', 0):,} hab) - {round(distance, 1)}km - fora do raio [{source}]")
 
             print(f"[GEO] 🏙️ {len(cities_in_radius)} cidades encontradas")
 
             # Ordenar por distância (cidade base primeiro)
             cities_in_radius.sort(key=lambda x: (not x.get('is_base_city', False), x['distance_km']))
 
-            # Ordenar por distância (cidade base primeiro)
-            cities_in_radius.sort(key=lambda x: (not x.get('is_base_city', False), x['distance_km']))
-            
             return cities_in_radius
             
         except Exception as e:
@@ -392,6 +453,7 @@ class DynamicGeographicDiscoveryService:
                 formatted_cities.append({
                     'id': city['id'],
                     'nome': city['nome'],
+                    'uf': uf,  # Adicionar UF para suportar busca multi-estado
                     'population': population
                 })
             
@@ -415,19 +477,59 @@ class DynamicGeographicDiscoveryService:
             return []
 
     def _geocode_city(self, city: str, state: str) -> Optional[Tuple[float, float]]:
-        """Geocodificar cidade via Cache → Nominatim (otimizado)"""
-        if not self.config.get_config_value('geographic_discovery.apis.nominatim.enabled', True):
-            return None
-
+        """Geocodificar cidade via Cache → Photon/Nominatim (otimizado)"""
         # 1. TENTAR CACHE PRIMEIRO (instantâneo)
         cached_coords = self.cities_cache.get_city_coordinates(city, state)
         if cached_coords:
-            # print(f"[GEO] ⚡ Cache HIT: {city}/{state}")
             return cached_coords
 
-        # 2. CHAMAR NOMINATIM (lento)
+        # 2. TENTAR PHOTON PRIMEIRO (3-5x mais rápido que Nominatim)
+        if self.config.get_config_value('geographic_discovery.apis.photon.enabled', False):
+            coords = self._geocode_city_photon(city, state)
+            if coords:
+                return coords
+
+        # 3. FALLBACK: NOMINATIM (se Photon falhar ou estiver desabilitado)
+        if self.config.get_config_value('geographic_discovery.apis.nominatim.enabled', True):
+            coords = self._geocode_city_nominatim(city, state)
+            if coords:
+                return coords
+
+        return None
+
+    def _geocode_city_photon(self, city: str, state: str) -> Optional[Tuple[float, float]]:
+        """Geocodificar cidade via Photon (OpenStreetMap - mais rápido)"""
         try:
-            url = self.config.get_config_value('geographic_discovery.apis.nominatim.url')
+            url = self.config.get_config_value('geographic_discovery.apis.photon.url', 'https://photon.komoot.io')
+            params = {
+                'q': f"{city}, {state}, Brazil",
+                'limit': 1
+            }
+
+            response = self.session.get(f"{url}/api", params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            if data and 'features' in data and len(data['features']) > 0:
+                feature = data['features'][0]
+                coords = feature['geometry']['coordinates']
+                lon, lat = coords[0], coords[1]  # Photon retorna [lon, lat]
+
+                # Salvar no cache para próximas vezes
+                self.cities_cache.set_city_coordinates(city, state, lat, lon)
+
+                return (lat, lon)
+
+            return None
+
+        except Exception as e:
+            print(f"[GEO] ⚠️  Photon falhou para {city}/{state}: {e}")
+            return None
+
+    def _geocode_city_nominatim(self, city: str, state: str) -> Optional[Tuple[float, float]]:
+        """Geocodificar cidade via Nominatim (fallback)"""
+        try:
+            url = self.config.get_config_value('geographic_discovery.apis.nominatim.url', 'https://nominatim.openstreetmap.org')
             params = {
                 'q': f"{city}, {state}, Brazil",
                 'format': 'json',
@@ -442,7 +544,7 @@ class DynamicGeographicDiscoveryService:
             if data:
                 lat, lon = float(data[0]['lat']), float(data[0]['lon'])
 
-                # 3. SALVAR NO CACHE para próximas vezes
+                # Salvar no cache para próximas vezes
                 self.cities_cache.set_city_coordinates(city, state, lat, lon)
 
                 return (lat, lon)
@@ -450,7 +552,7 @@ class DynamicGeographicDiscoveryService:
             return None
             
         except Exception as e:
-            print(f"[GEO] Erro Nominatim para {city}: {e}")
+            print(f"[GEO] ⚠️  Nominatim falhou para {city}/{state}: {e}")
             return None
 
     def _discover_neighborhoods_nearby(self, cities: List[Dict], base_info: Dict) -> List[Dict]:
@@ -494,35 +596,65 @@ class DynamicGeographicDiscoveryService:
         return results
 
     def _get_city_neighborhoods(self, city: str, state: str) -> List[str]:
-        """Obter bairros via API IBGE Distritos"""
+        """
+        Obter bairros com estratégia inteligente:
+        - Se IBGE retornar 2+ distritos: usar apenas IBGE
+        - Se IBGE retornar 0 ou 1 distrito: buscar no Nominatim (com cache)
+        """
         if not self.config.get_config_value('geographic_discovery.apis.ibge.enabled', True):
             return []
-            
+
+        # ESTRATÉGIA 1: Tentar API IBGE primeiro
         try:
-            # Buscar código IBGE da cidade
             city_code = self._get_city_ibge_code(city, state)
-            if not city_code:
-                print(f"        [GEO] Código IBGE não encontrado para {city}")
-                return []
-            
-            print(f"        [GEO] Consultando distritos IBGE para {city} (código: {city_code})...")
-            
-            # Buscar distritos via API IBGE
-            base_url = self.config.get_config_value('geographic_discovery.apis.ibge.url')
-            url = f"{base_url}/municipios/{city_code}/distritos"
-            response = self.session.get(url, timeout=15)
-            response.raise_for_status()
-            
-            districts = response.json()
-            print(f"        [GEO] {len(districts)} distritos encontrados")
-            
-            neighborhoods = [district['nome'] for district in districts if 'nome' in district]
-            return neighborhoods  # Sem limite de bairros
-            
+            if city_code:
+                print(f"        [GEO] Consultando distritos IBGE para {city} (código: {city_code})...")
+
+                base_url = self.config.get_config_value('geographic_discovery.apis.ibge.url')
+                url = f"{base_url}/municipios/{city_code}/distritos"
+                response = self.session.get(url, timeout=15)
+                response.raise_for_status()
+
+                districts = response.json()
+                print(f"        [GEO] {len(districts)} distritos IBGE encontrados")
+
+                # Filtrar bairros redundantes (mesmo nome da cidade)
+                neighborhoods = []
+                for district in districts:
+                    if 'nome' in district:
+                        district_name = district['nome'].strip()
+                        if district_name.lower() != city.lower():
+                            neighborhoods.append(district_name)
+
+                # DECISÃO: Se encontrou 2+ bairros válidos no IBGE, usar apenas IBGE
+                if len(neighborhoods) >= 2:
+                    print(f"        [GEO] ✅ {len(neighborhoods)} bairros IBGE - usando apenas IBGE")
+                    return neighborhoods
+
+                # Se tem 0 ou 1 bairro, tentar Nominatim
+                print(f"        [GEO] ⚠️  IBGE retornou apenas {len(neighborhoods)} bairro(s), buscando Nominatim...")
+
         except Exception as e:
-            print(f"        [GEO] Erro API IBGE Distritos: {e}")
-            return []
-    
+            print(f"        [GEO] Erro API IBGE: {e}")
+
+        # ESTRATÉGIA 2: Nominatim (quando IBGE tem poucos resultados)
+        try:
+            from ...application.services.neighborhood_discovery_application_service import NeighborhoodDiscoveryApplicationService
+
+            neighborhood_service = NeighborhoodDiscoveryApplicationService()
+            neighborhoods = neighborhood_service.discover_neighborhoods(city, state, use_cache=True)
+
+            if neighborhoods:
+                return neighborhoods
+
+        except Exception as e:
+            print(f"        [GEO] Erro Nominatim: {e}")
+
+        # FALLBACK: Usar o nome da cidade como bairro
+        print(f"        [GEO] ℹ️  Nenhum bairro encontrado, usando nome da cidade: {city}")
+        return [city]
+
+
     def _get_city_ibge_code(self, city: str, state: str) -> Optional[str]:
         """Obter código IBGE da cidade"""
         try:
@@ -543,7 +675,6 @@ class DynamicGeographicDiscoveryService:
         except Exception as e:
             print(f"        [GEO] Erro ao buscar código IBGE: {e}")
             return None
-
 
 
     def _estimate_city_population(self, city_name: str, uf: str) -> int:
@@ -665,3 +796,114 @@ class DynamicGeographicDiscoveryService:
         else:
             print(f"[GEO] 🌾 CEP {cep} detectado como REGIÃO RURAL/INTERIOR (prefixo {cep_prefix})")
             return 'rural'
+
+    def _preload_major_cities_if_needed(self):
+        """Pré-carrega coordenadas das principais cidades brasileiras (uma vez)"""
+        stats = self.cities_cache.get_cache_stats()
+
+        # Se já tem pelo menos 50 cidades com coordenadas, não precisa pré-carregar
+        if stats.get('with_coords', 0) >= 50:
+            return
+
+        print("[GEO] 📥 Pré-carregando coordenadas das principais cidades...")
+
+        # Coordenadas das 100 maiores cidades do Brasil
+        major_cities = {
+            ('São Paulo', 'SP'): (-23.5505, -46.6333),
+            ('Rio de Janeiro', 'RJ'): (-22.9068, -43.1729),
+            ('Brasília', 'DF'): (-15.8267, -47.9218),
+            ('Salvador', 'BA'): (-12.9714, -38.5014),
+            ('Fortaleza', 'CE'): (-3.7172, -38.5433),
+            ('Belo Horizonte', 'MG'): (-19.9167, -43.9345),
+            ('Manaus', 'AM'): (-3.1190, -60.0217),
+            ('Curitiba', 'PR'): (-25.4284, -49.2733),
+            ('Recife', 'PE'): (-8.0476, -34.8770),
+            ('Porto Alegre', 'RS'): (-30.0346, -51.2177),
+            ('Belém', 'PA'): (-1.4558, -48.5039),
+            ('Goiânia', 'GO'): (-16.6869, -49.2648),
+            ('Guarulhos', 'SP'): (-23.4538, -46.5333),
+            ('Campinas', 'SP'): (-22.9099, -47.0626),
+            ('São Luís', 'MA'): (-2.5387, -44.2825),
+            ('São Gonçalo', 'RJ'): (-22.8268, -43.0539),
+            ('Maceió', 'AL'): (-9.6658, -35.7353),
+            ('Duque de Caxias', 'RJ'): (-22.7858, -43.3055),
+            ('Natal', 'RN'): (-5.7945, -35.2110),
+            ('Teresina', 'PI'): (-5.0892, -42.8019),
+            ('Campo Grande', 'MS'): (-20.4697, -54.6201),
+            ('Nova Iguaçu', 'RJ'): (-22.7592, -43.4511),
+            ('São Bernardo do Campo', 'SP'): (-23.6914, -46.5646),
+            ('João Pessoa', 'PB'): (-7.1195, -34.8450),
+            ('Santo André', 'SP'): (-23.6636, -46.5341),
+            ('Osasco', 'SP'): (-23.5329, -46.7920),
+            ('Jaboatão dos Guararapes', 'PE'): (-8.1120, -35.0145),
+            ('São José dos Campos', 'SP'): (-23.1790, -45.8869),
+            ('Ribeirão Preto', 'SP'): (-21.1704, -47.8103),
+            ('Uberlândia', 'MG'): (-18.9186, -48.2772),
+            ('Sorocaba', 'SP'): (-23.5003, -47.4583),
+            ('Contagem', 'MG'): (-19.9320, -44.0537),
+            ('Aracaju', 'SE'): (-10.9091, -37.0677),
+            ('Feira de Santana', 'BA'): (-12.2664, -38.9663),
+            ('Cuiabá', 'MT'): (-15.6014, -56.0979),
+            ('Joinville', 'SC'): (-26.3044, -48.8487),
+            ('Juiz de Fora', 'MG'): (-21.7642, -43.3502),
+            ('Londrina', 'PR'): (-23.3045, -51.1696),
+            ('Aparecida de Goiânia', 'GO'): (-16.8173, -49.2437),
+            ('Niterói', 'RJ'): (-22.8833, -43.1036),
+            ('Ananindeua', 'PA'): (-1.3656, -48.3722),
+            ('Belford Roxo', 'RJ'): (-22.7642, -43.3997),
+            ('Caxias do Sul', 'RS'): (-29.1634, -51.1797),
+            ('Florianópolis', 'SC'): (-27.5954, -48.5480),
+            ('Santos', 'SP'): (-23.9608, -46.3334),
+            ('Vitória', 'ES'): (-20.3155, -40.3128),
+            ('Mauá', 'SP'): (-23.6678, -46.4614),
+            ('Carapicuíba', 'SP'): (-23.5225, -46.8356),
+            ('Diadema', 'SP'): (-23.6858, -46.6230),
+            ('Piracicaba', 'SP'): (-22.7253, -47.6492),
+        }
+
+        for (city, state), (lat, lon) in major_cities.items():
+            self.cities_cache.set_city_coordinates(city, state, lat, lon)
+
+        print(f"[GEO] ✅ {len(major_cities)} cidades pré-carregadas com sucesso")
+
+    def _get_states_to_search(self, base_uf: str, radius_km: int) -> List[str]:
+        """Determina quais estados buscar baseado no raio configurado
+
+        Regras:
+        - < 100km: Apenas o estado do CEP
+        - 100-500km: Estado do CEP + vizinhos diretos
+        - > 500km: Estado do CEP + vizinhos + vizinhos dos vizinhos
+
+        Args:
+            base_uf: UF do estado base (do CEP)
+            radius_km: Raio de busca em km
+
+        Returns:
+            Lista de UFs a serem buscadas
+        """
+        states_to_search = [base_uf]  # Sempre incluir o estado base
+
+        if radius_km < 100:
+            # Raio pequeno: apenas o estado do CEP
+            return states_to_search
+
+        # Adicionar vizinhos diretos para raio >= 100km
+        neighbors = self.NEIGHBORING_STATES.get(base_uf, [])
+        states_to_search.extend(neighbors)
+
+        # IMPORTANTE: Só adicionar vizinhos dos vizinhos se raio > 500km
+        if radius_km > 500:
+            # Raio muito grande (> 500km): adicionar vizinhos dos vizinhos
+            second_level_neighbors = []
+            for neighbor in neighbors:
+                second_level = self.NEIGHBORING_STATES.get(neighbor, [])
+                for state in second_level:
+                    if state not in states_to_search and state not in second_level_neighbors:
+                        second_level_neighbors.append(state)
+            states_to_search.extend(second_level_neighbors)
+
+        # Remover duplicatas e ordenar
+        states_to_search = sorted(list(set(states_to_search)))
+
+        return states_to_search
+

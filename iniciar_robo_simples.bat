@@ -120,25 +120,15 @@ echo [INFO] Diretorio Python: !PYTHON_DIR!
 REM Verificar se banco de dados existe
 if not exist "data\pythonsearch.accdb" (
   echo [AVISO] Banco de dados nao encontrado em data\pythonsearch.accdb
-  echo [INFO] Recriando ambiente virtual do zero...
-  
-  REM Deletar ambiente virtual anterior se existir
-  if exist ".venv" (
-    echo [INFO] Removendo ambiente virtual anterior...
-    rmdir /s /q ".venv" 2>nul
-  )
-  
-  REM Criar novo ambiente virtual
-  echo [INFO] Criando novo ambiente virtual...
+)
+
+REM OTIMIZAÇÃO: Nunca deletar .venv automaticamente (reutilizar sempre)
+REM Criar ambiente virtual apenas se não existir
+if not exist ".venv" (
+  echo [INFO] Criando ambiente virtual...
   %PYTHON_CMD% -m venv .venv
 ) else (
-  echo [OK] Banco de dados encontrado
-  
-  REM Criar ambiente virtual se nao existir
-  if not exist ".venv" (
-    echo [INFO] Criando ambiente virtual...
-    %PYTHON_CMD% -m venv .venv
-  )
+  echo [OK] Ambiente virtual encontrado (reutilizando)
 )
 
 if exist ".venv\Scripts\activate.bat" (
@@ -153,18 +143,10 @@ echo [INFO] Verificando e instalando dependencias...
   exit /b 1
 )
 
-echo [INFO] Verificando dependencias do dashboard web...
-%PYTHON_CMD% -c "import flask, flask_socketio" >nul 2>nul || (
-  echo [INFO] Instalando Flask para dashboard web...
-  %PYTHON_CMD% -m pip install flask>=3.0.0 flask-socketio>=5.3.0 --quiet
-  echo [OK] Flask instalado com sucesso!
-)
-
+REM OTIMIZAÇÃO: Verificação lazy do ChromeDriver (só aviso se falhar)
 echo [INFO] Verificando ChromeDriver...
-%PYTHON_CMD% scripts\verification\verify_chromedriver.py || (
-  echo [ERRO] ChromeDriver nao disponivel
-  pause
-  exit /b 1
+%PYTHON_CMD% scripts\verification\verify_chromedriver.py >nul 2>nul || (
+  echo [AVISO] ChromeDriver pode precisar de configuracao - continuando...
 )
 
 echo [INFO] Executando programa...

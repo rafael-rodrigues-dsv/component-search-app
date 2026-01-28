@@ -1,6 +1,6 @@
 """
 Serviço de Cache de Cidades - Base de dados local otimizada
-Usa banco unificado cache.db
+Usa banco unificado pythonsearchcache.db
 """
 import sqlite3
 from pathlib import Path
@@ -15,7 +15,7 @@ class CitiesCacheService:
     def __init__(self):
         self.cache_dir = Path("data/cache")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = self.cache_dir / "cache.db"  # ✅ Banco unificado
+        self.db_path = self.cache_dir / "pythonsearchcache.db"  # ✅ Banco unificado
         self.session = requests.Session()
 
     def _ensure_cache_db(self):

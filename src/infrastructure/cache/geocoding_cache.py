@@ -1,6 +1,6 @@
 """
 Cache de Geocodificação - Reduz drasticamente chamadas ao Nominatim
-Usa banco unificado cache.db
+Usa banco unificado pythonsearchcache.db
 """
 import hashlib
 import sqlite3
@@ -15,29 +15,8 @@ class GeocodingCache:
     def __init__(self):
         self.cache_dir = Path("data/cache")
         self.cache_dir.mkdir(exist_ok=True, parents=True)
-        self.db_path = self.cache_dir / "cache.db"  # ✅ Banco unificado
-        self._init_cache_table()
-
-    def _init_cache_table(self):
-        """Inicializa tabela de cache de coordenadas (se não existir)"""
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS geocoding_cache (
-                address_hash TEXT PRIMARY KEY,
-                address TEXT,
-                latitude REAL,
-                longitude REAL,
-                source TEXT,
-                timestamp INTEGER,
-                hit_count INTEGER DEFAULT 1
-            )
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_geocoding_timestamp 
-            ON geocoding_cache(timestamp)
-        """)
-        conn.commit()
-        conn.close()
+        self.db_path = self.cache_dir / "pythonsearchcache.db"  # ✅ Banco unificado
+        # Tabela criada por scripts/database/create_cache_db.py
 
     def _hash_address(self, address: str) -> str:
         """Gera hash único do endereço normalizado"""

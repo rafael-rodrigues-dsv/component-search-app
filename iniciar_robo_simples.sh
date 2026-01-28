@@ -85,25 +85,14 @@ echo "[INFO] Executável Python: $PYTHON_EXE"
 # Verificar se banco de dados existe
 if [ ! -f "data/pythonsearch.accdb" ]; then
     echo "[AVISO] Banco de dados não encontrado em data/pythonsearch.accdb"
-    echo "[INFO] Recriando ambiente virtual do zero..."
-    
-    # Deletar ambiente virtual anterior se existir
-    if [ -d ".venv" ]; then
-        echo "[INFO] Removendo ambiente virtual anterior..."
-        rm -rf .venv
-    fi
-    
-    # Criar novo ambiente virtual
-    echo "[INFO] Criando novo ambiente virtual..."
+fi
+
+# Criar ambiente virtual apenas se não existir
+if [ ! -d ".venv" ]; then
+    echo "[INFO] Criando ambiente virtual..."
     "$PYTHON_CMD" -m venv .venv
 else
-    echo "[OK] Banco de dados encontrado"
-    
-    # Criar ambiente virtual se não existir
-    if [ ! -d ".venv" ]; then
-        echo "[INFO] Criando ambiente virtual..."
-        "$PYTHON_CMD" -m venv .venv
-    fi
+    echo "[OK] Ambiente virtual encontrado (reutilizando)"
 fi
 
 if [ -f ".venv/bin/activate" ]; then
@@ -114,27 +103,20 @@ fi
 echo "[INFO] Verificando e instalando dependências..."
 if ! "$PYTHON_CMD" scripts/verification/verify_python_installation.py; then
     echo "[ERRO] Falha na verificação das dependências"
+    read -p "Pressione Enter para sair..."
     exit 1
 fi
 
-echo "[INFO] Verificando dependências do dashboard web..."
-if ! "$PYTHON_CMD" -c "import flask, flask_socketio" &> /dev/null; then
-    echo "[INFO] Instalando Flask para dashboard web..."
-    "$PYTHON_CMD" -m pip install flask>=3.0.0 flask-socketio>=5.3.0 --quiet
-    echo "[OK] Flask instalado com sucesso!"
-fi
-
+# Verificação lazy do ChromeDriver (só aviso se falhar)
 echo "[INFO] Verificando ChromeDriver..."
-if ! "$PYTHON_CMD" scripts/verification/verify_chromedriver.py; then
-    echo "[ERRO] ChromeDriver não disponível"
-    exit 1
+if ! "$PYTHON_CMD" scripts/verification/verify_chromedriver.py &> /dev/null; then
+    echo "[AVISO] ChromeDriver pode precisar de configuração - continuando..."
 fi
 
 echo "[INFO] Executando programa..."
-if "$PYTHON_CMD" main.py; then
-    echo "[OK] Execução concluída!"
-else
+"$PYTHON_CMD" main.py
+
+if [ $? -ne 0 ]; then
     echo "[ERRO] Programa falhou"
     read -p "Pressione Enter para sair..."
-    exit 1
 fi

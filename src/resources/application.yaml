@@ -66,7 +66,7 @@ mode:
   complete_threshold: 1000
 
 geolocation:
- reference_cep: "04761-000" # CEP de referência para cálculo de distâncias
+ reference_cep: "18015-000" # CEP de referência para cálculo de distâncias
 
 geographic_discovery:
   enabled: true
@@ -85,11 +85,14 @@ geographic_discovery:
       enabled: true
       url: "https://servicodados.ibge.gov.br/api/v1/localidades"
     nominatim:
-      enabled: true
+      enabled: false
       url: "https://nominatim.openstreetmap.org"
+    photon:
+      enabled: true
+      url: "https://photon.komoot.io"
 
   # Rate limiting
-  request_delay_seconds: 1.0
+  request_delay_seconds: 0.5
   max_retries: 3
   
   # Perfis de descoberta baseados na localização
