@@ -84,6 +84,9 @@ geographic_discovery:
     ibge:
       enabled: true
       url: "https://servicodados.ibge.gov.br/api/v1/localidades"
+    ibge_local:
+      enabled: true  # Coordenadas pré-calculadas (instantâneo)
+      description: "Lookup local de coordenadas IBGE (100-1000x mais rápido)"
     nominatim:
       enabled: false
       url: "https://nominatim.openstreetmap.org"
@@ -105,7 +108,7 @@ geographic_discovery:
       focus_metropolitan_area: true
     rural:
       radius_km: 20
-      min_city_population: 10000
+      min_city_population: 100000
       target_large_cities: 10
       exclude_rural_areas: false
       focus_metropolitan_area: false

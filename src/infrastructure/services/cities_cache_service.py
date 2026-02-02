@@ -18,38 +18,11 @@ class CitiesCacheService:
         self.db_path = self.cache_dir / "pythonsearchcache.db"  # ✅ Banco unificado
         self.session = requests.Session()
 
-    def _ensure_cache_db(self):
-        """Create sqlite DB and table if missing"""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS cities (
-                    id TEXT PRIMARY KEY,
-                    name TEXT,
-                    state TEXT,
-                    population INTEGER,
-                    is_capital BOOLEAN,
-                    region_type TEXT,
-                    latitude REAL,
-                    longitude REAL
-                )
-                """
-            )
-            conn.commit()
-        finally:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-            conn.close()
-
     def _save_cities_to_sqlite(self, cities: List[Dict], uf: str) -> int:
-        """Save a list of cities into sqlite cache (idempotent)"""
+        """Save a list of cities into sqlite cache (tabela já criada por create_cache_db.py)"""
         if not cities:
             return 0
-        self._ensure_cache_db()
+        # Tabela 'cities' já existe - criada por create_cache_db.py
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.cursor()

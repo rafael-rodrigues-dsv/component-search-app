@@ -13,6 +13,10 @@ class CitiesRepository:
         """Insert discovered cities into TB_CIDADES. Returns number inserted."""
         if not cities:
             return 0
+
+        import logging
+        logger = logging.getLogger(__name__)
+
         conn = self._access._get_connection()
         cursor = conn.cursor()
         inserted = 0
@@ -21,9 +25,20 @@ class CitiesRepository:
                 nome = c.get('nome') or c.get('name') or c.get('nome_cidade') or c.get('municipio')
                 if not nome:
                     continue
+
+                # Normalizar nome
+                nome = ' '.join(nome.strip().split())
+
+                # Obter UF da cidade (não do CEP base) e garantir uppercase
+                city_uf = (c.get('state') or c.get('uf') or uf or '').strip().upper()
+
+                if not city_uf:
+                    logger.warning(f"[CIDADES] ⚠️ UF vazio para {nome}, pulando...")
+                    continue
+
                 # Avoid duplicates: case-insensitive check
                 try:
-                    cursor.execute("SELECT ID_CIDADE FROM TB_CIDADES WHERE UCase(NOME_CIDADE) = UCase(?) AND UF = ?", (nome, uf))
+                    cursor.execute("SELECT ID_CIDADE FROM TB_CIDADES WHERE UCase(NOME_CIDADE) = UCase(?) AND UCase(UF) = UCase(?)", (nome, city_uf))
                     exists = cursor.fetchone()
                     if exists:
                         continue
@@ -32,10 +47,12 @@ class CitiesRepository:
                     pass
 
                 try:
-                    cursor.execute("INSERT INTO TB_CIDADES (NOME_CIDADE, UF, ATIVO, DATA_CRIACAO) VALUES (?, ?, -1, Date())", (nome, uf))
+                    cursor.execute("INSERT INTO TB_CIDADES (NOME_CIDADE, UF, ATIVO, DATA_CRIACAO) VALUES (?, ?, -1, Date())", (nome, city_uf))
                     inserted += 1
-                except Exception:
+                    logger.debug(f"[GEO] ✅ Cidade inserida: {nome}/{city_uf}")
+                except Exception as e:
                     # ignore single-row insert errors and continue
+                    logger.debug(f"[GEO] ⚠️ Erro ao inserir {nome}/{city_uf}: {e}")
                     continue
 
             conn.commit()

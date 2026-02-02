@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Python Search App - Coletor de E-mails e Contatos
-Ponto de entrada principal da aplicação
+Python Search App
 """
 import sys
 import webbrowser
@@ -39,18 +38,33 @@ def _create_cache_automatically() -> bool:
         # Sempre executa para garantir que tabelas faltantes sejam criadas
         from scripts.database.create_cache_db import create_cache_auto
 
-        if not cache_path.exists():
+        cache_existed = cache_path.exists()
+
+        if not cache_existed:
             print("[INFO] Cache SQLite não encontrado. Criando automaticamente...")
 
         success = create_cache_auto(cache_path)
 
-        if success and not cache_path.exists():
-            print("[OK] Cache SQLite criado com sucesso!")
+        if not success:
+            print("[ERRO] Falha ao criar cache SQLite")
+            return False
 
-        return success
+        # Verificar se o cache foi realmente criado
+        if not cache_path.exists():
+            print("[ERRO] Cache não foi criado (arquivo não existe)")
+            return False
+
+        if not cache_existed:
+            print("[OK] Cache SQLite criado com sucesso!")
+        else:
+            print("[OK] Cache SQLite verificado (tabelas garantidas)")
+
+        return True
 
     except Exception as e:
         print(f"[ERRO] Falha ao criar cache: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -99,9 +113,30 @@ def main():
 
     # Garantir que cache SQLite existe e todas as tabelas estão criadas
     # Executa sempre (idempotente) para garantir tabelas faltantes
-    if not _create_cache_automatically():
+    cache_created = _create_cache_automatically()
+
+    if not cache_created:
         print("[AVISO] Falha ao criar/verificar cache SQLite - sistema continuará sem cache")
-        # Cache não é crítico, então não retorna erro
+        print("[AVISO] GeoNames não será carregado (requer cache SQLite)")
+    else:
+        # Garantir que dados GeoNames estão carregados (100% offline após primeira carga)
+        try:
+            from src.infrastructure.services.geonames_service import GeoNamesService
+            geonames = GeoNamesService()
+            if not geonames.is_data_loaded():
+                print("[INFO] 🌎 Primeira execução: carregando dados geográficos do GeoNames...")
+                print("[INFO] ⏳ Isso levará 2-5 minutos. Após isso, o sistema será 100% offline!")
+                success = geonames.download_and_load()
+                if success:
+                    print("[OK] ✅ Dados GeoNames carregados! Sistema agora é 100% offline.")
+                else:
+                    print("[AVISO] ⚠️  Falha ao carregar GeoNames. Bairros podem estar limitados.")
+            else:
+                print("[OK] Dados GeoNames já carregados (sistema 100% offline)")
+        except Exception as e:
+            print(f"[AVISO] Erro ao verificar GeoNames: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Inicializar banco de dados
     print("[INFO] Inicializando banco de dados...")

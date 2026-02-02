@@ -61,9 +61,15 @@ class DynamicGeographicDiscoveryService:
         from ...infrastructure.cache.distance_cache import DistanceCache
         self.distance_cache = DistanceCache()
 
+        # Inicializar serviço de coordenadas IBGE (lookup instantâneo)
+        from ...infrastructure.services.ibge_coordinates_service import IBGECoordinatesService
+        self.ibge_coords = IBGECoordinatesService()
 
         # Pré-carregar coordenadas das principais cidades (uma única vez)
         self._preload_major_cities_if_needed()
+
+        # Carregar municípios IBGE na primeira execução
+        self._load_ibge_municipalities_if_needed()
 
     def discover_locations_from_config(self) -> Dict:
         """Descobre localizações baseado na configuração YAML com perfil automático"""
@@ -200,7 +206,7 @@ class DynamicGeographicDiscoveryService:
                 print(f"[GEO] 📈 {len(municipalities_with_pop)} municípios total, {len(large_cities)} selecionadas")
             
             # 5. Distribuir cidades de forma equilibrada entre os estados
-            # Pegar até 50 cidades por estado (prioritizando as maiores de cada estado)
+            # Filtrar cidades com população >= min_city_population do perfil
             cities_to_process = []
             cities_by_state = {}
 
@@ -211,10 +217,17 @@ class DynamicGeographicDiscoveryService:
                     cities_by_state[uf] = []
                 cities_by_state[uf].append(city)
 
-            # Pegar até 50 cidades de cada estado (já ordenadas por população)
-            max_per_state = 50
+            # Usar min_city_population do perfil detectado (já ordenadas por população)
+            min_population_threshold = self.config.get_config_value(
+                f'geographic_discovery.profiles.{profile}.min_city_population',
+                100000  # Fallback: 100 mil habitantes
+            )
             for uf in sorted(cities_by_state.keys()):
-                cities_to_process.extend(cities_by_state[uf][:max_per_state])
+                cities_above_threshold = [
+                    city for city in cities_by_state[uf]
+                    if city.get('population', 0) >= min_population_threshold
+                ]
+                cities_to_process.extend(cities_above_threshold)
 
             total_cities = len(cities_to_process)
 
@@ -261,7 +274,15 @@ class DynamicGeographicDiscoveryService:
                     )
 
                     # Determinar origem das coordenadas
-                    source = "📦 CACHE" if coords_from_cache else "🌐 PHOTON"
+                    if coords_from_cache:
+                        source = "📦 CACHE"
+                    else:
+                        # Verificar se veio do IBGE local
+                        ibge_check = self.ibge_coords.get_coordinates(city_name, city_uf)
+                        if ibge_check and ibge_check[0] != 0.0:
+                            source = "🇧🇷 IBGE"
+                        else:
+                            source = "🌐 PHOTON"
 
                     # Cidade base sempre entra, outras só se no raio
                     if is_base_city or distance <= radius_km:
@@ -279,6 +300,9 @@ class DynamicGeographicDiscoveryService:
                         })
                     else:
                         print(f"    [GEO] ❌ Excluída: {city_name}/{city_uf} ({municipality.get('population', 0):,} hab) - {round(distance, 1)}km - fora do raio [{source}]")
+                else:
+                    # Não conseguiu geocodificar - mostrar erro
+                    print(f"    [GEO] ⚠️  Ignorada: {city_name}/{city_uf} ({municipality.get('population', 0):,} hab) - coordenadas não encontradas")
 
             print(f"[GEO] 🏙️ {len(cities_in_radius)} cidades encontradas")
 
@@ -477,83 +501,30 @@ class DynamicGeographicDiscoveryService:
             return []
 
     def _geocode_city(self, city: str, state: str) -> Optional[Tuple[float, float]]:
-        """Geocodificar cidade via Cache → Photon/Nominatim (otimizado)"""
+        """Geocodificar cidade via Cache → IBGE Local → GeoNames Offline (100% local)"""
         # 1. TENTAR CACHE PRIMEIRO (instantâneo)
         cached_coords = self.cities_cache.get_city_coordinates(city, state)
         if cached_coords:
             return cached_coords
 
-        # 2. TENTAR PHOTON PRIMEIRO (3-5x mais rápido que Nominatim)
-        if self.config.get_config_value('geographic_discovery.apis.photon.enabled', False):
-            coords = self._geocode_city_photon(city, state)
-            if coords:
-                return coords
+        # 2. TENTAR IBGE LOCAL (instantâneo - 99% das cidades brasileiras)
+        ibge_coords = self.ibge_coords.get_coordinates(city, state)
+        if ibge_coords and ibge_coords[0] != 0.0 and ibge_coords[1] != 0.0:
+            # Salvar no cache para próximas vezes
+            self.cities_cache.set_city_coordinates(city, state, ibge_coords[0], ibge_coords[1])
+            return ibge_coords
 
-        # 3. FALLBACK: NOMINATIM (se Photon falhar ou estiver desabilitado)
-        if self.config.get_config_value('geographic_discovery.apis.nominatim.enabled', True):
-            coords = self._geocode_city_nominatim(city, state)
-            if coords:
-                return coords
+        # 3. TENTAR GEONAMES OFFLINE (100% local - para cidades não no IBGE)
+        from src.infrastructure.cache.neighborhoods_cache import NeighborhoodsCache
+        geonames_cache = NeighborhoodsCache()
+        coords = geonames_cache.get_city_coordinates(city, state)
+        if coords:
+            # Salvar também no IBGE local para próxima vez
+            self.ibge_coords.set_coordinates(city, state, coords[0], coords[1])
+            return coords
 
         return None
 
-    def _geocode_city_photon(self, city: str, state: str) -> Optional[Tuple[float, float]]:
-        """Geocodificar cidade via Photon (OpenStreetMap - mais rápido)"""
-        try:
-            url = self.config.get_config_value('geographic_discovery.apis.photon.url', 'https://photon.komoot.io')
-            params = {
-                'q': f"{city}, {state}, Brazil",
-                'limit': 1
-            }
-
-            response = self.session.get(f"{url}/api", params=params, timeout=10)
-            response.raise_for_status()
-
-            data = response.json()
-            if data and 'features' in data and len(data['features']) > 0:
-                feature = data['features'][0]
-                coords = feature['geometry']['coordinates']
-                lon, lat = coords[0], coords[1]  # Photon retorna [lon, lat]
-
-                # Salvar no cache para próximas vezes
-                self.cities_cache.set_city_coordinates(city, state, lat, lon)
-
-                return (lat, lon)
-
-            return None
-
-        except Exception as e:
-            print(f"[GEO] ⚠️  Photon falhou para {city}/{state}: {e}")
-            return None
-
-    def _geocode_city_nominatim(self, city: str, state: str) -> Optional[Tuple[float, float]]:
-        """Geocodificar cidade via Nominatim (fallback)"""
-        try:
-            url = self.config.get_config_value('geographic_discovery.apis.nominatim.url', 'https://nominatim.openstreetmap.org')
-            params = {
-                'q': f"{city}, {state}, Brazil",
-                'format': 'json',
-                'limit': 1,
-                'addressdetails': 1
-            }
-            
-            response = self.session.get(f"{url}/search", params=params, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            if data:
-                lat, lon = float(data[0]['lat']), float(data[0]['lon'])
-
-                # Salvar no cache para próximas vezes
-                self.cities_cache.set_city_coordinates(city, state, lat, lon)
-
-                return (lat, lon)
-
-            return None
-            
-        except Exception as e:
-            print(f"[GEO] ⚠️  Nominatim falhou para {city}/{state}: {e}")
-            return None
 
     def _discover_neighborhoods_nearby(self, cities: List[Dict], base_info: Dict) -> List[Dict]:
         """Descobrir TODOS os bairros das cidades (sem filtro de raio)"""
@@ -581,14 +552,17 @@ class DynamicGeographicDiscoveryService:
         
         results = []
         city_distance = city['distance_km']
-        
+        # Usar o UF da cidade, não o UF do CEP base
+        city_uf = city.get('state', base_info['uf'])
+
         for neighborhood in neighborhoods_list:
             # Incluir TODOS os bairros sem filtro de distância
-            print(f"        [GEO] ✅ Incluído: {neighborhood} (cidade: {city['name']})")
+            print(f"        [GEO] ✅ Incluído: {neighborhood} (cidade: {city['name']}/{city_uf})")
             results.append({
                 'name': neighborhood,
                 'city': city['name'],
-                'state': base_info['uf'],
+                'state': city_uf,  # UF correto da cidade
+                'uf': city_uf,  # Adicionar também como 'uf' para compatibilidade
                 'distance_km': city_distance  # Usar distância da cidade
             })
         
@@ -631,13 +605,13 @@ class DynamicGeographicDiscoveryService:
                     print(f"        [GEO] ✅ {len(neighborhoods)} bairros IBGE - usando apenas IBGE")
                     return neighborhoods
 
-                # Se tem 0 ou 1 bairro, tentar Nominatim
-                print(f"        [GEO] ⚠️  IBGE retornou apenas {len(neighborhoods)} bairro(s), buscando Nominatim...")
+                # Se tem 0 ou 1 bairro, tentar GeoNames (offline)
+                print(f"        [GEO] ⚠️  IBGE retornou apenas {len(neighborhoods)} bairro(s), buscando GeoNames...")
 
         except Exception as e:
             print(f"        [GEO] Erro API IBGE: {e}")
 
-        # ESTRATÉGIA 2: Nominatim (quando IBGE tem poucos resultados)
+        # ESTRATÉGIA 2: GeoNames (100% offline - quando IBGE tem poucos resultados)
         try:
             from ...application.services.neighborhood_discovery_application_service import NeighborhoodDiscoveryApplicationService
 
@@ -648,7 +622,7 @@ class DynamicGeographicDiscoveryService:
                 return neighborhoods
 
         except Exception as e:
-            print(f"        [GEO] Erro Nominatim: {e}")
+            print(f"        [GEO] Erro GeoNames: {e}")
 
         # FALLBACK: Usar o nome da cidade como bairro
         print(f"        [GEO] ℹ️  Nenhum bairro encontrado, usando nome da cidade: {city}")
@@ -865,6 +839,27 @@ class DynamicGeographicDiscoveryService:
             self.cities_cache.set_city_coordinates(city, state, lat, lon)
 
         print(f"[GEO] ✅ {len(major_cities)} cidades pré-carregadas com sucesso")
+
+    def _load_ibge_municipalities_if_needed(self):
+        """Carregar municípios IBGE automaticamente na primeira execução"""
+        try:
+            stats = self.ibge_coords.get_stats()
+
+            # Se já tem mais de 5000 municípios, não precisa carregar
+            if stats['total'] > 5000:
+                print(f"[GEO] ✅ IBGE Local: {stats['total']} municípios ({stats['with_coords']} com coordenadas)")
+                return
+
+            # Carregar municípios do IBGE
+            print("[GEO] 🚀 Primeira execução: carregando municípios IBGE...")
+            loaded = self.ibge_coords.load_ibge_municipalities()
+
+            if loaded > 0:
+                print(f"[GEO] ✅ {loaded} municípios IBGE carregados com sucesso!")
+
+        except Exception as e:
+            print(f"[GEO] ⚠️  Erro ao carregar municípios IBGE: {e}")
+            print("[GEO] ℹ️  Sistema usará Photon como fallback")
 
     def _get_states_to_search(self, base_uf: str, radius_km: int) -> List[str]:
         """Determina quais estados buscar baseado no raio configurado

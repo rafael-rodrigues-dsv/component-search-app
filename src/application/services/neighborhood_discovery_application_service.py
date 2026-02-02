@@ -1,42 +1,50 @@
 """
-Application Service - Descoberta de Bairros via Nominatim OSM
-Responsável por descobrir bairros de cidades usando OpenStreetMap (gratuito)
+Application Service - Descoberta de Bairros via GeoNames (100% Offline)
+Responsável por descobrir bairros de cidades usando dados GeoNames pré-carregados
 """
-import time
-from typing import List
-
-import requests
+from typing import List, Dict
+import logging
 
 from ...infrastructure.cache.neighborhoods_cache import NeighborhoodsCache
-from ...infrastructure.config.config_manager import ConfigManager
+from ...infrastructure.services.geonames_service import GeoNamesService
 
 
 class NeighborhoodDiscoveryApplicationService:
     """
     Serviço de aplicação para descobrir bairros de cidades
-    Usa Nominatim OSM com cache persistente
+    Usa GeoNames offline (100% após carga inicial)
     """
 
     def __init__(self):
-        self.config = ConfigManager()
         self.cache = NeighborhoodsCache()
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'PythonSearchApp/4.0.0 (Neighborhood Discovery)'
-        })
-        self.nominatim_url = self.config.get_config_value(
-            'geographic_discovery.apis.nominatim.url',
-            'https://nominatim.openstreetmap.org'
-        )
+        self.geonames = GeoNamesService()
+        self.logger = logging.getLogger(__name__)
+        self._ensure_geonames_loaded()
+
+    def _ensure_geonames_loaded(self):
+        """Garante que dados GeoNames estão carregados"""
+        if not self.cache.is_geonames_loaded():
+            self.logger.warning("[BAIRROS] ⚠️  Dados GeoNames não carregados. Iniciando carga...")
+            print("[BAIRROS] 🌎 Primeira execução: carregando dados GeoNames...")
+            print("[BAIRROS] ⏳ Isso pode levar 2-5 minutos na primeira vez...")
+            
+            success = self.geonames.download_and_load()
+            
+            if success:
+                print("[BAIRROS] ✅ Dados GeoNames carregados com sucesso!")
+                self.logger.info("[BAIRROS] ✅ GeoNames carregado e pronto para uso offline")
+            else:
+                print("[BAIRROS] ❌ Falha ao carregar GeoNames. Bairros podem estar limitados.")
+                self.logger.error("[BAIRROS] ❌ Falha ao carregar GeoNames")
 
     def discover_neighborhoods(self, city: str, state: str, use_cache: bool = True) -> List[str]:
         """
-        Descobre bairros de uma cidade usando Nominatim OSM
+        Descobre bairros de uma cidade usando GeoNames (100% offline)
 
         Args:
             city: Nome da cidade
             state: Sigla do estado (ex: SP, RJ)
-            use_cache: Se True, tenta buscar do cache primeiro
+            use_cache: Compatibilidade (GeoNames é sempre cache)
 
         Returns:
             Lista de nomes de bairros
@@ -44,101 +52,45 @@ class NeighborhoodDiscoveryApplicationService:
         if not city or not state:
             return []
 
-        # 1. Tentar cache primeiro (se habilitado)
-        if use_cache:
-            cached = self.cache.get_neighborhoods(city, state)
-            if cached is not None:
-                print(f"        [BAIRROS] 📦 Cache: {len(cached)} bairros de {city}")
-                return cached
+        # Buscar do GeoNames (já é cache offline)
+        print(f"        [BAIRROS] 🗂️  Buscando no GeoNames (offline) para {city}/{state}...")
+        neighborhoods_data = self.cache.get_neighborhoods_from_geonames(city, state, limit=50)
 
-        # 2. Buscar via Nominatim OSM
-        print(f"        [BAIRROS] 🌐 Consultando Nominatim para {city}/{state}...")
-        neighborhoods = self._fetch_from_nominatim(city, state)
+        if not neighborhoods_data:
+            print(f"        [BAIRROS] ⚠️  Nenhum bairro encontrado no GeoNames")
+            return []
 
-        # 3. Filtrar e limpar resultados
+        # Extrair apenas nomes
+        neighborhoods = [n['name'] for n in neighborhoods_data]
+        
+        # Filtrar e limpar
         neighborhoods = self._filter_neighborhoods(neighborhoods, city)
 
-        # 4. Salvar no cache
         if neighborhoods:
-            self.cache.set_neighborhoods(city, state, neighborhoods, source='nominatim')
-            print(f"        [BAIRROS] ✅ {len(neighborhoods)} bairros descobertos e cacheados")
+            print(f"        [BAIRROS] ✅ {len(neighborhoods)} bairros descobertos (GeoNames offline)")
         else:
-            print(f"        [BAIRROS] ⚠️  Nenhum bairro encontrado via Nominatim")
+            print(f"        [BAIRROS] ⚠️  Nenhum bairro válido após filtros")
 
         return neighborhoods
 
-    def _fetch_from_nominatim(self, city: str, state: str) -> List[str]:
-        """Busca bairros via Nominatim OSM"""
-        neighborhoods = set()
+    def discover_neighborhoods_with_coords(self, city: str, state: str, limit: int = 50) -> List[Dict[str, any]]:
+        """
+        Descobre bairros com coordenadas para cálculo de distâncias
+        
+        Returns:
+            Lista de dicionários com: name, latitude, longitude, population
+        """
+        if not city or not state:
+            return []
 
-        try:
-            # Estratégia 1: Buscar por "neighbourhood" + cidade
-            neighborhoods.update(
-                self._query_nominatim(f"neighbourhood {city}, {state}, Brazil", limit=50)
-            )
+        print(f"        [BAIRROS] 🗺️  Buscando bairros com coordenadas para {city}/{state}...")
+        neighborhoods = self.cache.get_neighborhoods_from_geonames(city, state, limit=limit)
 
-            # Estratégia 2: Buscar por "suburb" (também são bairros)
-            neighborhoods.update(
-                self._query_nominatim(f"suburb {city}, {state}, Brazil", limit=50)
-            )
+        if neighborhoods:
+            print(f"        [BAIRROS] ✅ {len(neighborhoods)} bairros com coordenadas")
+        else:
+            print(f"        [BAIRROS] ⚠️  Nenhum bairro encontrado")
 
-            # Rate limiting (Nominatim exige máximo 1 req/s)
-            time.sleep(1.1)
-
-        except Exception as e:
-            print(f"        [BAIRROS] Erro Nominatim: {e}")
-
-        return sorted(list(neighborhoods))
-
-    def _query_nominatim(self, query: str, limit: int = 50) -> List[str]:
-        """Faz query no Nominatim e retorna lista de nomes"""
-        neighborhoods = []
-
-        try:
-            url = f"{self.nominatim_url}/search"
-            params = {
-                'q': query,
-                'format': 'json',
-                'limit': limit,
-                'addressdetails': 1,
-                'accept-language': 'pt-BR'
-            }
-
-            response = self.session.get(url, params=params, timeout=10)
-            response.raise_for_status()
-
-            data = response.json()
-
-            for item in data:
-                # Extrair nome do bairro de diferentes campos
-                name = None
-
-                # Tentar pegar de 'address'
-                if 'address' in item:
-                    addr = item['address']
-                    name = (
-                        addr.get('neighbourhood') or
-                        addr.get('suburb') or
-                        addr.get('quarter') or
-                        addr.get('district')
-                    )
-
-                # Fallback: usar 'display_name' (primeira parte)
-                if not name and 'display_name' in item:
-                    parts = item['display_name'].split(',')
-                    if parts:
-                        name = parts[0].strip()
-
-                if name:
-                    neighborhoods.append(name)
-
-            # Rate limiting entre requests
-            time.sleep(1.1)
-
-        except requests.RequestException as e:
-            print(f"        [BAIRROS] Erro de rede Nominatim: {e}")
-        except Exception as e:
-            print(f"        [BAIRROS] Erro ao processar Nominatim: {e}")
 
         return neighborhoods
 

@@ -147,6 +147,25 @@ def create_cache_db():
                 ]
             },
             {
+                'name': 'municipalities_coordinates',
+                'description': 'Coordenadas pré-calculadas dos municípios IBGE (lookup instantâneo)',
+                'sql': """
+                    CREATE TABLE IF NOT EXISTS municipalities_coordinates (
+                        city TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        ibge_code TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (city, state)
+                    )
+                """,
+                'indexes': [
+                    "CREATE INDEX IF NOT EXISTS idx_city_state ON municipalities_coordinates(city, state)",
+                    "CREATE INDEX IF NOT EXISTS idx_ibge_code ON municipalities_coordinates(ibge_code)"
+                ]
+            },
+            {
                 'name': 'states_ibge',
                 'description': 'Estados brasileiros (IBGE) - 27 UFs',
                 'sql': """
@@ -245,6 +264,37 @@ def create_cache_db():
                     "CREATE INDEX IF NOT EXISTS idx_distance_dest ON distance_matrix(dest_city_ibge)",
                     "CREATE INDEX IF NOT EXISTS idx_distance_km ON distance_matrix(distance_km)",
                     "CREATE INDEX IF NOT EXISTS idx_distance_same_state ON distance_matrix(is_same_state)"
+                ]
+            },
+            {
+                'name': 'neighborhoods_geonames',
+                'description': 'Bairros brasileiros do GeoNames (offline após carga inicial)',
+                'sql': """
+                    CREATE TABLE IF NOT EXISTS neighborhoods_geonames (
+                        geonameid INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        asciiname TEXT,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        feature_class TEXT,
+                        feature_code TEXT,
+                        country_code TEXT,
+                        admin1_code TEXT,
+                        admin2_code TEXT,
+                        city_name TEXT,
+                        state_code TEXT,
+                        population INTEGER DEFAULT 0,
+                        elevation INTEGER,
+                        timezone TEXT,
+                        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+                    )
+                """,
+                'indexes': [
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_city ON neighborhoods_geonames(city_name, state_code)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_state ON neighborhoods_geonames(state_code)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_coords ON neighborhoods_geonames(latitude, longitude)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_feature ON neighborhoods_geonames(feature_code)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_admin2 ON neighborhoods_geonames(admin2_code)"
                 ]
             }
         ]
@@ -433,6 +483,24 @@ def create_cache_auto(cache_path: Path = None) -> bool:
                 ]
             },
             {
+                'name': 'municipalities_coordinates',
+                'sql': """
+                    CREATE TABLE IF NOT EXISTS municipalities_coordinates (
+                        city TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        ibge_code TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (city, state)
+                    )
+                """,
+                'indexes': [
+                    "CREATE INDEX IF NOT EXISTS idx_city_state ON municipalities_coordinates(city, state)",
+                    "CREATE INDEX IF NOT EXISTS idx_ibge_code ON municipalities_coordinates(ibge_code)"
+                ]
+            },
+            {
                 'name': 'states_ibge',
                 'sql': """
                     CREATE TABLE IF NOT EXISTS states_ibge (
@@ -528,22 +596,60 @@ def create_cache_auto(cache_path: Path = None) -> bool:
                     "CREATE INDEX IF NOT EXISTS idx_distance_km ON distance_matrix(distance_km)",
                     "CREATE INDEX IF NOT EXISTS idx_distance_same_state ON distance_matrix(is_same_state)"
                 ]
+            },
+            {
+                'name': 'neighborhoods_geonames',
+                'sql': """
+                    CREATE TABLE IF NOT EXISTS neighborhoods_geonames (
+                        geonameid INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        asciiname TEXT,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        feature_class TEXT,
+                        feature_code TEXT,
+                        country_code TEXT,
+                        admin1_code TEXT,
+                        admin2_code TEXT,
+                        city_name TEXT,
+                        state_code TEXT,
+                        population INTEGER DEFAULT 0,
+                        elevation INTEGER,
+                        timezone TEXT,
+                        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+                    )
+                """,
+                'indexes': [
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_city ON neighborhoods_geonames(city_name, state_code)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_state ON neighborhoods_geonames(state_code)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_coords ON neighborhoods_geonames(latitude, longitude)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_feature ON neighborhoods_geonames(feature_code)",
+                    "CREATE INDEX IF NOT EXISTS idx_geonames_admin2 ON neighborhoods_geonames(admin2_code)"
+                ]
             }
         ]
 
         # Criar cada tabela
-        for table in tables:
-            conn.execute(table['sql'])
-            for idx_sql in table.get('indexes', []):
-                conn.execute(idx_sql)
+        print(f"[CACHE-AUTO] Criando {len(tables)} tabelas...")
+        for i, table in enumerate(tables, 1):
+            try:
+                conn.execute(table['sql'])
+                for idx_sql in table.get('indexes', []):
+                    conn.execute(idx_sql)
+                print(f"[CACHE-AUTO] {i}/{len(tables)} - {table['name']} criada ✅")
+            except Exception as e:
+                print(f"[CACHE-AUTO] {i}/{len(tables)} - {table['name']} erro: {e}")
 
         conn.commit()
         conn.close()
 
+        print(f"[CACHE-AUTO] ✅ Todas as tabelas criadas com sucesso!")
         return True
 
     except Exception as e:
         print(f"[ERRO] Falha ao criar cache automaticamente: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 

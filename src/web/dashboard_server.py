@@ -867,6 +867,25 @@ class DashboardServer:
                     pass
 
                 if action == 'start':
+                    # Validar se há termos pendentes antes de iniciar coleta
+                    if job_type == 'coleta':
+                        try:
+                            from src.application.services.database_application_service import DatabaseApplicationService
+                            db_service = DatabaseApplicationService()
+                            stats = db_service.get_statistics()
+
+                            # Verificar se há termos pendentes para processar
+                            termos_pendentes = stats.get('termos_pendentes', 0) if stats else 0
+
+                            if termos_pendentes == 0:
+                                return jsonify({
+                                    'success': False,
+                                    'message': 'Nenhum termo pendente para processar. Configure os termos de busca primeiro.'
+                                }), 400
+                        except Exception as e:
+                            # Se falhar na validação, apenas log e continua (fail-safe)
+                            print(f"[AVISO] Erro ao validar termos pendentes: {e}")
+
                     ok = self._robot_runner.start(job_type=job_type)
                     if ok:
                         return jsonify({'success': True, 'message': 'Robô iniciado'})

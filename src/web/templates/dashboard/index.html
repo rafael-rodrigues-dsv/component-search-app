@@ -553,8 +553,23 @@
                 if (jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
                 const resp = await fetch('/api/execute', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'start', job_type: jobType, browser: browser, engine: engine, headless: headless}) });
                 const json = await resp.json();
-                if (json.success) { if(badge){ badge.textContent='Em execução'; badge.className='d-inline-block badge badge-success'; } if(jobEl) jobEl.textContent = `Tarefa: ${jobType}`; }
-                else { if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent = json.message || 'Falha ao iniciar'; showGlobalMessage('Erro', (json.message||'Falha ao iniciar')); }
+                if (json.success) {
+                    if(badge){ badge.textContent='Em execução'; badge.className='d-inline-block badge badge-success'; }
+                    if(jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
+                }
+                else {
+                    // Verificar se é erro de validação (termos pendentes) - não altera status
+                    const isValidationError = json.message && json.message.includes('Nenhum termo pendente');
+                    if (!isValidationError) {
+                        if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; }
+                        if(jobEl) jobEl.textContent = json.message || 'Falha ao iniciar';
+                    } else {
+                        // Restaurar status anterior
+                        if(badge){ badge.textContent='Parado'; badge.className='d-inline-block badge badge-secondary'; }
+                        if(jobEl) jobEl.textContent = 'Nenhuma tarefa ativa';
+                    }
+                    showGlobalMessage('Erro', (json.message||'Falha ao iniciar'));
+                }
             } catch(e){ if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent='Erro ao chamar API'; showGlobalMessage('Erro', 'Erro ao chamar API: '+e); }
         }
 

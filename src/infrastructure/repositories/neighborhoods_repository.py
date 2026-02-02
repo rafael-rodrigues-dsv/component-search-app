@@ -12,45 +12,81 @@ class NeighborhoodsRepository:
     def save_discovered(self, neighborhoods: List[Dict[str, Any]], uf: str) -> int:
         if not neighborhoods:
             return 0
+
+        import logging
+        logger = logging.getLogger(__name__)
+
         conn = self._access._get_connection()
         cursor = conn.cursor()
         inserted = 0
+
         try:
             for n in neighborhoods:
                 nome = n.get('name') or n.get('nome')
                 cidade = n.get('city') or n.get('cidade')
                 if not nome or not cidade:
                     continue
+
+                # Normalizar nomes (remover espaços extras)
+                nome = ' '.join(nome.strip().split())
+                cidade = ' '.join(cidade.strip().split())
+
+                # Obter UF do bairro (não do CEP base) e garantir uppercase
+                neighborhood_uf = (n.get('state') or n.get('uf') or uf or '').strip().upper()
+
+                if not neighborhood_uf:
+                    logger.debug(f"[GEO] ⚠️ UF vazio para {nome}/{cidade}, pulando...")
+                    continue
+
                 try:
-                    cursor.execute("SELECT ID_BAIRRO FROM TB_BAIRROS WHERE UCase(NOME_BAIRRO) = UCase(?) AND UF = ?", (nome, uf))
+                    cursor.execute("SELECT ID_BAIRRO FROM TB_BAIRROS WHERE UCase(NOME_BAIRRO) = UCase(?) AND UCase(UF) = UCase(?)", (nome, neighborhood_uf))
                     if cursor.fetchone():
                         continue
                 except Exception:
                     pass
+
                 try:
-                    # Try to find matching city id in TB_CIDADES by name+UF
+                    # Buscar cidade com normalização
                     city_id = None
                     try:
-                        cursor.execute("SELECT ID_CIDADE FROM TB_CIDADES WHERE UCase(NOME_CIDADE) = UCase(?) AND UF = ?", (cidade, uf))
+                        cursor.execute(
+                            "SELECT ID_CIDADE FROM TB_CIDADES WHERE UCase(NOME_CIDADE) = UCase(?) AND UCase(UF) = UCase(?)",
+                            (cidade, neighborhood_uf)
+                        )
                         r = cursor.fetchone()
                         if r:
                             city_id = r[0]
-                    except Exception:
+                            logger.debug(f"[GEO] ✅ Cidade encontrada: {cidade}/{neighborhood_uf} -> ID {city_id}")
+                        else:
+                            logger.debug(f"[GEO] ⚠️ Cidade NÃO encontrada: {cidade}/{neighborhood_uf}")
+                    except Exception as e:
+                        logger.debug(f"[GEO] ❌ Erro ao buscar cidade {cidade}/{neighborhood_uf}: {e}")
                         city_id = None
 
                     if city_id:
-                        cursor.execute("INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ID_MUNICIPIO, ATIVO, DATA_CRIACAO) VALUES (?, ?, ?, -1, Date())", (nome, uf, city_id))
+                        cursor.execute(
+                            "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ID_MUNICIPIO, ATIVO, DATA_CRIACAO) VALUES (?, ?, ?, -1, Date())",
+                            (nome, neighborhood_uf, city_id)
+                        )
+                        logger.debug(f"[GEO] ✅ Bairro inserido: {nome} -> {cidade}/{neighborhood_uf} (ID cidade: {city_id})")
                     else:
-                        cursor.execute("INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES (?, ?, -1, Date())", (nome, uf))
+                        cursor.execute(
+                            "INSERT INTO TB_BAIRROS (NOME_BAIRRO, UF, ATIVO, DATA_CRIACAO) VALUES (?, ?, -1, Date())",
+                            (nome, neighborhood_uf)
+                        )
+                        logger.debug(f"[GEO] ⚠️ Bairro inserido SEM cidade: {nome}/{neighborhood_uf}")
                     inserted += 1
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"[GEO] ❌ Erro ao inserir bairro {nome}/{cidade}: {e}")
                     continue
+
             conn.commit()
         finally:
             try:
                 cursor.close()
             except Exception:
                 pass
+
         return inserted
 
     def list_neighborhoods(self, uf: str = None) -> List[Dict[str, Any]]:

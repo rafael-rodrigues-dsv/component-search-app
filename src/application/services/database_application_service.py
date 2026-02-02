@@ -148,11 +148,15 @@ class DatabaseApplicationService:
             
             # Gerar termos para bairros
             for neighborhood in locations.get('neighborhoods', []):
+                neighborhood_name = neighborhood['name']
+                city_name = neighborhood.get('city', '')
+
+                # ⚠️ SKIP: Se bairro tem o mesmo nome da cidade, não gera termo (evita duplicação com CIDADE)
+                if city_name and neighborhood_name.strip().lower() == city_name.strip().lower():
+                    continue
+
                 for categoria in base_busca:
                     # Concatenar cidade ao bairro se o nome da cidade não estiver no nome do bairro
-                    neighborhood_name = neighborhood['name']
-                    city_name = neighborhood.get('city', '')
-
                     # Verificar se o nome da cidade já está no nome do bairro (case-insensitive)
                     if city_name and city_name.lower() not in neighborhood_name.lower():
                         # Cidade não está no nome do bairro, então concatena
