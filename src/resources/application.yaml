@@ -3,6 +3,13 @@ app:
   version: "4.0.0"
 
 search:
+  # Configuração de multi-threading
+  multi_threading:
+    enabled: true
+    max_workers: 5  # Máximo de threads simultâneas
+    queue_check_interval: 1.0  # Intervalo para verificar fila (segundos)
+    thread_timeout: 3600  # Timeout por thread (segundos)
+
   engines:
     google:
       enabled: true
@@ -66,7 +73,7 @@ mode:
   complete_threshold: 1000
 
 geolocation:
- reference_cep: "18015-000" # CEP de referência para cálculo de distâncias
+ reference_cep: "04761-000" # CEP de referência para cálculo de distâncias
 
 geographic_discovery:
   enabled: true

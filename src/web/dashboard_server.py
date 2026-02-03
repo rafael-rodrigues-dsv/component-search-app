@@ -317,10 +317,16 @@ class DashboardServer:
                 raio_km = data.get('raio_km')
                 from src.application.services.zip_code_application_service import ZipCodeApplicationService
                 svc = ZipCodeApplicationService()
-                # Do not allow updating CEP while robot is running
+
+                # ✅ Verificar se robô está em execução (single-thread ou multi-thread)
                 try:
+                    # Verificar single-thread
                     if hasattr(self, '_robot_runner') and getattr(self._robot_runner, 'running', False):
-                        return jsonify({'success': False, 'message': 'Robô em execução. Não é possível atualizar o CEP enquanto o robô estiver ativo.'}), 400
+                        return jsonify({'success': False, 'message': 'Robô em execução. Não é possível iniciar reprocessamento enquanto o robô estiver ativo.'}), 400
+
+                    # Verificar multi-thread
+                    if hasattr(self, '_multi_thread_service') and self._multi_thread_service.is_running():
+                        return jsonify({'success': False, 'message': 'Coleta multi-thread em execução. Não é possível iniciar reprocessamento enquanto a coleta estiver ativa.'}), 400
                 except Exception:
                     pass
 
@@ -902,21 +908,96 @@ class DashboardServer:
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
-        @self.app.route('/api/reset-search', methods=['POST'])
-        def api_reset_search():
-            try:
-                # Resetar dados coletados e re-inicializar termos no banco
-                try:
-                    dbs = DatabaseApplicationService()
-                    dbs.reset_data(confirm=True)
-                    # Re-inicializar termos (descoberta dinâmica ou estática)
-                    count = dbs.initialize_search_terms()
-                except Exception as e:
-                    return jsonify({'success': False, 'message': f'Falha ao resetar: {e}'}), 500
+        # ===== MULTI-THREAD COLLECTION ENDPOINTS =====
 
-                return jsonify({'success': True, 'message': f'Reset concluído. {count} termos preparados.'})
+        @self.app.route('/api/collection/start-multi', methods=['POST'])
+        def api_collection_start_multi():
+            """Inicia coleta multi-thread"""
+            try:
+                # Obter configurações da requisição
+                data = request.get_json() or {}
+                browser = data.get('browser', 'CHROME')
+                engine = data.get('engine', 'GOOGLE')
+                headless_str = data.get('headless', 'false')
+                headless = headless_str == 'true'  # Converter string para boolean
+
+                print(f"[MULTI-THREAD] Configurações recebidas: browser={browser}, engine={engine}, headless={headless}")
+
+                # Verificar se já há coleta em andamento
+                if not hasattr(self, '_multi_thread_service'):
+                    from src.application.services.multi_thread_collection_application_service import MultiThreadCollectionApplicationService
+                    self._multi_thread_service = MultiThreadCollectionApplicationService()
+
+                    # Configurar callback para emitir eventos via Socket.IO
+                    def progress_callback(event_type, data):
+                        try:
+                            self.socketio.emit(f'collection_{event_type}', data)
+                        except Exception:
+                            pass
+
+                    self._multi_thread_service.set_progress_callback(progress_callback)
+
+                if self._multi_thread_service.is_running():
+                    return jsonify({'success': False, 'message': 'Já existe uma coleta em andamento'}), 409
+
+                # Obter termos pendentes do banco
+                from src.application.services.database_application_service import DatabaseApplicationService
+                db_service = DatabaseApplicationService()
+                terms_data = db_service.get_search_terms()
+
+                if not terms_data:
+                    return jsonify({'success': False, 'message': 'Nenhum termo pendente para processar'}), 400
+
+                # Extrair lista de termos
+                terms = [t['termo'] for t in terms_data]
+
+                # Iniciar coleta com configurações da UI
+                result = self._multi_thread_service.start_collection(
+                    terms=terms,
+                    browser=browser,
+                    engine=engine,
+                    headless=headless
+                )
+
+                return jsonify(result)
+
+            except Exception as e:
+                import traceback
+                return jsonify({'success': False, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+        @self.app.route('/api/collection/stop-multi', methods=['POST'])
+        def api_collection_stop_multi():
+            """Para coleta multi-thread"""
+            try:
+                if not hasattr(self, '_multi_thread_service'):
+                    return jsonify({'success': False, 'message': 'Nenhuma coleta em andamento'}), 400
+
+                result = self._multi_thread_service.stop_collection()
+                return jsonify(result)
+
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/collection/status-multi', methods=['GET'])
+        def api_collection_status_multi():
+            """Retorna status da coleta multi-thread"""
+            try:
+                if not hasattr(self, '_multi_thread_service'):
+                    return jsonify({
+                        'is_running': False,
+                        'active_threads': 0,
+                        'threads': {},
+                        'pending_terms_count': 0,
+                        'total_companies_found': 0
+                    })
+
+                status = self._multi_thread_service.get_collection_status()
+                return jsonify(status)
+
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        # ===== END MULTI-THREAD ENDPOINTS =====
 
         # Endpoint administrativo: reset parcial (preserva TB_CEP_CONFIG e TB_TERMOS_BUSCA) e re-inicializa
         @self.app.route('/api/admin/reset-and-initialize', methods=['POST'])

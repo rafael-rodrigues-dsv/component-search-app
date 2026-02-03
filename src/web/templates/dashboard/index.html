@@ -332,14 +332,85 @@
             options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'top' } } }
         }) : null;
 
+        // Função para atualizar status do robô (multi-thread ou single-thread)
+        async function updateRobotStatus() {
+            try {
+                // Tentar obter status multi-thread primeiro
+                const resp = await fetch('/api/collection/status-multi');
+                const data = await resp.json();
+
+                const badge = document.getElementById('robot-status');
+                const jobEl = document.getElementById('robot-current-job');
+
+                if (data.is_running) {
+                    // Multi-thread está ativo
+                    if(badge) {
+                        badge.textContent = 'Multi-Thread Ativo';
+                        badge.className = 'd-inline-block badge badge-success';
+                    }
+
+                    // Calcular threads realmente ativas
+                    const activeThreads = data.active_threads || 0;
+                    const totalTerms = data.pending_terms_count || 0;
+                    const maxWorkers = data.max_workers || 10;
+
+                    if(jobEl) {
+                        jobEl.textContent = `Coleta Multi-Thread (${activeThreads} thread${activeThreads !== 1 ? 's' : ''} ativa${activeThreads !== 1 ? 's' : ''} de ${totalTerms} termo${totalTerms !== 1 ? 's' : ''})`;
+                    }
+                } else {
+                    // Multi-thread não está ativo, verificar se há outro job rodando
+                    try {
+                        const robotResp = await fetch('/api/robot-status');
+                        const robotData = await robotResp.json();
+
+                        if (robotData.running) {
+                            if(badge) {
+                                badge.textContent = 'Em execução';
+                                badge.className = 'd-inline-block badge badge-success';
+                            }
+                            if(jobEl) {
+                                jobEl.textContent = `Tarefa: ${robotData.job || 'desconhecida'}`;
+                            }
+                        } else {
+                            // Nada rodando
+                            if(badge) {
+                                badge.textContent = 'Parado';
+                                badge.className = 'd-inline-block badge badge-secondary';
+                            }
+                            if(jobEl) {
+                                jobEl.textContent = 'Nenhuma tarefa ativa';
+                            }
+                        }
+                    } catch (e) {
+                        // Fallback: assumir parado
+                        if(badge) {
+                            badge.textContent = 'Parado';
+                            badge.className = 'd-inline-block badge badge-secondary';
+                        }
+                        if(jobEl) {
+                            jobEl.textContent = 'Nenhuma tarefa ativa';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Erro ao atualizar status do robô:', e);
+            }
+        }
+
         // Eventos do Socket.IO
         if (socket) {
             socket.on('connect', function() {
                 const conn = document.getElementById('connection-status'); if (conn) conn.innerHTML = '<i class="fas fa-circle text-success"></i> Conectado';
+                // Atualizar status ao conectar
+                updateRobotStatus();
             });
             socket.on('disconnect', function() { const conn = document.getElementById('connection-status'); if (conn) conn.innerHTML = '<i class="fas fa-circle text-danger"></i> Desconectado'; });
 
-            socket.on('stats_update', function(data) { updateDashboard(data); });
+            socket.on('stats_update', function(data) {
+                updateDashboard(data);
+                // Atualizar status do robô junto com stats
+                updateRobotStatus();
+            });
 
             // Heartbeat/tick handler: update the 'Última atualização' label and running indicator
             try {
@@ -404,6 +475,22 @@
                 document.getElementById('geo-pendentes').textContent = data.pendentes || 0;
                 document.getElementById('geo-taxa-box').textContent = `${data.percentual || 0}%`;
                 document.getElementById('progress-geo').style.width = `${data.percentual || 0}%`;
+            });
+
+            // Listener para eventos de coleta multi-thread
+            socket.on('collection_thread_started', function(data) {
+                console.log('Thread iniciada:', data);
+                updateRobotStatus();
+            });
+
+            socket.on('collection_thread_finished', function(data) {
+                console.log('Thread finalizada:', data);
+                updateRobotStatus();
+            });
+
+            socket.on('collection_finished', function(data) {
+                console.log('Coleta multi-thread finalizada:', data);
+                updateRobotStatus();
             });
         }
 
@@ -519,6 +606,14 @@
             // Inicial fetch
             fetch('/api/stats').then(r => r.json()).then(d => updateDashboard(d)).catch(()=>{});
 
+            // ✅ Atualizar status do robô ao carregar a página (F5)
+            updateRobotStatus();
+
+            // ✅ Polling periódico para atualizar status do robô (a cada 3 segundos)
+            setInterval(function() {
+                updateRobotStatus();
+            }, 3000);
+
             // Inicializar browser list
             try {
                 fetch('/api/browser-availability').then(r=>r.json()).then(json=>{
@@ -551,8 +646,39 @@
                 const browser = getSelectedBrowser(); const engine = getSelectedEngine(); const headless = getSelectedHeadless();
                 if (badge) { badge.textContent='Iniciando...'; badge.className='d-inline-block badge badge-info'; }
                 if (jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
-                const resp = await fetch('/api/execute', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'start', job_type: jobType, browser: browser, engine: engine, headless: headless}) });
-                const json = await resp.json();
+
+                // 🚀 USAR MULTI-THREAD automaticamente para 'coleta'
+                let resp, json;
+                if (jobType === 'coleta') {
+                    // Tentar multi-thread primeiro
+                    try {
+                        resp = await fetch('/api/collection/start-multi', {
+                            method:'POST',
+                            headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({browser: browser, engine: engine, headless: headless})
+                        });
+                        json = await resp.json();
+
+                        if (json.success) {
+                            if(badge){ badge.textContent='Multi-Thread Ativo'; badge.className='d-inline-block badge badge-success'; }
+                            if(jobEl) jobEl.textContent = `Coleta Multi-Thread (${json.actual_threads || json.terms_count || json.max_workers || 1} thread${(json.actual_threads || json.terms_count || 1) > 1 ? 's' : ''})`;
+                            console.log(`✅ Multi-thread iniciado: ${json.terms_count} termo(s), ${json.actual_threads} thread(s) ativa(s) (máx: ${json.max_workers})`);
+                            return; // Sucesso - sair
+                        }
+                    } catch(e) {
+                        console.warn('Multi-thread não disponível, usando modo single-thread:', e);
+                        // Fallback para single-thread abaixo
+                    }
+                }
+
+                // Modo single-thread (fallback ou outros job types)
+                resp = await fetch('/api/execute', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({action:'start', job_type: jobType, browser: browser, engine: engine, headless: headless})
+                });
+                json = await resp.json();
+
                 if (json.success) {
                     if(badge){ badge.textContent='Em execução'; badge.className='d-inline-block badge badge-success'; }
                     if(jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
@@ -573,8 +699,49 @@
             } catch(e){ if(badge){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; } if(jobEl) jobEl.textContent='Erro ao chamar API'; showGlobalMessage('Erro', 'Erro ao chamar API: '+e); }
         }
 
-        async function stopJob(){ const badge=document.getElementById('robot-status'); const jobEl=document.getElementById('robot-current-job');
-            try{ const resp = await fetch('/api/execute',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'stop'}) }); const json = await resp.json(); if(json.success){ badge.textContent='Parado'; badge.className='d-inline-block badge badge-secondary'; jobEl.textContent='Nenhuma tarefa ativa'; } else { badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent = json.message || 'Falha ao parar'; showGlobalMessage('Erro', (json.message||'Falha ao parar')); } } catch(e){ badge.textContent='Erro'; badge.className='d-inline-block badge badge-danger'; jobEl.textContent='Erro ao chamar API'; showGlobalMessage('Erro', 'Erro ao chamar API: '+e); }
+        async function stopJob(){
+            const badge=document.getElementById('robot-status');
+            const jobEl=document.getElementById('robot-current-job');
+
+            try{
+                // 🛑 Tentar parar multi-thread primeiro
+                let resp, json;
+                try {
+                    resp = await fetch('/api/collection/stop-multi', { method:'POST', headers:{'Content-Type':'application/json'} });
+                    json = await resp.json();
+
+                    if (json.success) {
+                        badge.textContent='Parado';
+                        badge.className='d-inline-block badge badge-secondary';
+                        jobEl.textContent='Nenhuma tarefa ativa';
+                        console.log('✅ Multi-thread parado:', json.message);
+                        return; // Sucesso - sair
+                    }
+                } catch(e) {
+                    // Fallback para single-thread
+                    console.warn('Multi-thread stop falhou, tentando single-thread:', e);
+                }
+
+                // Parar modo single-thread (fallback)
+                resp = await fetch('/api/execute',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'stop'}) });
+                json = await resp.json();
+
+                if(json.success){
+                    badge.textContent='Parado';
+                    badge.className='d-inline-block badge badge-secondary';
+                    jobEl.textContent='Nenhuma tarefa ativa';
+                } else {
+                    badge.textContent='Erro';
+                    badge.className='d-inline-block badge badge-danger';
+                    jobEl.textContent = json.message || 'Falha ao parar';
+                    showGlobalMessage('Erro', (json.message||'Falha ao parar'));
+                }
+            } catch(e){
+                badge.textContent='Erro';
+                badge.className='d-inline-block badge badge-danger';
+                jobEl.textContent='Erro ao chamar API';
+                showGlobalMessage('Erro', 'Erro ao chamar API: '+e);
+            }
         }
 
         // small helper: global modal for messages (avoid native alert)

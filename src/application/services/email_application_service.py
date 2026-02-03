@@ -425,3 +425,167 @@ class EmailApplicationService(EmailCollectorInterface):
             return {'emails': items, 'pagination': {'total': total, 'limit': limit, 'offset': offset, 'total_pages': total_pages, 'current_page': current_page, 'has_next': current_page < total_pages, 'has_previous': current_page > 1}}
         except Exception:
             return {'emails': [], 'pagination': {'total': 0, 'limit': limit, 'offset': offset, 'total_pages': 1, 'current_page': 1, 'has_next': False, 'has_previous': False}}
+
+    def collect_single_term_with_callbacks(
+        self,
+        term: str,
+        progress_callback=None,
+        should_stop_callback=None,
+        db_lock=None,
+        browser: str = None,
+        engine: str = None,
+        headless: bool = None
+    ) -> Dict:
+        """
+        Coleta dados para um único termo com suporte a callbacks e thread-safety
+
+        Args:
+            term: Termo de busca
+            progress_callback: Função callback(progress: int, action: str)
+            should_stop_callback: Função callback() -> bool para verificar se deve parar
+            db_lock: Lock threading para operações no banco (thread-safe)
+            browser: Browser a usar (CHROME ou BRAVE), se None usa self.browser
+            engine: Engine de busca (GOOGLE ou DUCKDUCKGO), se None usa self.search_engine
+            headless: Se True executa em modo headless, se None usa config padrão
+
+        Returns:
+            Dict com resultado: {'success': bool, 'companies_found': int, 'error': str}
+        """
+        try:
+            # Usar parâmetros fornecidos ou fallback para self
+            actual_browser = browser if browser is not None else self.browser
+            actual_engine = engine if engine is not None else self.search_engine
+
+            # Criar instância própria do driver (isolado por thread)
+            driver_manager = WebDriverManager()
+
+            # Configurar browser
+            if actual_browser == "BRAVE":
+                driver_manager.browser = "brave"
+            else:
+                driver_manager.browser = "chrome"
+
+            if not driver_manager.start_driver():
+                return {'success': False, 'error': 'Falha ao iniciar driver'}
+
+            # Criar scraper isolado baseado no engine escolhido
+            if actual_engine == "GOOGLE":
+                scraper = GoogleScraper(driver_manager.driver)
+            else:
+                scraper = DuckDuckGoScraper(driver_manager)
+
+            try:
+                # Notificar início
+                if progress_callback:
+                    progress_callback(5, f"Buscando: {term}")
+
+                # Executar busca
+                search_result = scraper.search(term)
+                if not search_result:
+                    return {'success': False, 'error': 'Busca falhou'}
+
+                if progress_callback:
+                    progress_callback(15, "Busca concluída, coletando resultados...")
+
+                # Obter termo do banco (thread-safe com lock)
+                if db_lock:
+                    with db_lock:
+                        terms_data = [t for t in self.db_service.get_search_terms() if t['termo'] == term]
+                else:
+                    terms_data = [t for t in self.db_service.get_search_terms() if t['termo'] == term]
+
+                if not terms_data:
+                    return {'success': False, 'error': 'Termo não encontrado no banco'}
+
+                term_data = terms_data[0]
+                termo_id = term_data['id']
+
+                # Processar resultados
+                companies_found = 0
+                total_links = 0
+
+                # Processar páginas
+                for page in range(3):  # 3 páginas por termo
+                    # Verificar se deve parar
+                    if should_stop_callback and should_stop_callback():
+                        if progress_callback:
+                            progress_callback(100, "Parado pelo usuário")
+                        break
+
+                    links = scraper.get_result_links(BLACKLIST_HOSTS)
+                    if not links:
+                        break
+
+                    total_links += len(links)
+
+                    for i, link in enumerate(links):
+                        # Verificar se deve parar
+                        if should_stop_callback and should_stop_callback():
+                            break
+
+                        # Atualizar progresso
+                        progress_pct = 15 + int((i + 1) / len(links) * 70)
+                        if progress_callback:
+                            progress_callback(progress_pct, f"Processando site {i+1}/{len(links)}")
+
+                        domain = self.validation_service.extract_domain_from_url(link)
+
+                        # Verificar domínio (thread-safe com lock)
+                        is_visited = False
+                        if db_lock:
+                            with db_lock:
+                                is_visited = self.db_service.is_domain_visited(domain)
+                        else:
+                            is_visited = self.db_service.is_domain_visited(domain)
+
+                        if is_visited:
+                            continue
+
+                        # Extrair dados
+                        company = scraper.extract_company_data(link, MAX_EMAILS_PER_SITE)
+                        company.search_term = term
+
+                        # Salvar no banco (thread-safe com lock)
+                        saved = False
+                        if db_lock:
+                            with db_lock:
+                                saved = self._save_company_to_database(company, domain, termo_id)
+                        else:
+                            saved = self._save_company_to_database(company, domain, termo_id)
+
+                        if saved:
+                            companies_found += 1
+
+                        # Pequeno delay
+                        time.sleep(random.uniform(0.1, 0.3))
+
+                    # Próxima página
+                    if page < 2:
+                        if hasattr(scraper, 'go_to_next_page'):
+                            if not scraper.go_to_next_page():
+                                break
+
+                # Atualizar status do termo (thread-safe com lock)
+                if db_lock:
+                    with db_lock:
+                        self.db_service.update_term_status(termo_id, 'CONCLUIDO')
+                else:
+                    self.db_service.update_term_status(termo_id, 'CONCLUIDO')
+
+                # Notificar conclusão
+                if progress_callback:
+                    progress_callback(100, f"Concluído: {companies_found} empresas")
+
+                return {
+                    'success': True,
+                    'companies_found': companies_found,
+                    'links_processed': total_links
+                }
+
+            finally:
+                # Limpar driver
+                driver_manager.close_driver()
+
+        except Exception as e:
+            self.logger.error(f"Erro ao processar termo '{term}': {e}")
+            return {'success': False, 'error': str(e)}

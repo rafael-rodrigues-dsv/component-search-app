@@ -1,0 +1,349 @@
+"""
+Application Service: Coordenação de coleta multi-thread
+Responsável por orquestrar múltiplas threads de coleta simultaneamente
+"""
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Optional, Dict, Callable
+
+from src.domain.models.collection_thread_state import CollectionThreadState, CollectionState
+from src.infrastructure.config.config_manager import ConfigManager
+
+
+class MultiThreadCollectionApplicationService:
+    """Service para coordenar coleta multi-thread de empresas"""
+
+    def __init__(self):
+        self.config = ConfigManager()
+        self.state = CollectionState()
+        self.state_lock = threading.Lock()
+        self.db_lock = threading.Lock()  # Lock para operações no banco Access
+
+        # Carregar configurações
+        self.state.max_workers = self.config.get_config_value(
+            'search.multi_threading.max_workers',
+            10
+        )
+        self.queue_check_interval = self.config.get_config_value(
+            'search.multi_threading.queue_check_interval',
+            1.0
+        )
+        self.thread_timeout = self.config.get_config_value(
+            'search.multi_threading.thread_timeout',
+            3600
+        )
+
+        # Callback para atualizar UI (opcional)
+        self.progress_callback: Optional[Callable] = None
+
+    def set_progress_callback(self, callback: Callable):
+        """Define callback para notificar progresso à UI"""
+        self.progress_callback = callback
+
+    def start_collection(self, terms: List[str], browser: str = 'CHROME', engine: str = 'GOOGLE', headless: bool = False) -> Dict:
+        """
+        Inicia coleta multi-thread com os termos fornecidos
+
+        Args:
+            terms: Lista de termos de busca para processar
+            browser: Navegador a usar (CHROME ou BRAVE)
+            engine: Motor de busca (GOOGLE ou DUCKDUCKGO)
+            headless: Se True, executa navegador invisível
+
+        Returns:
+            Dict com status da operação
+        """
+        if not terms:
+            return {
+                'success': False,
+                'message': 'Nenhum termo fornecido para processar'
+            }
+
+        if self.state.is_running:
+            return {
+                'success': False,
+                'message': 'Já existe uma coleta em andamento'
+            }
+
+        # Inicializar estado
+        with self.state_lock:
+            self.state.is_running = True
+            self.state.should_stop = False
+            self.state.pending_terms = terms.copy()
+            self.state.threads.clear()
+            self.state.active_threads = 0
+
+            # Armazenar configurações da UI
+            self.state.browser = browser
+            self.state.engine = engine
+            self.state.headless = headless
+
+        print(f"[MULTI-THREAD] Iniciando com: browser={browser}, engine={engine}, headless={headless}")
+
+        # Calcular número real de threads que serão usadas
+        actual_threads = min(self.state.max_workers, len(terms))
+
+        # Iniciar processamento em background thread
+        collection_thread = threading.Thread(
+            target=self._run_collection_worker,
+            args=(terms,),
+            daemon=True
+        )
+        collection_thread.start()
+
+        return {
+            'success': True,
+            'message': f'Coleta iniciada com {len(terms)} termos',
+            'max_workers': self.state.max_workers,
+            'terms_count': len(terms),
+            'actual_threads': actual_threads  # Número real de threads que serão usadas
+        }
+
+    def _run_collection_worker(self, terms: List[str]):
+        """
+        Worker principal que gerencia o ThreadPoolExecutor
+        Executa em background thread separada
+        """
+        try:
+            # Criar ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=self.state.max_workers) as executor:
+                # Submeter tarefas iniciais (até max_workers)
+                futures = {}
+                thread_counter = 0
+
+                for i, term in enumerate(terms[:self.state.max_workers]):
+                    future = executor.submit(
+                        self._process_term_thread,
+                        term,
+                        thread_counter
+                    )
+                    futures[future] = (thread_counter, term)
+                    thread_counter += 1
+
+                # Termos restantes para adicionar conforme threads terminam
+                remaining_terms = terms[self.state.max_workers:]
+                remaining_index = 0
+
+                # Processar conforme threads terminam
+                for future in as_completed(futures):
+                    thread_id, term = futures[future]
+
+                    # Verificar resultado
+                    try:
+                        result = future.result(timeout=self.thread_timeout)
+
+                        # Atualizar estado da thread
+                        with self.state_lock:
+                            if thread_id in self.state.threads:
+                                if result.get('success'):
+                                    self.state.threads[thread_id].complete()
+                                    self.state.threads[thread_id].companies_found = result.get('companies_found', 0)
+                                elif result.get('stopped'):
+                                    self.state.threads[thread_id].stop()
+                                else:
+                                    self.state.threads[thread_id].error(result.get('error', 'Erro desconhecido'))
+
+                    except Exception as e:
+                        # Marcar thread com erro
+                        with self.state_lock:
+                            if thread_id in self.state.threads:
+                                self.state.threads[thread_id].error(str(e))
+
+                    # Se deve parar, cancelar futures restantes
+                    if self.state.should_stop:
+                        for f in futures:
+                            if not f.done():
+                                f.cancel()
+                        break
+
+                    # Se ainda há termos pendentes, adicionar à fila
+                    if remaining_index < len(remaining_terms):
+                        next_term = remaining_terms[remaining_index]
+                        remaining_index += 1
+
+                        new_future = executor.submit(
+                            self._process_term_thread,
+                            next_term,
+                            thread_counter
+                        )
+                        futures[new_future] = (thread_counter, next_term)
+                        thread_counter += 1
+
+        finally:
+            # Finalizar coleta
+            with self.state_lock:
+                self.state.is_running = False
+                self.state.active_threads = 0
+
+            # Notificar UI
+            if self.progress_callback:
+                self.progress_callback('collection_finished', self.state.to_dict())
+
+    def _process_term_thread(self, term: str, thread_id: int) -> Dict:
+        """
+        Processa um termo em uma thread individual
+
+        Args:
+            term: Termo de busca
+            thread_id: ID único da thread
+
+        Returns:
+            Dict com resultado do processamento
+        """
+        # Criar estado da thread
+        thread_state = CollectionThreadState(
+            thread_id=thread_id,
+            term=term,
+            status='pending'
+        )
+
+        # Registrar thread
+        with self.state_lock:
+            self.state.threads[thread_id] = thread_state
+            self.state.active_threads += 1
+
+        # Iniciar processamento
+        thread_state.start()
+
+        # Notificar UI
+        if self.progress_callback:
+            self.progress_callback('thread_started', thread_state.to_dict())
+
+        try:
+            # Obter configurações da UI do estado global
+            browser = self.state.browser
+            engine = self.state.engine
+            headless = self.state.headless
+
+            print(f"[THREAD-{thread_id}] Aplicando configurações: browser={browser}, engine={engine}, headless={headless}")
+
+            # Aplicar temporariamente a configuração headless no ConfigManager
+            from src.infrastructure.config.config_manager import ConfigManager
+            config = ConfigManager()
+            original_headless = config.get('webdriver.headless', True)
+
+            # Atualizar configuração temporariamente para esta thread
+            config._config['webdriver']['headless'] = headless
+
+            try:
+                # Importar service de coleta
+                from src.application.services.email_application_service import EmailApplicationService
+
+                # Criar instância do service (isolada por thread)
+                # NOTA: Não usamos UserConfigService aqui pois ele pede input do console
+                email_service = EmailApplicationService.__new__(EmailApplicationService)
+
+                # Inicializar manualmente sem chamar __init__ (que pede input)
+                from src.infrastructure.logging.structured_logger import StructuredLogger
+                from src.application.services.database_application_service import DatabaseApplicationService
+                from src.infrastructure.config.config_manager import ConfigManager
+                from src.domain.services.email_domain_service import EmailValidationService
+
+                email_service.logger = StructuredLogger("email_collector")
+                email_service.config = ConfigManager()
+                email_service.performance_tracker = None
+                email_service.db_service = DatabaseApplicationService()
+                email_service.validation_service = EmailValidationService()  # ← CORRIGIDO: estava faltando
+                email_service.browser = browser
+                email_service.search_engine = engine
+                email_service.top_results_total = 999999
+
+                print(f"[THREAD-{thread_id}] Service configurado: browser={browser}, engine={engine}, headless={headless}")
+
+                # Callback para atualizar progresso
+                def update_progress(progress: int, action: str = ""):
+                    thread_state.update_progress(progress, action)
+
+                    # Notificar UI
+                    if self.progress_callback:
+                        self.progress_callback('thread_progress', thread_state.to_dict())
+
+                # Verificar periodicamente se deve parar
+                def should_stop_check() -> bool:
+                    return self.state.should_stop
+
+                # Executar busca com callbacks, passando as configurações
+                result = email_service.collect_single_term_with_callbacks(
+                    term=term,
+                    progress_callback=update_progress,
+                    should_stop_callback=should_stop_check,
+                    db_lock=self.db_lock,
+                    browser=browser,
+                    engine=engine,
+                    headless=headless
+                )
+
+                if self.state.should_stop:
+                    return {'success': False, 'stopped': True}
+
+                return {
+                    'success': True,
+                    'term': term,
+                    'companies_found': result.get('companies_found', 0)
+                }
+
+            finally:
+                # Restaurar configuração original do headless
+                config._config['webdriver']['headless'] = original_headless
+
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+        finally:
+            # Decrementar contador de threads ativas
+            with self.state_lock:
+                self.state.active_threads -= 1
+
+            # Notificar UI
+            if self.progress_callback:
+                self.progress_callback('thread_finished', thread_state.to_dict())
+
+    def stop_collection(self) -> Dict:
+        """
+        Para todas as threads em execução
+
+        Returns:
+            Dict com status da operação
+        """
+        if not self.state.is_running:
+            return {
+                'success': False,
+                'message': 'Nenhuma coleta em andamento'
+            }
+
+        # Sinalizar parada
+        with self.state_lock:
+            self.state.should_stop = True
+
+        # Aguardar threads finalizarem (timeout 30s)
+        timeout = 30
+        start_time = time.time()
+
+        while self.state.active_threads > 0:
+            if time.time() - start_time > timeout:
+                break
+            time.sleep(0.5)
+
+        return {
+            'success': True,
+            'message': 'Coleta interrompida',
+            'threads_stopped': len([t for t in self.state.threads.values() if t.status == 'stopped'])
+        }
+
+    def get_collection_status(self) -> Dict:
+        """
+        Retorna status atual da coleta
+
+        Returns:
+            Dict com estado completo da coleta
+        """
+        with self.state_lock:
+            return self.state.to_dict()
+
+    def is_running(self) -> bool:
+        """Verifica se há coleta em andamento"""
+        return self.state.is_running

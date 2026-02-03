@@ -17,6 +17,8 @@ class StatisticsRepository:
             total_termos = cursor.fetchone()[0]
             cursor.execute("SELECT COUNT(*) FROM TB_TERMOS_BUSCA WHERE STATUS_PROCESSAMENTO = 'CONCLUIDO'")
             termos_concluidos = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM TB_TERMOS_BUSCA WHERE STATUS_PROCESSAMENTO = 'PENDENTE'")
+            termos_pendentes = cursor.fetchone()[0]
             cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS")
             total_empresas = cursor.fetchone()[0]
             cursor.execute("SELECT COUNT(*) FROM TB_EMPRESAS WHERE STATUS_COLETA = 'COLETADO'")
@@ -32,7 +34,7 @@ class StatisticsRepository:
             return {
                 'termos_total': total_termos,
                 'termos_concluidos': termos_concluidos,
-                'termos_pendentes': total_termos - termos_concluidos,
+                'termos_pendentes': termos_pendentes,
                 'empresas_total': total_empresas,
                 'empresas_coletadas': empresas_coletadas,
                 'emails_total': total_emails,
