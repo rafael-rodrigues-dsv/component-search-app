@@ -73,7 +73,7 @@ class CollectionState:
 
     is_running: bool = False
     should_stop: bool = False
-    max_workers: int = 10
+    max_workers: int = 0  # Deve ser configurado via ConfigManager (search.multi_threading.max_workers)
     threads: dict = field(default_factory=dict)  # {thread_id: CollectionThreadState}
     pending_terms: list = field(default_factory=list)
     active_threads: int = 0

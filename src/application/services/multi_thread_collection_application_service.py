@@ -125,56 +125,78 @@ class MultiThreadCollectionApplicationService:
                 remaining_terms = terms[self.state.max_workers:]
                 remaining_index = 0
 
+                print(f"[MULTI-THREAD] {len(futures)} threads iniciais criadas, {len(remaining_terms)} termos na fila")
+
                 # Processar conforme threads terminam
-                for future in as_completed(futures):
-                    thread_id, term = futures[future]
+                # Usar um set separado para rastrear todos os futures
+                all_futures = set(futures.keys())
 
-                    # Verificar resultado
-                    try:
-                        result = future.result(timeout=self.thread_timeout)
+                while all_futures:
+                    # Aguardar conclusão de qualquer future
+                    done_futures = set()
+                    for future in as_completed(all_futures):
+                        done_futures.add(future)
 
-                        # Atualizar estado da thread
-                        with self.state_lock:
-                            if thread_id in self.state.threads:
-                                if result.get('success'):
-                                    self.state.threads[thread_id].complete()
-                                    self.state.threads[thread_id].companies_found = result.get('companies_found', 0)
-                                elif result.get('stopped'):
-                                    self.state.threads[thread_id].stop()
-                                else:
-                                    self.state.threads[thread_id].error(result.get('error', 'Erro desconhecido'))
+                        thread_id, term = futures[future]
 
-                    except Exception as e:
-                        # Marcar thread com erro
-                        with self.state_lock:
-                            if thread_id in self.state.threads:
-                                self.state.threads[thread_id].error(str(e))
+                        # Verificar resultado
+                        try:
+                            result = future.result(timeout=self.thread_timeout)
 
-                    # Se deve parar, cancelar futures restantes
-                    if self.state.should_stop:
-                        for f in futures:
-                            if not f.done():
-                                f.cancel()
+                            # Atualizar estado da thread
+                            with self.state_lock:
+                                if thread_id in self.state.threads:
+                                    if result.get('success'):
+                                        self.state.threads[thread_id].complete()
+                                        self.state.threads[thread_id].companies_found = result.get('companies_found', 0)
+                                    elif result.get('stopped'):
+                                        self.state.threads[thread_id].stop()
+                                    else:
+                                        self.state.threads[thread_id].error(result.get('error', 'Erro desconhecido'))
+
+                        except Exception as e:
+                            # Marcar thread com erro
+                            with self.state_lock:
+                                if thread_id in self.state.threads:
+                                    self.state.threads[thread_id].error(str(e))
+
+                        # Se deve parar, cancelar futures restantes
+                        if self.state.should_stop:
+                            for f in all_futures:
+                                if not f.done():
+                                    f.cancel()
+                            all_futures.clear()
+                            break
+
+                        # Se ainda há termos pendentes, adicionar à fila
+                        if remaining_index < len(remaining_terms) and not self.state.should_stop:
+                            next_term = remaining_terms[remaining_index]
+                            remaining_index += 1
+
+                            new_future = executor.submit(
+                                self._process_term_thread,
+                                next_term,
+                                thread_counter
+                            )
+                            futures[new_future] = (thread_counter, next_term)
+                            all_futures.add(new_future)  # Adicionar ao set de futures ativos
+                            thread_counter += 1
+
+                            print(f"[MULTI-THREAD] Thread concluída. Adicionando novo termo: {next_term} (total: {remaining_index}/{len(remaining_terms)} restantes)")
+
+                        # Processar apenas o primeiro future completo e então verificar novos
                         break
 
-                    # Se ainda há termos pendentes, adicionar à fila
-                    if remaining_index < len(remaining_terms):
-                        next_term = remaining_terms[remaining_index]
-                        remaining_index += 1
-
-                        new_future = executor.submit(
-                            self._process_term_thread,
-                            next_term,
-                            thread_counter
-                        )
-                        futures[new_future] = (thread_counter, next_term)
-                        thread_counter += 1
+                    # Remover futures concluídos do set
+                    all_futures -= done_futures
 
         finally:
             # Finalizar coleta
             with self.state_lock:
                 self.state.is_running = False
                 self.state.active_threads = 0
+
+            print(f"[MULTI-THREAD] Coleta finalizada. Total de termos processados: {thread_counter}")
 
             # Notificar UI
             if self.progress_callback:
@@ -205,6 +227,8 @@ class MultiThreadCollectionApplicationService:
 
         # Iniciar processamento
         thread_state.start()
+
+        print(f"[THREAD-{thread_id}] Iniciando processamento do termo: {term}")
 
         # Notificar UI
         if self.progress_callback:
