@@ -31,10 +31,10 @@ def verificar_versao_python():
 
 def verificar_dependencias():
     """Verifica se as dependências estão instaladas e retorna lista de faltantes"""
-    # Mapeamento: nome_pacote -> nome_import
     dependencias = {
         'selenium': 'selenium',
-        'openpyxl': 'openpyxl', 
+        'playwright': 'playwright.sync_api',
+        'openpyxl': 'openpyxl',
         'tldextract': 'tldextract',
         'requests': 'requests',
         'pyodbc': 'pyodbc',
@@ -77,6 +77,7 @@ def instalar_dependencias(faltantes):
     # Mapeamento para versões específicas
     versoes = {
         'selenium': 'selenium>=4.0.0',
+        'playwright': 'playwright>=1.40.0',
         'openpyxl': 'openpyxl>=3.0.0',
         'tldextract': 'tldextract>=3.0.0',
         'requests': 'requests>=2.25.0',
@@ -150,6 +151,61 @@ def instalar_dependencias(faltantes):
         return False
 
 
+def instalar_playwright_browser():
+    """Instala browser Chromium do Playwright se necessário"""
+    try:
+        print("\n[INFO] Verificando Playwright...")
+
+        result = subprocess.run(
+            [sys.executable, '-m', 'playwright', 'install', '--help'],
+            capture_output=True,
+            timeout=5
+        )
+
+        if result.returncode != 0:
+            print("[INFO] Playwright não configurado, pulando instalação do browser...")
+            return True
+
+        print("[INFO] Verificando browser Chromium...")
+        check_result = subprocess.run(
+            [sys.executable, '-c',
+             "from playwright.sync_api import sync_playwright; "
+             "p = sync_playwright().start(); "
+             "p.chromium.launch(); "
+             "p.stop()"],
+            capture_output=True,
+            timeout=10
+        )
+
+        if check_result.returncode == 0:
+            print("[OK] Browser Chromium já instalado")
+            return True
+
+        print("[INFO] Instalando browser Chromium do Playwright (primeira vez, ~100MB)...")
+        print("[INFO] Isso pode levar 1-2 minutos...")
+
+        install_result = subprocess.run(
+            [sys.executable, '-m', 'playwright', 'install', 'chromium'],
+            capture_output=False,
+            timeout=300
+        )
+
+        if install_result.returncode == 0:
+            print("[OK] Browser Chromium instalado com sucesso!")
+            return True
+        else:
+            print("[AVISO] Falha ao instalar Chromium, mas Playwright funcionará quando necessário")
+            return True
+
+    except subprocess.TimeoutExpired:
+        print("[AVISO] Timeout ao verificar Playwright, continuando...")
+        return True
+    except Exception as e:
+        print(f"[AVISO] Erro ao verificar Playwright: {e}")
+        print("[INFO] Playwright será configurado quando necessário")
+        return True
+
+
 if __name__ == "__main__":
     print("🐍 Verificador de Instalação Python")
     print("=" * 40)
@@ -166,5 +222,8 @@ if __name__ == "__main__":
         if not instalar_dependencias(faltantes):
             print("\n[ERRO] Falha na instalação de dependências")
             sys.exit(1)
+
+    # Verificar e instalar browser Playwright
+    instalar_playwright_browser()
 
     print("\n✅ Python e dependências OK!")

@@ -263,17 +263,34 @@ class MultiThreadCollectionApplicationService:
                 from src.application.services.database_application_service import DatabaseApplicationService
                 from src.infrastructure.config.config_manager import ConfigManager
                 from src.domain.services.email_domain_service import EmailValidationService
+                from src.infrastructure.drivers.playwright_manager import PlaywrightManager
 
                 email_service.logger = StructuredLogger("email_collector")
                 email_service.config = ConfigManager()
                 email_service.performance_tracker = None
                 email_service.db_service = DatabaseApplicationService()
-                email_service.validation_service = EmailValidationService()  # ← CORRIGIDO: estava faltando
+                email_service.validation_service = EmailValidationService()
+                email_service.playwright_manager = PlaywrightManager(
+                    headless=headless,
+                    browser_type=browser  # CHROME, BRAVE, etc.
+                )
                 email_service.browser = browser
                 email_service.search_engine = engine
                 email_service.top_results_total = 999999
 
+                # Configurar scraper baseado no engine
+                from src.infrastructure.scrapers.google_scraper_playwright import GoogleScraperPlaywright
+                from src.infrastructure.scrapers.duckduckgo_scraper_playwright import DuckDuckGoScraperPlaywright
+
+                if engine == "GOOGLE":
+                    email_service.scraper = GoogleScraperPlaywright(None)
+                    print(f"[THREAD-{thread_id}] ✅ Google Scraper Playwright configurado")
+                else:
+                    email_service.scraper = DuckDuckGoScraperPlaywright(None)
+                    print(f"[THREAD-{thread_id}] ✅ DuckDuckGo Scraper Playwright configurado")
+
                 print(f"[THREAD-{thread_id}] Service configurado: browser={browser}, engine={engine}, headless={headless}")
+                print(f"[THREAD-{thread_id}] 🎭 Playwright Manager: {type(email_service.playwright_manager).__name__}")
 
                 # Callback para atualizar progresso
                 def update_progress(progress: int, action: str = ""):

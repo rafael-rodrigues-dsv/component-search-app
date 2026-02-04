@@ -21,11 +21,11 @@ from ...domain.services.email_domain_service import (
     EmailCollectorInterface, EmailValidationService
 )
 from ...infrastructure.config.config_manager import ConfigManager
-from ...infrastructure.drivers.web_driver import WebDriverManager
+from ...infrastructure.drivers.playwright_manager import PlaywrightManager
 from ...infrastructure.logging.structured_logger import StructuredLogger
 from ...infrastructure.metrics.performance_tracker import PerformanceTracker
-from ...infrastructure.scrapers.duckduckgo_scraper import DuckDuckGoScraper
-from ...infrastructure.scrapers.google_scraper import GoogleScraper
+from ...infrastructure.scrapers.duckduckgo_scraper_playwright import DuckDuckGoScraperPlaywright
+from ...infrastructure.scrapers.google_scraper_playwright import GoogleScraperPlaywright
 from .robot_controller_application_service import is_stop_requested
 
 
@@ -47,27 +47,22 @@ class EmailApplicationService(EmailCollectorInterface):
         self.top_results_total: int = UserConfigApplicationService.get_processing_mode()
 
         # Inicialização de componentes DEPOIS dos inputs
-        self.driver_manager: WebDriverManager = WebDriverManager()
+        headless_mode = self.config.get('webdriver.headless', True)
+        self.playwright_manager: PlaywrightManager = PlaywrightManager(headless=headless_mode)
         self.scraper: ScraperProtocol = self._setup_scraper()
         self._setup_services()
 
     def _setup_scraper(self) -> ScraperProtocol:
         """Configura scraper baseado na escolha do usuário"""
-        # Configurar navegador
-        if self.browser == "BRAVE":
-            self.driver_manager.browser = "brave"
-            browser_name = "Brave"
-        else:
-            self.driver_manager.browser = "chrome"
-            browser_name = "Chrome"
+        browser_name = "Chromium (Playwright)"
 
         # Configurar motor de busca
         if self.search_engine == "GOOGLE":
             self.logger.info(f"Usando Google com {browser_name}", engine="Google", browser=browser_name)
-            return GoogleScraper(None)
+            return GoogleScraperPlaywright(None)
         else:
             self.logger.info(f"Usando DuckDuckGo com {browser_name}", engine="DuckDuckGo", browser=browser_name)
-            return DuckDuckGoScraper(self.driver_manager)
+            return DuckDuckGoScraperPlaywright(None)
 
     def _setup_services(self) -> None:
         """Configura serviços de domínio"""
@@ -76,14 +71,17 @@ class EmailApplicationService(EmailCollectorInterface):
     def execute(self) -> bool:
         """Executa coleta completa de e-mails"""
         try:
-            self.logger.debug("Tentando iniciar driver do navegador...")
-            if not self.driver_manager.start_driver():
-                self.logger.error("Falha ao iniciar driver (WebDriverManager.start_driver returned False)")
-                return False
-            self.logger.debug("Driver iniciado com sucesso")
+            self.logger.debug("Tentando iniciar Playwright...")
+            self.playwright_manager.start()
+            page = self.playwright_manager.get_page()
 
-            if self.search_engine == "GOOGLE":
-                self.scraper.driver = self.driver_manager.driver
+            if not page:
+                self.logger.error("Falha ao iniciar Playwright")
+                return False
+            self.logger.debug("Playwright iniciado com sucesso")
+
+            # Configurar scraper com a página
+            self.scraper.page = page
 
             # Obter termos do banco
             # Garantir que os termos estejam inicializados no banco
@@ -118,7 +116,7 @@ class EmailApplicationService(EmailCollectorInterface):
             return result.success
 
         finally:
-            self.driver_manager.close_driver()
+            self.playwright_manager.stop()
 
     def collect_emails(self, terms: List[SearchTermModel], terms_data: List[Dict]) -> CollectionResultModel:
         """Coleta e-mails usando termos de busca"""
@@ -358,23 +356,24 @@ class EmailApplicationService(EmailCollectorInterface):
         return success
 
     def _check_driver_health(self) -> bool:
-        """Verifica se o driver ainda está ativo"""
+        """Verifica se o Playwright ainda está ativo"""
         try:
-            if not self.driver_manager.driver:
+            page = self.playwright_manager.get_page()
+            if not page:
                 return False
-            # Tenta executar comando simples
-            self.driver_manager.driver.current_url
+            page.url
             return True
         except Exception:
             return False
 
     def _restart_driver(self) -> bool:
-        """Reinicia o driver"""
+        """Reinicia o Playwright"""
         try:
-            self.driver_manager.close_driver()
-            if self.driver_manager.start_driver():
-                if self.search_engine == "GOOGLE":
-                    self.scraper.driver = self.driver_manager.driver
+            self.playwright_manager.stop()
+            self.playwright_manager.start()
+            page = self.playwright_manager.get_page()
+            if page:
+                self.scraper.page = page
                 return True
             return False
         except Exception:
@@ -456,23 +455,29 @@ class EmailApplicationService(EmailCollectorInterface):
             actual_browser = browser if browser is not None else self.browser
             actual_engine = engine if engine is not None else self.search_engine
 
-            # Criar instância própria do driver (isolado por thread)
-            driver_manager = WebDriverManager()
+            print(f"[PLAYWRIGHT] 🎭 Inicializando Playwright (browser={actual_browser}, headless={headless})...")
 
-            # Configurar browser
-            if actual_browser == "BRAVE":
-                driver_manager.browser = "brave"
-            else:
-                driver_manager.browser = "chrome"
+            # Criar instância própria do Playwright (isolado por thread)
+            playwright_manager = PlaywrightManager(
+                headless=headless if headless is not None else True,
+                browser_type=actual_browser  # CHROME, BRAVE, etc.
+            )
+            playwright_manager.start()
+            page = playwright_manager.get_page()
 
-            if not driver_manager.start_driver():
-                return {'success': False, 'error': 'Falha ao iniciar driver'}
+            if not page:
+                print(f"[PLAYWRIGHT] ❌ Falha ao obter página!")
+                return {'success': False, 'error': 'Falha ao iniciar Playwright'}
+
+            print(f"[PLAYWRIGHT] ✅ Playwright iniciado com sucesso!")
 
             # Criar scraper isolado baseado no engine escolhido
             if actual_engine == "GOOGLE":
-                scraper = GoogleScraper(driver_manager.driver)
+                scraper = GoogleScraperPlaywright(page)
+                print(f"[PLAYWRIGHT] ✅ Google Scraper Playwright criado")
             else:
-                scraper = DuckDuckGoScraper(driver_manager)
+                scraper = DuckDuckGoScraperPlaywright(page)
+                print(f"[PLAYWRIGHT] ✅ DuckDuckGo Scraper Playwright criado")
 
             try:
                 # Notificar início
@@ -583,8 +588,7 @@ class EmailApplicationService(EmailCollectorInterface):
                 }
 
             finally:
-                # Limpar driver
-                driver_manager.close_driver()
+                playwright_manager.stop()
 
         except Exception as e:
             self.logger.error(f"Erro ao processar termo '{term}': {e}")
