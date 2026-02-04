@@ -5,7 +5,7 @@ app:
 search:
   # Configuração de multi-threading
   multi_threading:
-    enabled: true
+    enabled: false
     max_workers: 5  # Máximo de threads simultâneas
     queue_check_interval: 1.0  # Intervalo para verificar fila (segundos)
     thread_timeout: 3600  # Timeout por thread (segundos)
@@ -160,4 +160,67 @@ geographic_discovery:
       - "94"    # Porto Alegre - RS (região metropolitana)
       - "95"    # Porto Alegre - RS (região metropolitana)
       - "96"    # Porto Alegre - RS (região metropolitana)
+
+# ========================================
+# SCRAPER INTELLIGENT SYSTEM V2
+# ========================================
+scraper:
+  # Flag principal - Habilita o sistema inteligente de scraping
+  # true = usa novo scraper V2 para TODOS os engines
+  # false = usa apenas scraper legado para TODOS
+  use_intelligent_scraper: true
+
+  # Rollout gradual (A/B testing)
+  # 0 = ninguém usa novo (apenas legado)
+  # 10 = 10% usa novo, 90% usa legado
+  # 100 = todos usam novo
+  rollout_percentage: 0
+
+  # Fallback automático
+  fallback_to_legacy_on_error: true
+  new_scraper_timeout_seconds: 10
+
+  # Modo comparação (validação) - executa ambos e compara
+  # ATENÇÃO: Dobra o tempo! Usar apenas em testes
+  comparison_mode: false
+
+  # Logging detalhado
+  verbose_logging: true
+
+  # ==========================================
+  # 🆕 MODO HEADLESS / VISUAL
+  # ==========================================
+  # headless: true = navegador invisível (mais rápido, menos recursos)
+  # headless: false = navegador visível (ver o que está acontecendo)
+  #
+  # RECOMENDADO:
+  # - Produção: true (invisível, performance máxima)
+  # - Debug/Teste: false (visível, para ver problemas)
+  headless: true
+
+  # Show browser quando usar Playwright (apenas se headless=false)
+  show_browser_actions: false
+
+  # Budgets por tipo de site (tempo, páginas, requisições)
+  budgets:
+    static_single_page:
+      max_time_seconds: 2
+      max_pages: 1
+      max_requests: 1
+
+    corporate_multi_page:
+      max_time_seconds: 5
+      max_pages: 3
+      max_requests: 4
+
+    business_directory:
+      max_time_seconds: 15
+      max_pages: 10
+      max_requests: 12
+
+  # Thresholds de classificação
+  classification:
+    repetition_threshold: 10        # Padrão de lista (repetições DOM)
+    link_density_threshold: 0.3     # Densidade de links (0-1)
+    navigation_links_threshold: 3   # Links de navegação mínimos
 

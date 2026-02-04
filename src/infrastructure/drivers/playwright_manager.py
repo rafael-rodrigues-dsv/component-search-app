@@ -70,6 +70,9 @@ class PlaywrightManager:
         """Inicializa Playwright com anti-detecção"""
         self._ensure_browser_installed()
 
+        # 🔍 LOG DETALHADO para debug
+        print(f"🔍 [PLAYWRIGHT DEBUG] Iniciando browser com headless={self.headless}, browser_type={self.browser_type}")
+
         self.playwright = sync_playwright().start()
 
         browser_launcher = getattr(self.playwright, self.browser_type)
@@ -81,12 +84,16 @@ class PlaywrightManager:
                 '--no-sandbox',
                 '--disable-gpu',
                 '--disable-web-security',
-                '--disable-features=IsolateOrigins,site-per-process'
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--start-maximized',  # ✅ Maximizar janela
+                '--window-size=1920,1080'  # ✅ Tamanho inicial grande
             ]
         )
 
+        # ✅ Usar no_viewport para permitir maximização completa
+        # (viewport fixo impede que a janela maximize corretamente)
         self.context = self.browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
+            no_viewport=True,  # ✅ Permite janela maximizada real
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             locale='pt-BR',
             timezone_id='America/Sao_Paulo',

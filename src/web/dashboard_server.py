@@ -426,6 +426,24 @@ class DashboardServer:
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
+        @self.app.route('/api/config/multi-thread', methods=['GET'])
+        def get_multi_thread_config():
+            """Retorna configuração de multi-threading do application.yaml"""
+            try:
+                from src.infrastructure.config.config_manager import ConfigManager
+                config = ConfigManager()
+
+                multi_thread_enabled = config.get_config_value('search.multi_threading.enabled', False)
+                max_workers = config.get_config_value('search.multi_threading.max_workers', 5)
+
+                return jsonify({
+                    'success': True,
+                    'enabled': bool(multi_thread_enabled),
+                    'max_workers': max_workers
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
         # Páginas adicionais (configuração e execução)
         @self.app.route('/config/terms')
         def page_config_terms():
@@ -605,7 +623,7 @@ class DashboardServer:
             try:
                 from flask import request
                 from src.application.services.companies_application_service import CompaniesApplicationService
-                svc = CompaniesApplicationService
+                svc = CompaniesApplicationService()
                 term_id = request.args.get('term_id')
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
@@ -620,8 +638,8 @@ class DashboardServer:
         def api_emails():
             try:
                 from flask import request
-                from src.application.services.email_application_service import EmailApplicationService
-                svc = EmailApplicationService()
+                from src.application.services.company_search_application_service import CompanySearchApplicationService
+                svc = CompanySearchApplicationService()
                 empresa_id = request.args.get('empresa_id')
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
@@ -649,7 +667,7 @@ class DashboardServer:
             try:
                 from src.application.services.cep_enrichment_application_service import CepEnrichmentApplicationService
                 from flask import request
-                svc = CepEnrichmentApplicationService
+                svc = CepEnrichmentApplicationService()
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
                 return jsonify(svc.get_paginated_tasks(limit=limit, offset=offset))
@@ -661,7 +679,7 @@ class DashboardServer:
             try:
                 from src.application.services.geolocation_application_service import GeolocationApplicationService
                 from flask import request
-                svc = GeolocationApplicationService
+                svc = GeolocationApplicationService()  # Instanciar
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
                 return jsonify(svc.get_paginated_geolocations(limit=limit, offset=offset))
@@ -695,7 +713,7 @@ class DashboardServer:
                 return jsonify({'success': False, 'message': str(e)}), 500
 
         # ===== EXECUÇÃO DO ROBÔ =====
-        # Runner simples que executa EmailApplicationService.execute() em background
+        # Runner simples que executa CompanySearchApplicationService.execute() em background
         class RobotRunner:
             def __init__(self, socketio):
                 self.socketio = socketio
@@ -741,8 +759,8 @@ class DashboardServer:
 
                         # Escolher serviço baseado no job
                         if self.current_job == 'coleta':
-                            from src.application.services.email_application_service import EmailApplicationService
-                            service = EmailApplicationService()
+                            from src.application.services.company_search_application_service import CompanySearchApplicationService
+                            service = CompanySearchApplicationService()
                             try:
                                 ok = service.execute()
                                 if not ok:
@@ -752,7 +770,7 @@ class DashboardServer:
                                     except Exception:
                                         tb = None
                                     try:
-                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'EmailApplicationService.execute returned False', 'trace': tb})
+                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'CompanySearchApplicationService.execute returned False', 'trace': tb})
                                     except Exception:
                                         pass
                             except Exception as e:
@@ -800,13 +818,13 @@ class DashboardServer:
 
                         else:
                             # Default para coleta
-                            from src.application.services.email_application_service import EmailApplicationService
-                            service = EmailApplicationService
+                            from src.application.services.company_search_application_service import CompanySearchApplicationService
+                            service = CompanySearchApplicationService()
                             try:
                                 ok = service.execute()
                                 if not ok:
                                     try:
-                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'Default EmailApplicationService.execute returned False'})
+                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'Default CompanySearchApplicationService.execute returned False'})
                                     except Exception:
                                         pass
                             except Exception as e:
@@ -855,6 +873,10 @@ class DashboardServer:
                 engine = payload.get('engine')
                 # Parâmetro headless vindo da UI (True/False). Pode ser string 'true'/'false' também.
                 headless = payload.get('headless', None)
+
+                # 🔍 LOG DETALHADO para debug
+                print(f"🔍 [DASHBOARD DEBUG] Payload recebido: browser={browser}, engine={engine}, headless={headless} (type={type(headless).__name__})")
+
                 try:
                     from src.application.services.user_config_application_service import UserConfigApplicationService
                     if browser:
@@ -868,6 +890,7 @@ class DashboardServer:
                             val = headless.lower() in ('1', 'true', 'yes', 'y')
                         else:
                             val = bool(headless)
+                        print(f"🔍 [DASHBOARD DEBUG] Definindo headless={val} (convertido de {headless})")
                         UserConfigApplicationService.set_headless(val)
                 except Exception:
                     pass
@@ -914,6 +937,17 @@ class DashboardServer:
         def api_collection_start_multi():
             """Inicia coleta multi-thread"""
             try:
+                # ✅ Verificar se multi-threading está habilitado no application.yaml
+                from src.infrastructure.config.config_manager import ConfigManager
+                config = ConfigManager()
+                multi_threading_enabled = config.get_config_value('search.multi_threading.enabled', False)
+
+                if not multi_threading_enabled:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Multi-threading está desabilitado no application.yaml. Configure search.multi_threading.enabled: true para usar esta funcionalidade.'
+                    }), 400
+
                 # Obter configurações da requisição
                 data = request.get_json() or {}
                 browser = data.get('browser', 'CHROME')

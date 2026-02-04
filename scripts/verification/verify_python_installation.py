@@ -40,7 +40,9 @@ def verificar_dependencias():
         'pyodbc': 'pyodbc',
         'pyyaml': 'yaml',
         'flask': 'flask',
-        'flask-socketio': 'flask_socketio'
+        'flask-socketio': 'flask_socketio',
+        'beautifulsoup4': 'bs4',  # 🆕 Para parsing HTML (FastPath, DOM Analyzer)
+        'lxml': 'lxml'  # 🆕 Parser rápido para BeautifulSoup
     }
 
     # Adicionar pywin32 apenas no Windows
@@ -85,7 +87,9 @@ def instalar_dependencias(faltantes):
         'flask': 'flask>=3.0.0',
         'flask-socketio': 'flask-socketio>=5.3.0',
         'pyodbc': 'pyodbc>=4.0.0',
-        'pywin32': 'pywin32>=306'
+        'pywin32': 'pywin32>=306',
+        'beautifulsoup4': 'beautifulsoup4>=4.12.0',  # 🆕 Para parsing HTML
+        'lxml': 'lxml>=4.9.0'  # 🆕 Parser rápido
     }
 
     try:

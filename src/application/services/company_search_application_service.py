@@ -26,15 +26,16 @@ from ...infrastructure.logging.structured_logger import StructuredLogger
 from ...infrastructure.metrics.performance_tracker import PerformanceTracker
 from ...infrastructure.scrapers.duckduckgo_scraper_playwright import DuckDuckGoScraperPlaywright
 from ...infrastructure.scrapers.google_scraper_playwright import GoogleScraperPlaywright
+from ...infrastructure.scrapers.switcher.scraper_switcher import ScraperSwitcher  # 🆕 CHAVEAMENTO
 from .robot_controller_application_service import is_stop_requested
 
 
-class EmailApplicationService(EmailCollectorInterface):
-    """Serviço de aplicação do PythonSearchApp coletor de e-mails"""
+class CompanySearchApplicationService(EmailCollectorInterface):
+    """Serviço de aplicação para busca e coleta de dados de empresas (emails, telefones, endereços)"""
 
     def __init__(self) -> None:
         # Logger estruturado e métricas
-        self.logger = StructuredLogger("email_collector")
+        self.logger = StructuredLogger("company_search_collector")
         self.config = ConfigManager()
         self.performance_tracker = PerformanceTracker() if self.config.performance_tracking_enabled else None
 
@@ -46,77 +47,131 @@ class EmailApplicationService(EmailCollectorInterface):
         self.search_engine: str = UserConfigApplicationService.get_search_engine()
         self.top_results_total: int = UserConfigApplicationService.get_processing_mode()
 
+        # 🆕 Obter headless da ESCOLHA DO USUÁRIO (não do config)
+        user_headless = UserConfigApplicationService.get_headless()
+        # Se usuário não escolheu (None), usar padrão do config
+        self.headless_mode = user_headless if user_headless is not None else self.config.get('webdriver.headless', True)
+
+        # 🔍 LOG DETALHADO para debug
+        self.logger.info(f"🔍 [HEADLESS DEBUG] user_headless={user_headless}, config_default={self.config.get('webdriver.headless', True)}, FINAL headless_mode={self.headless_mode}")
+        print(f"🔍 [HEADLESS DEBUG] user_headless={user_headless}, config_default={self.config.get('webdriver.headless', True)}, FINAL headless_mode={self.headless_mode}")
+
+        # 🆕 Chaveamento inteligente legado/novo
+        self.scraper_switcher = ScraperSwitcher()
+
         # Inicialização de componentes DEPOIS dos inputs
-        headless_mode = self.config.get('webdriver.headless', True)
-        self.playwright_manager: PlaywrightManager = PlaywrightManager(headless=headless_mode)
+        # 🆕 Usar self.headless_mode (escolha do usuário)
+        self.playwright_manager: PlaywrightManager = PlaywrightManager(headless=self.headless_mode)
         self.scraper: ScraperProtocol = self._setup_scraper()
         self._setup_services()
 
     def _setup_scraper(self) -> ScraperProtocol:
-        """Configura scraper baseado na escolha do usuário"""
+        """Configura scraper baseado na escolha do usuário COM CHAVEAMENTO"""
         browser_name = "Chromium (Playwright)"
 
-        # Configurar motor de busca
+        # ⚠️ Nota: O page será configurado depois no execute()
+        # Por enquanto retornamos None como placeholder
+
+        # Configurar motor de busca com chaveamento
         if self.search_engine == "GOOGLE":
-            self.logger.info(f"Usando Google com {browser_name}", engine="Google", browser=browser_name)
-            return GoogleScraperPlaywright(None)
+            self.logger.info(f"Usando Google com {browser_name} (chaveamento ativo)",
+                           engine="Google", browser=browser_name)
+            # 🆕 Retornar None, será criado via switcher no execute()
+            return None
         else:
-            self.logger.info(f"Usando DuckDuckGo com {browser_name}", engine="DuckDuckGo", browser=browser_name)
-            return DuckDuckGoScraperPlaywright(None)
+            self.logger.info(f"Usando DuckDuckGo com {browser_name} (chaveamento ativo)",
+                           engine="DuckDuckGo", browser=browser_name)
+            # 🆕 Retornar None, será criado via switcher no execute()
+            return None
 
     def _setup_services(self) -> None:
         """Configura serviços de domínio"""
         self.validation_service: EmailValidationService = EmailValidationService()
 
     def execute(self) -> bool:
-        """Executa coleta completa de e-mails"""
+        """Executa coleta completa de e-mails COM CHAVEAMENTO"""
         try:
+            print("🔍 [EXECUTE] Passo 1: Iniciando Playwright...")
             self.logger.debug("Tentando iniciar Playwright...")
             self.playwright_manager.start()
             page = self.playwright_manager.get_page()
 
             if not page:
+                print("❌ [EXECUTE] ERRO: Falha ao obter page do Playwright")
                 self.logger.error("Falha ao iniciar Playwright")
                 return False
+            print("✅ [EXECUTE] Passo 2: Playwright iniciado com sucesso")
             self.logger.debug("Playwright iniciado com sucesso")
 
-            # Configurar scraper com a página
-            self.scraper.page = page
+            # 🆕 CHAVEAMENTO: Criar scraper via switcher baseado em application.yaml
+            print(f"🔍 [EXECUTE] Passo 3: Configurando scraper (engine={self.search_engine})...")
+            if self.search_engine == "GOOGLE":
+                self.scraper = self.scraper_switcher.get_google_scraper(page)
+                print(f"✅ [EXECUTE] Passo 3a: Scraper Google criado: {type(self.scraper).__name__}")
+                self.logger.info("Scraper Google configurado via switcher", engine="Google")
+            else:
+                # DuckDuckGo ainda usa implementação legado direta (sem chaveamento por enquanto)
+                self.scraper = DuckDuckGoScraperPlaywright(None)
+                self.scraper.page = page  # Configurar page
+                print(f"✅ [EXECUTE] Passo 3b: Scraper DuckDuckGo criado")
+                self.logger.info("Scraper DuckDuckGo (legado) configurado", engine="DuckDuckGo")
 
             # Obter termos do banco
             # Garantir que os termos estejam inicializados no banco
+            print("🔍 [EXECUTE] Passo 4: Inicializando termos de busca...")
             try:
                 initialized = self.db_service.initialize_search_terms()
+                print(f"✅ [EXECUTE] Passo 4a: Termos inicializados: {initialized}")
                 self.logger.info(f"Termos inicializados: {initialized}")
-            except Exception:
+            except Exception as e:
+                print(f"⚠️ [EXECUTE] Passo 4a: Falha ao inicializar termos: {e}")
                 self.logger.warning("Falha ao inicializar termos dinamicamente; prosseguindo com termos existentes no banco")
 
+            print("🔍 [EXECUTE] Passo 5: Obtendo termos do banco...")
             terms_data = self.db_service.get_search_terms()
             if not terms_data:
+                print("❌ [EXECUTE] ERRO: Nenhum termo de busca encontrado!")
                 self.logger.error("Nenhum termo de busca encontrado - abortando execução")
                 # Emit extra debug: try to query count directly from domain service
                 try:
                     cnt = self.db_service.domain_service.count_total_search_terms()
+                    print(f"🔍 [EXECUTE] Debug: DomainService count={cnt}")
                     self.logger.debug(f"DomainService reports total_terms={cnt}")
                 except Exception as ex:
+                    print(f"🔍 [EXECUTE] Debug: Erro ao contar termos: {ex}")
                     self.logger.debug(f"Erro ao obter count_total_search_terms: {ex}")
                 return False
 
+            print(f"✅ [EXECUTE] Passo 5: Obtidos {len(terms_data)} termos")
             # Log summary of terms retrieved (first 3) for debugging
             try:
                 sample = terms_data[:3]
+                print(f"🔍 [EXECUTE] Amostra de termos: {sample}")
                 self.logger.debug(f"Obtidos {len(terms_data)} termos para processamento. Amostra: {sample}")
             except Exception:
                 pass
 
+            print("🔍 [EXECUTE] Passo 6: Convertendo para SearchTermModel...")
             # Converter para SearchTermModel
             terms = [SearchTermModel(query=t['termo'], location='São Paulo', category='elevadores', pages=3) for t in
                      terms_data]
+            print(f"✅ [EXECUTE] Passo 6: {len(terms)} termos convertidos")
+
+            print("🔍 [EXECUTE] Passo 7: Iniciando collect_emails()...")
             result = self.collect_emails(terms, terms_data)
+            print(f"✅ [EXECUTE] Passo 7: collect_emails() concluído - success={result.success}")
             return result.success
 
+        except Exception as e:
+            print(f"❌ [EXECUTE] EXCEÇÃO CAPTURADA: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+
         finally:
+            print("🔍 [EXECUTE] FINALLY: Fechando Playwright...")
             self.playwright_manager.stop()
+            print("✅ [EXECUTE] FINALLY: Playwright fechado")
 
     def collect_emails(self, terms: List[SearchTermModel], terms_data: List[Dict]) -> CollectionResultModel:
         """Coleta e-mails usando termos de busca"""
@@ -256,11 +311,16 @@ class EmailApplicationService(EmailCollectorInterface):
                                  domain=self.logger._sanitize_input(domain),
                                  progress=f"{global_processed}/{total_expected}")
 
+                # 🆕 CHAVEAMENTO: Usar extract_with_fallback para tentativa com fallback automático
                 if self.performance_tracker:
                     with self.performance_tracker.track_operation(f"extract_data_{domain}"):
-                        company = self.scraper.extract_company_data(link, MAX_EMAILS_PER_SITE)
+                        company = self.scraper_switcher.extract_with_fallback(
+                            self.scraper, link, MAX_EMAILS_PER_SITE
+                        )
                 else:
-                    company = self.scraper.extract_company_data(link, MAX_EMAILS_PER_SITE)
+                    company = self.scraper_switcher.extract_with_fallback(
+                        self.scraper, link, MAX_EMAILS_PER_SITE
+                    )
 
                 company.search_term = term.query
 

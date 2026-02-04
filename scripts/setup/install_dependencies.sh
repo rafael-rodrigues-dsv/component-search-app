@@ -8,13 +8,9 @@ if [ -f ".venv/bin/activate" ]; then
     source .venv/bin/activate
 fi
 
-# Instalar dependencias individuais para evitar .egg-info
-echo "Instalando dependencias principais..."
-python -m pip install --cache-dir ~/.cache/pip "selenium>=4.0.0" "openpyxl>=3.0.0" "tldextract>=3.0.0" "requests>=2.25.0" "pyyaml>=6.0" "pyodbc>=4.0.0"
-
-
-echo "Instalando dependencias de teste..."
-python -m pip install --cache-dir ~/.cache/pip "pytest>=7.0.0" "pytest-cov>=4.0.0" "coverage>=7.0.0"
+# Instalar todas as dependencias em um unico comando
+echo "Instalando dependencias do sistema..."
+python -m pip install --cache-dir ~/.cache/pip "selenium>=4.0.0" "playwright>=1.40.0" "openpyxl>=3.0.0" "tldextract>=3.0.0" "requests>=2.25.0" "pyyaml>=6.0" "pyodbc>=4.0.0" "beautifulsoup4>=4.12.0" "lxml>=4.9.0" "flask>=3.0.0" "flask-socketio>=5.3.0"
 
 echo ""
-echo "Dependencias instaladas com sucesso!"
+echo "✅ Dependencias instaladas com sucesso!"
