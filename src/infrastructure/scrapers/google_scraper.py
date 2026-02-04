@@ -54,8 +54,11 @@ class GoogleScraper:
     def _search_implementation(self, term, max_results=50):
         """Executa busca no Google simulando comportamento humano"""
         try:
+            print(f"[GOOGLE] 🔍 Iniciando busca: '{term}'")
+
             # === NAVEGAÇÃO HUMANA ===
             # 1. Primeiro vai para Google.com (como humano faria)
+            print(f"[GOOGLE] 🌐 Acessando google.com...")
             self.driver.get("https://www.google.com")
             time.sleep(random.uniform(2.0, 4.0))
 
@@ -71,6 +74,7 @@ class GoogleScraper:
 
             # 3. Procura campo de busca e digita como humano
             try:
+                print(f"[GOOGLE] ⌨️  Digitando termo...")
                 search_box = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((By.NAME, "q"))
                 )
@@ -89,9 +93,10 @@ class GoogleScraper:
                 # Pressiona Enter
                 from selenium.webdriver.common.keys import Keys
                 search_box.send_keys(Keys.RETURN)
+                print(f"[GOOGLE] ✅ Busca executada")
 
             except Exception as e:
-                print(f"    [DEBUG] Erro na busca interativa, usando URL direta: {str(e)[:30]}")
+                print(f"[GOOGLE] ⚠️  Busca interativa falhou, usando URL direta")
                 # Fallback para método direto
                 import urllib.parse
                 encoded_term = urllib.parse.quote_plus(term)
@@ -108,21 +113,46 @@ class GoogleScraper:
             if self.human_behavior.session_break_needed(self.searches_count):
                 self.human_behavior.take_session_break()
 
-            # Verifica se carregou resultados
+            # Verifica se carregou resultados (timeout aumentado + mais seletores)
             try:
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.g, div.tF2Cxc, #search"))
+                WebDriverWait(self.driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR,
+                        "div.g, div.tF2Cxc, #search, #rso, .hlcw0c, #rcnt"
+                    ))
                 )
 
                 # Verifica se não é CAPTCHA
-                if "captcha" in self.driver.page_source.lower() or "unusual traffic" in self.driver.page_source.lower():
-                    print("    [AVISO] CAPTCHA detectado! Tentando fallback...")
+                page_lower = self.driver.page_source.lower()
+                if "captcha" in page_lower or "unusual traffic" in page_lower:
+                    print(f"[GOOGLE] ⚠️  CAPTCHA detectado! Usando fallback...")
                     return self._fallback_search_simple(term)
 
+                print(f"[GOOGLE] ✅ Resultados carregados")
                 return True
 
+            except TimeoutException:
+                print(f"[GOOGLE] ⏱️  Timeout aguardando resultados (15s)")
+                # Tentar fallback antes de falhar
+                print(f"[GOOGLE] 🔄 Tentando método direto como fallback...")
+                try:
+                    import urllib.parse
+                    encoded_term = urllib.parse.quote_plus(term)
+                    search_url = f"https://www.google.com/search?q={encoded_term}&hl=pt-BR&gl=BR"
+                    self.driver.get(search_url)
+                    time.sleep(3)
+
+                    # Verificar se carregou agora
+                    if len(self.driver.page_source) > 5000:
+                        print(f"[GOOGLE] ✅ Método direto funcionou")
+                        return True
+                except Exception:
+                    pass
+
+                print(f"[GOOGLE] ❌ Todas tentativas falharam, usando DuckDuckGo...")
+                return self._fallback_search_simple(term)
+
             except Exception as e:
-                print(f"    [DEBUG] Timeout na busca, tentando fallback: {str(e)[:30]}")
+                print(f"[GOOGLE] ❌ Erro: {str(e)[:50]}")
                 return self._fallback_search_simple(term)
 
         except Exception as e:
@@ -130,14 +160,39 @@ class GoogleScraper:
             return False
 
     def _fallback_search_simple(self, term):
-        """Fallback simples que retorna True/False"""
+        """Fallback robusto: tenta Google direto, depois DuckDuckGo"""
+        print(f"[GOOGLE] 🔄 Executando fallback...")
+
+        # Tentativa 1: Google com URL direta (sem cookies)
         try:
+            print(f"[GOOGLE] 📍 Tentativa 1: Google URL direta...")
+            import urllib.parse
+            encoded_term = urllib.parse.quote_plus(term)
+            search_url = f"https://www.google.com/search?q={encoded_term}&hl=pt-BR&gl=BR"
+
+            self.driver.get(search_url)
+            time.sleep(random.uniform(3.0, 5.0))
+
+            # Verificar se carregou resultados
+            if len(self.driver.page_source) > 5000 and "google" in self.driver.current_url.lower():
+                print(f"[GOOGLE] ✅ Fallback Google funcionou")
+                return True
+
+        except Exception as e:
+            print(f"[GOOGLE] ⚠️  Fallback Google falhou: {str(e)[:40]}")
+
+        # Tentativa 2: DuckDuckGo (último recurso)
+        try:
+            print(f"[GOOGLE] 📍 Tentativa 2: DuckDuckGo como último recurso...")
             ddg_url = f"https://duckduckgo.com/?q={term.replace(' ', '+')}"
             self.driver.get(ddg_url)
             time.sleep(random.uniform(*self.delays["page_load"]))
+
+            print(f"[GOOGLE] ✅ Fallback DuckDuckGo funcionou")
             return True
+
         except Exception as e:
-            print(f"    [DEBUG] Erro no fallback: {str(e)[:30]}")
+            print(f"[GOOGLE] ❌ Todos fallbacks falharam: {str(e)[:40]}")
             return False
 
     def get_result_links(self, blacklist_hosts):
@@ -262,70 +317,55 @@ class GoogleScraper:
             if random.random() < 0.4:  # 40% chance
                 self.human_behavior.mouse_movement(self.driver)
 
-            print(f"    [DEBUG] Capturando HTML...")
+            print(f"[COLETA] 📄 Capturando HTML...")
             # Capturar HTML content (limitado para performance)
             html_content = self.driver.page_source
             if len(html_content) > 100000:  # Limita a 100KB
                 html_content = html_content[:100000]
-            print(f"    [DEBUG] HTML capturado: {len(html_content)} chars")
+            print(f"[COLETA] ✅ HTML: {len(html_content):,} chars")
 
-            print(f"    [DEBUG] Extraindo endereço...")
-            # Extrair endereço formatado usando AddressExtractor
+            # === EXTRAÇÃO AVANÇADA DE DADOS ===
+            print(f"[COLETA] 🔍 Extraindo dados com bibliotecas especializadas...")
             try:
-                from src.infrastructure.utils.address_extractor import AddressExtractor
-                endereco_formatado = AddressExtractor.extract_from_html(html_content)
-                print(f"    [DEBUG] Endereço: {endereco_formatado.to_full_address()[:50] if endereco_formatado else 'Não encontrado'}")
+                from src.infrastructure.services.advanced_extraction_service import get_advanced_extraction_service
+                extraction_service = get_advanced_extraction_service()
+
+                # Extrair tudo de uma vez
+                emails, phones, address = extraction_service.extract_all(
+                    html_content,
+                    max_emails=max_emails,
+                    max_phones=2
+                )
+
+                # Converter para formato esperado
+                emails_string = self.validation_service.validate_and_join_emails(emails)
+                phones_string = self.validation_service.validate_and_join_phones(phones)
+                endereco_formatado = address if address else None
+
+                print(f"[COLETA] 📧 Emails: {len(emails)} encontrados")
+                print(f"[COLETA] 📞 Telefones: {len(phones)} encontrados")
+                if endereco_formatado:
+                    print(f"[COLETA] 📍 Endereço: {endereco_formatado[:50]}...")
+                else:
+                    print(f"[COLETA] ⚠️  Endereço não encontrado")
+
             except Exception as e:
-                print(f"    [DEBUG] Erro na extração de endereço: {str(e)[:30]}")
+                print(f"[COLETA] ⚠️  Erro na extração avançada: {str(e)[:50]}, usando fallback...")
+                emails_string = ""
+                phones_string = ""
                 endereco_formatado = None
 
-            print(f"    [DEBUG] Extraindo emails...")
-            # Extração rápida de e-mails
-            page_source = html_content
-
-            import re
-
-            # Primeiro separa por delimitadores comuns
-            text_parts = re.split(r'[;|,\s]+', page_source)
-
-            emails = []
-            for part in text_parts:
-                # Busca e-mails em cada parte separadamente
-                email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-                found_emails = re.findall(email_pattern, part)
-
-                for email in found_emails:
-                    clean_email = email.strip().lower()
-                    if self.validation_service.is_valid_email(clean_email) and clean_email not in [e.lower() for e in
-                                                                                                   emails]:
-                        emails.append(clean_email)
-                        if len(emails) >= max_emails:
-                            break
-
-                if len(emails) >= max_emails:
-                    break
-
-            # Valida e concatena e-mails (emails já é uma lista)
-            emails_string = self.validation_service.validate_and_join_emails(emails)
-            print(f"    [DEBUG] Emails: {len(emails)} encontrados")
-
-            print(f"    [DEBUG] Extraindo telefones...")
-            # Extração de telefones
-            phones = self._extract_phones_fast(page_source)
-            phones_string = self.validation_service.validate_and_join_phones(phones)
-            print(f"    [DEBUG] Telefones: {len(phones)} encontrados")
-
-            print(f"    [DEBUG] Extraindo nome da empresa...")
+            print(f"[COLETA] 🏢 Extraindo nome da empresa...")
             # Nome da empresa (título da página)
             try:
                 name = self.driver.title or url.split('/')[2]
                 name = name.strip()[:MAX_TITLE_LENGTH]  # Limita tamanho
             except Exception as e:
-                print(f"    [DEBUG] Erro ao obter título: {str(e)[:30]}")
+                print(f"[COLETA] ⚠️  Erro ao obter título: {str(e)[:30]}")
                 name = url.split('/')[2]
             
             domain = url.split('/')[2] if '/' in url else url
-            print(f"    [DEBUG] Nome: {name[:30]}... | Domain: {domain}")
+            print(f"[COLETA] ✅ {name[:40]}... | {domain}")
 
             return CompanyModel(
                 name=name,
@@ -338,7 +378,7 @@ class GoogleScraper:
             )
 
         except Exception as e:
-            print(f"    [ERRO] {str(e)[:50]}...")
+            print(f"[COLETA] ❌ Erro: {str(e)[:60]}")
             return CompanyModel(
                 name="",
                 emails="",
@@ -354,9 +394,9 @@ class GoogleScraper:
                 if len(self.driver.window_handles) > 1:
                     self.driver.close()
                     self.driver.switch_to.window(self.driver.window_handles[0])
-                    print(f"    [INFO] Voltou para aba de pesquisa")
+                    print(f"[COLETA] ↩️  Voltou para busca")
             except Exception as e:
-                print(f"[DEBUG] Erro ao fechar aba: {str(e)[:30]}")
+                print(f"[COLETA] ⚠️  Erro ao fechar aba: {str(e)[:40]}")
 
     def _is_valid_url(self, url):
         """Verifica se URL é válida"""

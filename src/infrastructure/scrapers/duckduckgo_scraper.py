@@ -44,8 +44,11 @@ class DuckDuckGoScraper:
     def _search_implementation(self, query: str, max_retries: int = 2) -> bool:
         """Executa busca rápida no DuckDuckGo"""
         try:
+            print(f"[DUCKGO] 🔍 Iniciando busca: '{query}'")
+            print(f"[DUCKGO] 🌐 Acessando duckduckgo.com...")
             self.driver_manager.driver.get("https://duckduckgo.com/")
 
+            print(f"[DUCKGO] ⌨️  Digitando termo...")
             search_box = WebDriverWait(self.driver_manager.driver, 10).until(
                 EC.presence_of_element_located((By.ID, "searchbox_input"))
             )
@@ -54,19 +57,69 @@ class DuckDuckGoScraper:
             search_box.send_keys(query)
             search_box.send_keys(Keys.ENTER)
 
-            WebDriverWait(self.driver_manager.driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
-            )
+            print(f"[DUCKGO] ⏳ Aguardando resultados...")
+            # Timeout aumentado: 10s → 15s (igual ao Google)
+            try:
+                WebDriverWait(self.driver_manager.driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='result']"))
+                )
 
-            time.sleep(random.uniform(*self.delays["page_load"]))
-            return True
+                time.sleep(random.uniform(*self.delays["page_load"]))
+                print(f"[DUCKGO] ✅ Busca executada")
+                return True
+
+            except TimeoutException:
+                print(f"[DUCKGO] ⏱️  Timeout aguardando resultados (15s)")
+                print(f"[DUCKGO] 🔄 Tentando método direto como fallback...")
+
+                # Fallback: URL direta
+                try:
+                    direct_url = f"https://duckduckgo.com/?q={query.replace(' ', '+')}"
+                    self.driver_manager.driver.get(direct_url)
+                    time.sleep(3)
+
+                    # Verificar se carregou
+                    if len(self.driver_manager.driver.page_source) > 5000:
+                        print(f"[DUCKGO] ✅ Método direto funcionou")
+                        return True
+                except Exception:
+                    pass
+
+                # Fallback final: tentar Google
+                print(f"[DUCKGO] 🔄 DuckDuckGo falhou, tentando Google como fallback...")
+                return self._fallback_to_google(query)
 
         except Exception as e:
-            print(f"    [ERRO] Busca falhou: {str(e)[:50]}")
+            print(f"[DUCKGO] ❌ Erro na busca: {str(e)[:50]}")
+            # Tentar Google como último recurso
+            return self._fallback_to_google(query)
+
+    def _fallback_to_google(self, query: str) -> bool:
+        """Fallback para Google quando DuckDuckGo falha"""
+        try:
+            print(f"[DUCKGO] 📍 Usando Google como fallback...")
+            import urllib.parse
+            encoded_query = urllib.parse.quote_plus(query)
+            google_url = f"https://www.google.com/search?q={encoded_query}&hl=pt-BR&gl=BR"
+
+            self.driver_manager.driver.get(google_url)
+            time.sleep(random.uniform(3.0, 5.0))
+
+            # Verificar se carregou
+            if len(self.driver_manager.driver.page_source) > 5000:
+                print(f"[DUCKGO] ✅ Fallback Google funcionou")
+                return True
+
+            print(f"[DUCKGO] ❌ Todos fallbacks falharam")
+            return False
+
+        except Exception as e:
+            print(f"[DUCKGO] ❌ Fallback Google falhou: {str(e)[:50]}")
             return False
 
     def get_result_links(self, blacklist_hosts: List[str]) -> List[str]:
         """Extrai links rapidamente"""
+        print(f"[DUCKGO] 🔗 Coletando links...")
         links = []
         try:
             # Scroll para carregar mais resultados
@@ -97,11 +150,13 @@ class DuckDuckGoScraper:
             # Falha silenciosa - não imprime erro pois é esperado
             pass
 
+        print(f"[DUCKGO] ✅ {len(links)} links encontrados")
         return list(set(links))  # Remove duplicatas
 
     def go_to_next_page(self):
         """Navega para a próxima página de resultados"""
         try:
+            print(f"[DUCKGO] ➡️  Carregando mais resultados...")
             # Scroll progressivo para carregar mais resultados (DuckDuckGo usa lazy loading)
             initial_results = len(self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']"))
             
@@ -120,22 +175,25 @@ class DuckDuckGoScraper:
                 # Verifica se novos resultados foram carregados
                 current_results = len(self.driver_manager.driver.find_elements(By.CSS_SELECTOR, "[data-testid='result']"))
                 if current_results > initial_results:
+                    print(f"[DUCKGO] ✅ +{current_results - initial_results} novos resultados")
                     return True
             
             # Scroll final para garantir que carregou tudo
             self.driver_manager.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(1)
             
+            print(f"[DUCKGO] ✅ Scroll completo")
             return True  # Sempre retorna True pois DuckDuckGo carrega via scroll
 
-        except Exception:
+        except Exception as e:
+            print(f"[DUCKGO] ⚠️  Erro no scroll: {str(e)[:50]}")
             return False
 
     def extract_company_data(self, url: str, max_emails: int) -> CompanyModel:
         """Extração otimizada de dados da empresa usando sistema de abas"""
         try:
-            print(f"    [INFO] Carregando site: {url}")
-            
+            print(f"[COLETA] 🌐 Acessando: {url[:60]}...")
+
             # Abre site em nova aba (mantém aba de pesquisa aberta)
             self.driver_manager.driver.execute_script("window.open(arguments[0],'_blank');", url)
             self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[-1])
@@ -160,44 +218,52 @@ class DuckDuckGoScraper:
 
             time.sleep(1)  # Delay fixo mínimo
 
-            print(f"    [DEBUG] Fazendo scroll...")
             # Scroll mínimo
             self.driver_manager.driver.execute_script("window.scrollTo(0, 1000);")
             time.sleep(1)
 
-            print(f"    [DEBUG] Capturando HTML...")
+            print(f"[COLETA] 📄 Capturando HTML...")
             # Capturar HTML (limitado para performance)
             html_content = self.driver_manager.driver.page_source
             if len(html_content) > 100000:  # Limita a 100KB
                 html_content = html_content[:100000]
-            print(f"    [DEBUG] HTML capturado: {len(html_content)} chars")
+            print(f"[COLETA] ✅ HTML: {len(html_content):,} chars")
 
-            print(f"    [DEBUG] Extraindo endereço...")
-            # Extrair endereço formatado
+            # === EXTRAÇÃO AVANÇADA DE DADOS ===
+            print(f"[COLETA] 🔍 Extraindo dados com bibliotecas especializadas...")
             try:
-                from src.infrastructure.utils.address_extractor import AddressExtractor
-                endereco_formatado = AddressExtractor.extract_from_html(html_content)
-                print(f"    [DEBUG] Endereço: {endereco_formatado.to_full_address()[:50] if endereco_formatado else 'Não encontrado'}")
-                
+                from src.infrastructure.services.advanced_extraction_service import get_advanced_extraction_service
+                extraction_service = get_advanced_extraction_service()
+
+                # Extrair tudo de uma vez
+                emails, phones, address = extraction_service.extract_all(
+                    html_content,
+                    max_emails=max_emails,
+                    max_phones=2
+                )
+
+                # Converter para formato esperado
+                emails_string = self.validation_service.validate_and_join_emails(emails)
+                phones_string = self.validation_service.validate_and_join_phones(phones)
+                endereco_formatado = address if address else None
+
+                print(f"[COLETA] 📧 Emails: {len(emails)} encontrados")
+                print(f"[COLETA] 📞 Telefones: {len(phones)} encontrados")
+                if endereco_formatado:
+                    print(f"[COLETA] 📍 Endereço: {endereco_formatado[:50]}...")
+                else:
+                    print(f"[COLETA] ⚠️  Endereço não encontrado")
+
             except Exception as e:
-                print(f"    [DEBUG] Erro na extração de endereço: {str(e)[:30]}")
+                print(f"[COLETA] ⚠️  Erro na extração avançada: {str(e)[:50]}, usando fallback...")
+                emails_string = ""
+                phones_string = ""
                 endereco_formatado = None
 
-            print(f"    [DEBUG] Extraindo emails...")
-            # Extrações otimizadas
-            email_list = self._extract_emails_fast(html_content)[:max_emails]
-            emails_string = self.validation_service.validate_and_join_emails(email_list)
-            print(f"    [DEBUG] Emails: {len(email_list)} encontrados")
-            
-            print(f"    [DEBUG] Extraindo telefones...")
-            phone_list = self._extract_phones_fast(html_content)[:2]
-            phones_string = self.validation_service.validate_and_join_phones(phone_list)
-            print(f"    [DEBUG] Telefones: {len(phone_list)} encontrados")
-            
-            print(f"    [DEBUG] Extraindo nome da empresa...")
+            print(f"[COLETA] 🏢 Extraindo nome da empresa...")
             name = self._get_company_name_fast(url)
             domain = self.validation_service.extract_domain_from_url(url)
-            print(f"    [DEBUG] Nome: {name[:30]}... | Domain: {domain}")
+            print(f"[COLETA] ✅ {name[:40]}... | {domain}")
 
             return CompanyModel(
                 name=name,
@@ -210,7 +276,7 @@ class DuckDuckGoScraper:
             )
 
         except Exception as e:
-            print(f"    [ERRO] {str(e)[:50]}...")
+            print(f"[COLETA] ❌ Erro: {str(e)[:60]}")
             return CompanyModel(name="", emails="", domain="", url=url, html_content="")
         finally:
             # Fecha aba atual e volta para aba de pesquisa
@@ -218,9 +284,9 @@ class DuckDuckGoScraper:
                 if len(self.driver_manager.driver.window_handles) > 1:
                     self.driver_manager.driver.close()
                     self.driver_manager.driver.switch_to.window(self.driver_manager.driver.window_handles[0])
-                    print(f"    [INFO] Voltou para aba de pesquisa")
+                    print(f"[COLETA] ↩️  Voltou para busca")
             except Exception as e:
-                print(f"[DEBUG] Erro ao fechar aba: {str(e)[:30]}")
+                print(f"[COLETA] ⚠️  Erro ao fechar aba: {str(e)[:40]}")
 
     def _extract_emails_fast(self, html_content: str) -> List[str]:
         """Extração ultra-rápida de e-mails"""
@@ -274,7 +340,7 @@ class DuckDuckGoScraper:
             if title.strip():
                 return title.strip()[:50]
         except Exception as e:
-            print(f"[DEBUG] Erro ao obter nome da empresa: {str(e)[:30]}")
+            print(f"[COLETA] ⚠️  Erro ao obter título: {str(e)[:30]}")
 
         return self.validation_service.extract_domain_from_url(url)
 
