@@ -7,16 +7,37 @@ class SpreadsheetRepository:
     def __init__(self):
         self._access = AccessRepository()
 
-    def save_to_sheet(self, site_url: str, emails_str: str, telefones_str: str, distancia_km: float = None):
+    def save_to_sheet(self, site_url: str, emails_str: str, telefones_str: str, endereco_str: str = None, distancia_km: float = None):
+        """
+        Salva empresa na TB_PLANILHA (para exportação Excel)
+
+        Args:
+            site_url: URL do site
+            emails_str: Emails separados por ;
+            telefones_str: Telefones separados por ;
+            endereco_str: Endereço completo formatado
+            distancia_km: Distância em km (se calculada)
+        """
         conn = self._access._get_connection()
         cursor = conn.cursor()
-        # Tenta atualizar se já existe
+
+        # Verificar se já existe
         cursor.execute("SELECT SITE FROM TB_PLANILHA WHERE SITE = ?", (site_url,))
         existing = cursor.fetchone()
+
         if existing:
-            cursor.execute("UPDATE TB_PLANILHA SET EMAIL = ?, TELEFONE = ?, DISTANCIA_KM = ? WHERE SITE = ?", (emails_str, telefones_str, distancia_km, site_url))
+            # Atualizar registro existente
+            cursor.execute(
+                "UPDATE TB_PLANILHA SET EMAIL = ?, TELEFONE = ?, ENDERECO = ?, DISTANCIA_KM = ? WHERE SITE = ?",
+                (emails_str, telefones_str, endereco_str, distancia_km, site_url)
+            )
         else:
-            cursor.execute("INSERT INTO TB_PLANILHA (SITE, EMAIL, TELEFONE, ENDERECO, DISTANCIA_KM) VALUES (?, ?, ?, ?, ?)", (site_url, emails_str, telefones_str, None, distancia_km))
+            # Inserir novo registro
+            cursor.execute(
+                "INSERT INTO TB_PLANILHA (SITE, EMAIL, TELEFONE, ENDERECO, DISTANCIA_KM) VALUES (?, ?, ?, ?, ?)",
+                (site_url, emails_str, telefones_str, endereco_str, distancia_km)
+            )
+
         conn.commit()
         try:
             cursor.close()

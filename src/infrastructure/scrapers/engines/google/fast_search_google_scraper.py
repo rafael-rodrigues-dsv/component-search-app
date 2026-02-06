@@ -1,5 +1,6 @@
 """
-Google Scraper Playwright - Versão otimizada com Playwright
+Google Fast Search Scraper - Versão otimizada com Playwright
+Scraper legado do Google, mantido para compatibilidade
 """
 import random
 import time
@@ -10,12 +11,12 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from src.infrastructure.config.config_manager import ConfigManager
 from src.infrastructure.config.delay_config import get_scraper_delays
-from ...domain.models.company_model import CompanyModel
-from ...domain.services.email_domain_service import EmailValidationService
+from .....domain.models.company_model import CompanyModel
+from .....domain.services.email_domain_service import EmailValidationService
 
 
-class GoogleScraperPlaywright:
-    """Scraper do Google usando Playwright"""
+class FastSearchGoogleScraper:
+    """Scraper do Google usando Playwright - Versão Rápida (Legado)"""
 
     def __init__(self, page: Page):
         self.page = page
@@ -32,11 +33,14 @@ class GoogleScraperPlaywright:
             print(f"[GOOGLE] 🌐 Acessando google.com...")
 
             self.page.goto("https://www.google.com", wait_until='domcontentloaded', timeout=10000)
+
+            # Comportamento humano: pequeno scroll e pausa
             time.sleep(random.uniform(1.0, 2.0))
+            self.page.mouse.wheel(0, random.randint(50, 150))
+            time.sleep(random.uniform(0.3, 0.6))
 
             print(f"[GOOGLE] ⌨️  Digitando termo...")
 
-            # Tentar múltiplos seletores para o campo de busca
             search_selectors = [
                 'input[name="q"]',
                 'textarea[name="q"]',
@@ -70,6 +74,7 @@ class GoogleScraperPlaywright:
                 print(f"[GOOGLE] ⏱️  Timeout aguardando resultados")
                 return False
 
+
         except Exception as e:
             print(f"[GOOGLE] ❌ Erro: {str(e)[:100]}")
             return False
@@ -83,6 +88,7 @@ class GoogleScraperPlaywright:
             self.page.mouse.wheel(0, 1000)
             time.sleep(random.uniform(*self.delays["scroll"]))
 
+            # ✅ LÓGICA LEGADA: Usar locator com seletores específicos
             selectors = [
                 "div.g a[href]:not([href*='google.com'])",
                 "div.tF2Cxc a[href]:not([href*='google.com'])",
@@ -109,7 +115,7 @@ class GoogleScraperPlaywright:
 
             print(f"[GOOGLE] ✅ {len(urls)} links encontrados")
         except Exception as e:
-            print(f"[GOOGLE] ⚠️  Erro ao coletar links: {str(e)[:50]}")
+            print(f"[GOOGLE] ⚠️  Erro: {str(e)[:50]}")
 
         return urls
 

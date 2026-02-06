@@ -86,23 +86,56 @@ class DatabaseDomainService:
                     self.cep_repo.create_task(empresa_id, endereco_id)
                     self.geo_repo.create_task(empresa_id, endereco_id)
 
-            # Atualizar status da empresa
-            status = 'COLETADO' if (emails or telefones) else 'NAO_COLETADO'
+            # Extrair endereço formatado se existir
+            endereco_str = ''
+            if address_model and hasattr(address_model, 'to_full_address'):
+                try:
+                    endereco_str = address_model.to_full_address()
+                except:
+                    pass
+
+            # ✅ Atualizar status considerando endereço também
+            status = 'COLETADO' if (emails or telefones or endereco_str) else 'NAO_COLETADO'
             self.companies_repo.update_status(empresa_id, status, nome_empresa)
 
-            # Salvar emails e telefones
+            # Salvar emails
             if emails:
                 domain_email = emails[0].split('@')[1] if emails else domain
                 self.emails_repo.insert_emails(empresa_id, emails, domain_email)
 
+            # Salvar telefones (converter para formato esperado)
             if telefones:
-                self.phones_repo.insert_phones(empresa_id, telefones)
+                # Verificar se já vem como lista de dicts ou lista de strings
+                if telefones and isinstance(telefones[0], str):
+                    # Converter strings para formato dict esperado
+                    telefones_formatted = []
+                    for tel in telefones:
+                        telefones_formatted.append({
+                            'original': tel,
+                            'formatted': tel,
+                            'ddd': '',
+                            'tipo': 'FIXO'
+                        })
+                    self.phones_repo.insert_phones(empresa_id, telefones_formatted)
+                else:
+                    # Já vem como dicts
+                    self.phones_repo.insert_phones(empresa_id, telefones)
 
-            # Salvar na planilha apenas se houver dados
-            if emails or telefones:
+            # ✅ SALVAR NA PLANILHA APENAS SE TIVER DADOS COLETADOS
+            # (email, telefone OU endereço)
+            if emails or telefones or endereco_str:
                 emails_str = ';'.join(emails) + ';' if emails else ''
-                telefones_str = ';'.join([t['formatted'] for t in telefones]) + ';' if telefones else ''
-                self.spreadsheet_repo.save_to_sheet(site_url, emails_str, telefones_str, None)
+
+                # Montar string de telefones
+                if telefones:
+                    if isinstance(telefones[0], dict):
+                        telefones_str = ';'.join([t['formatted'] for t in telefones]) + ';'
+                    else:
+                        telefones_str = ';'.join(telefones) + ';'
+                else:
+                    telefones_str = ''
+
+                self.spreadsheet_repo.save_to_sheet(site_url, emails_str, telefones_str, endereco_str, None)
 
             return True
         except Exception:

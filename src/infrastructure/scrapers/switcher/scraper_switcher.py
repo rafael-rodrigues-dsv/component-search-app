@@ -3,7 +3,6 @@ Scraper Switcher - Chaveamento inteligente entre scraper legado e novo
 """
 import random
 import time
-from typing import Union, Optional
 from ..switcher.yaml_config_loader import get_scraper_config
 from src.domain.scrapers.utils.scraper_logger import ScraperLogger
 
@@ -31,10 +30,10 @@ class ScraperSwitcher:
             page: Página Playwright
 
         Returns:
-            GoogleScraperPlaywright ou GoogleScraperV2
+            FastSearchGoogleScraper ou DeepSearchGoogleScraper
         """
-        from src.infrastructure.scrapers.google_scraper_playwright import GoogleScraperPlaywright
-        from src.infrastructure.scrapers.engines.google.google_scraper_v2 import GoogleScraperV2
+        from src.infrastructure.scrapers.engines.google.fast_search_google_scraper import FastSearchGoogleScraper
+        from src.infrastructure.scrapers.engines.google.deep_search_google_scraper import DeepSearchGoogleScraper
 
         # Flag principal controla TUDO
         if self.config.use_intelligent_scraper:
@@ -42,31 +41,31 @@ class ScraperSwitcher:
             if 0 < self.config.rollout_percentage < 100:
                 roll = random.randint(1, 100)
                 if roll <= self.config.rollout_percentage:
-                    self.logger.log('rocket', f"🆕 Google Scraper V2 (rollout {roll}%/{self.config.rollout_percentage}%)")
-                    return GoogleScraperV2(page)
+                    self.logger.log('rocket', f"🆕 Google Deep Search (rollout {roll}%/{self.config.rollout_percentage}%)")
+                    return DeepSearchGoogleScraper(page)
                 else:
-                    self.logger.log('back', f"📦 Google Scraper Legacy (rollout {roll}%/{self.config.rollout_percentage}%)")
-                    return GoogleScraperPlaywright(page)
+                    self.logger.log('back', f"📦 Google Fast Search (rollout {roll}%/{self.config.rollout_percentage}%)")
+                    return FastSearchGoogleScraper(page)
             else:
-                self.logger.log('rocket', "🆕 Google Scraper V2 (sistema inteligente ON)")
-                return GoogleScraperV2(page)
+                self.logger.log('rocket', "🆕 Google Deep Search (sistema inteligente ON)")
+                return DeepSearchGoogleScraper(page)
 
         # Default: legado
-        self.logger.log('back', "📦 Google Scraper Legacy (sistema inteligente OFF)")
-        return GoogleScraperPlaywright(page)
+        self.logger.log('back', "📦 Google Fast Search (sistema inteligente OFF)")
+        return FastSearchGoogleScraper(page)
 
-    def get_duckduckgo_scraper(self, driver_manager):
+    def get_duckduckgo_scraper(self, page):
         """
         Retorna scraper do DuckDuckGo baseado em feature flag
 
         Args:
-            driver_manager: Driver manager
+            page: Página Playwright
 
         Returns:
-            DuckDuckGoScraperPlaywright ou DuckDuckGoScraperV2
+            FastSearchDuckDuckGoScraper ou DeepSearchDuckDuckGoScraper
         """
-        from src.infrastructure.scrapers.duckduckgo_scraper_playwright import DuckDuckGoScraperPlaywright
-        from src.infrastructure.scrapers.engines.duckduckgo.duckduckgo_scraper_v2 import DuckDuckGoScraperV2
+        from src.infrastructure.scrapers.engines.duckduckgo.fast_search_duckduckgo_scraper import FastSearchDuckDuckGoScraper
+        from src.infrastructure.scrapers.engines.duckduckgo.deep_search_duckduckgo_scraper import DeepSearchDuckDuckGoScraper
 
         # Flag principal controla TUDO
         if self.config.use_intelligent_scraper:
@@ -74,18 +73,18 @@ class ScraperSwitcher:
             if 0 < self.config.rollout_percentage < 100:
                 roll = random.randint(1, 100)
                 if roll <= self.config.rollout_percentage:
-                    self.logger.log('rocket', f"🆕 DuckDuckGo Scraper V2 (rollout {roll}%/{self.config.rollout_percentage}%)")
-                    return DuckDuckGoScraperV2(driver_manager)
+                    self.logger.log('rocket', f"🆕 DuckDuckGo Deep Search (rollout {roll}%/{self.config.rollout_percentage}%)")
+                    return DeepSearchDuckDuckGoScraper(page)
                 else:
-                    self.logger.log('back', f"📦 DuckDuckGo Scraper Legacy (rollout {roll}%/{self.config.rollout_percentage}%)")
-                    return DuckDuckGoScraperPlaywright(driver_manager)
+                    self.logger.log('back', f"📦 DuckDuckGo Fast Search (rollout {roll}%/{self.config.rollout_percentage}%)")
+                    return FastSearchDuckDuckGoScraper(page)
             else:
-                self.logger.log('rocket', "🆕 DuckDuckGo Scraper V2 (sistema inteligente ON)")
-                return DuckDuckGoScraperV2(driver_manager)
+                self.logger.log('rocket', "🆕 DuckDuckGo Deep Search (sistema inteligente ON)")
+                return DeepSearchDuckDuckGoScraper(page)
 
         # Default: legado
-        self.logger.log('back', "📦 DuckDuckGo Scraper Legacy (sistema inteligente OFF)")
-        return DuckDuckGoScraperPlaywright(driver_manager)
+        self.logger.log('back', "📦 DuckDuckGo Fast Search (sistema inteligente OFF)")
+        return FastSearchDuckDuckGoScraper(page)
 
     def extract_with_fallback(self, scraper, url: str, max_emails: int):
         """
@@ -103,10 +102,10 @@ class ScraperSwitcher:
             CompanyModel: Dados extraídos
         """
         # Import dinâmico
-        from src.infrastructure.scrapers.engines.google.google_scraper_v2 import GoogleScraperV2
-        from src.infrastructure.scrapers.engines.duckduckgo.duckduckgo_scraper_v2 import DuckDuckGoScraperV2
+        from src.infrastructure.scrapers.engines.google.deep_search_google_scraper import DeepSearchGoogleScraper
+        from src.infrastructure.scrapers.engines.duckduckgo.deep_search_duckduckgo_scraper import DeepSearchDuckDuckGoScraper
 
-        is_new_scraper = isinstance(scraper, (GoogleScraperV2, DuckDuckGoScraperV2))
+        is_new_scraper = isinstance(scraper, (DeepSearchGoogleScraper, DeepSearchDuckDuckGoScraper))
 
         if not is_new_scraper or not self.config.fallback_to_legacy_on_error:
             # Sem fallback, executa direto
@@ -149,18 +148,18 @@ class ScraperSwitcher:
         Returns:
             CompanyModel
         """
-        from src.infrastructure.scrapers.engines.google.google_scraper_v2 import GoogleScraperV2
-        from src.infrastructure.scrapers.google_scraper_playwright import GoogleScraperPlaywright
-        from src.infrastructure.scrapers.engines.duckduckgo.duckduckgo_scraper_v2 import DuckDuckGoScraperV2
-        from src.infrastructure.scrapers.duckduckgo_scraper_playwright import DuckDuckGoScraperPlaywright
+        from src.infrastructure.scrapers.engines.google.deep_search_google_scraper import DeepSearchGoogleScraper
+        from src.infrastructure.scrapers.engines.google.fast_search_google_scraper import FastSearchGoogleScraper
+        from src.infrastructure.scrapers.engines.duckduckgo.deep_search_duckduckgo_scraper import DeepSearchDuckDuckGoScraper
+        from src.infrastructure.scrapers.engines.duckduckgo.fast_search_duckduckgo_scraper import FastSearchDuckDuckGoScraper
         from src.domain.models.company_model import CompanyModel
 
-        if isinstance(new_scraper, GoogleScraperV2):
-            legacy = GoogleScraperPlaywright(new_scraper.page)
+        if isinstance(new_scraper, DeepSearchGoogleScraper):
+            legacy = FastSearchGoogleScraper(new_scraper.page)
             return legacy.extract_company_data(url, max_emails)
 
-        elif isinstance(new_scraper, DuckDuckGoScraperV2):
-            legacy = DuckDuckGoScraperPlaywright(new_scraper.driver_manager)
+        elif isinstance(new_scraper, DeepSearchDuckDuckGoScraper):
+            legacy = FastSearchDuckDuckGoScraper(new_scraper.page)
             return legacy.extract_company_data(url, max_emails)
 
         # Não deveria chegar aqui

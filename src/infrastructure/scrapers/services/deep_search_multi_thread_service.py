@@ -1,6 +1,6 @@
 """
-Application Service: Coordenação de coleta multi-thread
-Responsável por orquestrar múltiplas threads de coleta simultaneamente
+Deep Search Multi-Thread Service - Sistema inteligente
+Processamento paralelo COM classificação inteligente de sites e extração avançada
 """
 import threading
 import time
@@ -11,8 +11,16 @@ from src.domain.models.collection_thread_state import CollectionThreadState, Col
 from src.infrastructure.config.config_manager import ConfigManager
 
 
-class MultiThreadCollectionApplicationService:
-    """Service para coordenar coleta multi-thread de empresas"""
+class DeepSearchMultiThreadService:
+    """
+    Multi-thread service para Deep Search (inteligente)
+
+    Características:
+    - Coordenação de múltiplas threads
+    - Usa Deep Search Scrapers (com classificação)
+    - Gerenciamento de fila e estado
+    - Callbacks de progresso
+    """
 
     def __init__(self):
         self.config = ConfigManager()
@@ -204,7 +212,7 @@ class MultiThreadCollectionApplicationService:
 
     def _process_term_thread(self, term: str, thread_id: int) -> Dict:
         """
-        Processa um termo em uma thread individual
+        Processa um termo em uma thread individual usando Deep Search
 
         Args:
             term: Termo de busca
@@ -251,54 +259,10 @@ class MultiThreadCollectionApplicationService:
             config._config['webdriver']['headless'] = headless
 
             try:
-                # Importar service de coleta
-                from src.application.services.company_search_application_service import CompanySearchApplicationService
+                # 🆕 Usar CollectionExecutorService
+                from .collection_executor_service import CollectionExecutorService
 
-                # Criar instância do service (isolada por thread)
-                # NOTA: Não usamos UserConfigService aqui pois ele pede input do console
-                company_search_service = CompanySearchApplicationService.__new__(CompanySearchApplicationService)
-
-                # Inicializar manualmente sem chamar __init__ (que pede input)
-                from src.infrastructure.logging.structured_logger import StructuredLogger
-                from src.application.services.database_application_service import DatabaseApplicationService
-                from src.infrastructure.config.config_manager import ConfigManager
-                from src.domain.services.email_domain_service import EmailValidationService
-                from src.infrastructure.drivers.playwright_manager import PlaywrightManager
-
-                company_search_service.logger = StructuredLogger("company_search_collector")
-                company_search_service.config = ConfigManager()
-                company_search_service.performance_tracker = None
-                company_search_service.db_service = DatabaseApplicationService()
-                company_search_service.validation_service = EmailValidationService()
-                company_search_service.playwright_manager = PlaywrightManager(
-                    headless=headless,
-                    browser_type=browser  # CHROME, BRAVE, etc.
-                )
-                company_search_service.browser = browser
-                company_search_service.search_engine = engine
-                company_search_service.top_results_total = 999999
-
-                # 🆕 Configurar scraper usando ScraperSwitcher (respeita use_intelligent_scraper)
-                from src.infrastructure.scrapers.switcher.scraper_switcher import ScraperSwitcher
-
-                switcher = ScraperSwitcher()
-
-                if engine == "GOOGLE":
-                    # Switcher decide automaticamente: legado ou V2
-                    company_search_service.scraper = switcher.get_google_scraper(
-                        page=company_search_service.playwright_manager
-                    )
-                    print(f"[THREAD-{thread_id}] ✅ Google Scraper configurado via Switcher")
-                else:
-                    # Switcher decide automaticamente: legado ou V2
-                    company_search_service.scraper = switcher.get_duckduckgo_scraper(
-                        driver_manager=company_search_service.playwright_manager
-                    )
-                    print(f"[THREAD-{thread_id}] ✅ DuckDuckGo Scraper configurado via Switcher")
-
-                print(f"[THREAD-{thread_id}] Service configurado: browser={browser}, engine={engine}, headless={headless}")
-                print(f"[THREAD-{thread_id}] 🎭 Scraper: {type(company_search_service.scraper).__name__}")
-                print(f"[THREAD-{thread_id}] 🎭 Playwright Manager: {type(company_search_service.playwright_manager).__name__}")
+                executor = CollectionExecutorService()
 
                 # Callback para atualizar progresso
                 def update_progress(progress: int, action: str = ""):
@@ -312,15 +276,15 @@ class MultiThreadCollectionApplicationService:
                 def should_stop_check() -> bool:
                     return self.state.should_stop
 
-                # Executar busca com callbacks, passando as configurações
-                result = company_search_service.collect_single_term_with_callbacks(
+                # Executar busca com callbacks
+                result = executor.execute_collection_for_term(
                     term=term,
-                    progress_callback=update_progress,
-                    should_stop_callback=should_stop_check,
-                    db_lock=self.db_lock,
                     browser=browser,
                     engine=engine,
-                    headless=headless
+                    headless=headless,
+                    progress_callback=update_progress,
+                    should_stop_callback=should_stop_check,
+                    db_lock=self.db_lock
                 )
 
                 if self.state.should_stop:

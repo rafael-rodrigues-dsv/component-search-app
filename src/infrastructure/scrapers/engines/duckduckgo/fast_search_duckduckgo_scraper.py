@@ -1,5 +1,6 @@
 """
-DuckDuckGo Scraper Playwright - Versão otimizada com Playwright
+DuckDuckGo Fast Search Scraper - Versão otimizada com Playwright
+Scraper legado do DuckDuckGo, mantido para compatibilidade
 """
 import random
 import time
@@ -9,12 +10,12 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from src.infrastructure.config.config_manager import ConfigManager
 from src.infrastructure.config.delay_config import get_scraper_delays
-from ...domain.models.company_model import CompanyModel
-from ...domain.services.email_domain_service import EmailValidationService
+from .....domain.models.company_model import CompanyModel
+from .....domain.services.email_domain_service import EmailValidationService
 
 
-class DuckDuckGoScraperPlaywright:
-    """Scraper do DuckDuckGo usando Playwright"""
+class FastSearchDuckDuckGoScraper:
+    """Scraper do DuckDuckGo usando Playwright - Versão Rápida (Legado)"""
 
     def __init__(self, page: Page):
         self.page = page
@@ -32,7 +33,6 @@ class DuckDuckGoScraperPlaywright:
 
             print(f"[DUCKGO] ⌨️  Digitando termo...")
 
-            # Tentar múltiplos seletores para o campo de busca
             search_selectors = [
                 '#searchbox_input',
                 'input[name="q"]',

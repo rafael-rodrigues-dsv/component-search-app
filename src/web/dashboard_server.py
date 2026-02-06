@@ -324,8 +324,14 @@ class DashboardServer:
                     if hasattr(self, '_robot_runner') and getattr(self._robot_runner, 'running', False):
                         return jsonify({'success': False, 'message': 'Robô em execução. Não é possível iniciar reprocessamento enquanto o robô estiver ativo.'}), 400
 
-                    # Verificar multi-thread
-                    if hasattr(self, '_multi_thread_service') and self._multi_thread_service.is_running():
+                    # Verificar multi-thread (Fast ou Deep)
+                    multi_running = False
+                    if hasattr(self, '_multi_thread_service_fast') and self._multi_thread_service_fast.is_running():
+                        multi_running = True
+                    elif hasattr(self, '_multi_thread_service_deep') and self._multi_thread_service_deep.is_running():
+                        multi_running = True
+
+                    if multi_running:
                         return jsonify({'success': False, 'message': 'Coleta multi-thread em execução. Não é possível iniciar reprocessamento enquanto a coleta estiver ativa.'}), 400
                 except Exception:
                     pass
@@ -638,8 +644,8 @@ class DashboardServer:
         def api_emails():
             try:
                 from flask import request
-                from src.application.services.company_search_application_service import CompanySearchApplicationService
-                svc = CompanySearchApplicationService()
+                from src.application.services.email_query_service import EmailQueryService
+                svc = EmailQueryService()
                 empresa_id = request.args.get('empresa_id')
                 limit = int(request.args.get('limit', 10))
                 offset = int(request.args.get('offset', 0))
@@ -759,20 +765,65 @@ class DashboardServer:
 
                         # Escolher serviço baseado no job
                         if self.current_job == 'coleta':
-                            from src.application.services.company_search_application_service import CompanySearchApplicationService
-                            service = CompanySearchApplicationService()
+                            # 🎯 Usar Router Service (modo legado: SINGLE + FAST)
                             try:
-                                ok = service.execute()
-                                if not ok:
+                                from src.application.services.database_application_service import DatabaseApplicationService
+                                from src.application.services.company_search_router_service import CompanySearchRouterService
+                                from src.application.services.user_config_application_service import UserConfigApplicationService
+
+                                db_service = DatabaseApplicationService()
+                                terms_data = db_service.get_search_terms()
+
+                                if not terms_data:
                                     try:
-                                        import traceback
-                                        tb = traceback.format_exc()
-                                    except Exception:
-                                        tb = None
-                                    try:
-                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'CompanySearchApplicationService.execute returned False', 'trace': tb})
+                                        self.socketio.emit('robot_log', {'level': 'warning', 'message': 'Nenhum termo pendente para processar'})
                                     except Exception:
                                         pass
+                                else:
+                                    router = CompanySearchRouterService()
+
+                                    # Obter configurações do usuário ou usar padrões
+                                    try:
+                                        browser = UserConfigApplicationService.get_browser()
+                                        engine = UserConfigApplicationService.get_search_engine()
+                                        headless = UserConfigApplicationService.get_headless()
+                                    except:
+                                        browser = 'CHROME'
+                                        engine = 'GOOGLE'
+                                        headless = True
+
+                                    # Processar cada termo sequencialmente (modo legado)
+                                    for term_data in terms_data:
+                                        if self._stop_requested:
+                                            break
+
+                                        term = term_data['termo']
+
+                                        try:
+                                            self.socketio.emit('robot_log', {'level': 'info', 'message': f'Processando: {term}'})
+                                        except Exception:
+                                            pass
+
+                                        result = router.route_collection(
+                                            processing_mode='SINGLE',
+                                            search_mode='FAST',  # Modo legado usa FAST
+                                            browser=browser,
+                                            engine=engine,
+                                            headless=headless if headless is not None else True,
+                                            term=term
+                                        )
+
+                                        if not result.get('success'):
+                                            try:
+                                                self.socketio.emit('robot_log', {'level': 'error', 'message': f'Erro ao processar {term}: {result.get("error", "Desconhecido")}'})
+                                            except Exception:
+                                                pass
+
+                                    try:
+                                        self.socketio.emit('robot_log', {'level': 'info', 'message': 'Coleta concluída'})
+                                    except Exception:
+                                        pass
+
                             except Exception as e:
                                 import traceback
                                 tb = traceback.format_exc()
@@ -817,16 +868,38 @@ class DashboardServer:
                                     pass
 
                         else:
-                            # Default para coleta
-                            from src.application.services.company_search_application_service import CompanySearchApplicationService
-                            service = CompanySearchApplicationService()
+                            # Default para coleta usando Router (mesma lógica)
                             try:
-                                ok = service.execute()
-                                if not ok:
+                                from src.application.services.database_application_service import DatabaseApplicationService
+                                from src.application.services.company_search_router_service import CompanySearchRouterService
+                                from src.application.services.user_config_application_service import UserConfigApplicationService
+
+                                db_service = DatabaseApplicationService()
+                                terms_data = db_service.get_search_terms()
+
+                                if terms_data:
+                                    router = CompanySearchRouterService()
+
                                     try:
-                                        self.socketio.emit('robot_log', {'level': 'error', 'message': 'Default CompanySearchApplicationService.execute returned False'})
-                                    except Exception:
-                                        pass
+                                        browser = UserConfigApplicationService.get_browser()
+                                        engine = UserConfigApplicationService.get_search_engine()
+                                        headless = UserConfigApplicationService.get_headless()
+                                    except:
+                                        browser = 'CHROME'
+                                        engine = 'GOOGLE'
+                                        headless = True
+
+                                    for term_data in terms_data:
+                                        if self._stop_requested:
+                                            break
+                                        result = router.route_collection(
+                                            processing_mode='SINGLE',
+                                            search_mode='FAST',
+                                            browser=browser,
+                                            engine=engine,
+                                            headless=headless if headless is not None else True,
+                                            term=term_data['termo']
+                                        )
                             except Exception as e:
                                 import traceback
                                 tb = traceback.format_exc()
@@ -871,11 +944,12 @@ class DashboardServer:
                 # Ler configurações opcionais do payload
                 browser = payload.get('browser')
                 engine = payload.get('engine')
+                search_mode = payload.get('search_mode', 'FAST')  # 🆕 FAST ou DEEP
                 # Parâmetro headless vindo da UI (True/False). Pode ser string 'true'/'false' também.
                 headless = payload.get('headless', None)
 
                 # 🔍 LOG DETALHADO para debug
-                print(f"🔍 [DASHBOARD DEBUG] Payload recebido: browser={browser}, engine={engine}, headless={headless} (type={type(headless).__name__})")
+                print(f"🔍 [DASHBOARD DEBUG] Payload recebido: browser={browser}, engine={engine}, headless={headless} (type={type(headless).__name__}), search_mode={search_mode}")
 
                 try:
                     from src.application.services.user_config_application_service import UserConfigApplicationService
@@ -896,7 +970,7 @@ class DashboardServer:
                     pass
 
                 if action == 'start':
-                    # Validar se há termos pendentes antes de iniciar coleta
+                    # 🆕 Usar Router Service para direcionar corretamente
                     if job_type == 'coleta':
                         try:
                             from src.application.services.database_application_service import DatabaseApplicationService
@@ -911,15 +985,61 @@ class DashboardServer:
                                     'success': False,
                                     'message': 'Nenhum termo pendente para processar. Configure os termos de busca primeiro.'
                                 }), 400
-                        except Exception as e:
-                            # Se falhar na validação, apenas log e continua (fail-safe)
-                            print(f"[AVISO] Erro ao validar termos pendentes: {e}")
 
+                            # 🎯 Usar Router Service para single-thread
+                            print(f"[DASHBOARD] Usando Router Service para coleta single-thread: search_mode={search_mode}")
+
+                            from src.application.services.company_search_router_service import CompanySearchRouterService
+                            router = CompanySearchRouterService()
+
+                            # ✅ Processar TODOS os termos pendentes
+                            terms_data = db_service.get_search_terms()
+                            if terms_data:
+                                print(f"[DASHBOARD] ✅ {len(terms_data)} termos pendentes encontrados")
+
+                                total_success = 0
+                                total_companies = 0
+
+                                for idx, term_data in enumerate(terms_data, 1):
+                                    term = term_data['termo']
+                                    print(f"[DASHBOARD] 📝 Processando termo {idx}/{len(terms_data)}: {term}")
+
+                                    result = router.route_collection(
+                                        processing_mode='SINGLE',
+                                        search_mode=search_mode,
+                                        browser=browser,
+                                        engine=engine,
+                                        headless=(headless == 'true' if isinstance(headless, str) else headless),
+                                        term=term
+                                    )
+
+                                    if result.get('success'):
+                                        total_success += 1
+                                        total_companies += result.get('companies_found', 0)
+                                        print(f"[DASHBOARD] ✅ Termo '{term}' concluído: {result.get('companies_found', 0)} empresas")
+                                    else:
+                                        print(f"[DASHBOARD] ❌ Termo '{term}' falhou: {result.get('error', 'Erro desconhecido')}")
+
+                                print(f"[DASHBOARD] 🎉 Coleta concluída: {total_success}/{len(terms_data)} termos processados, {total_companies} empresas coletadas")
+                                return jsonify({
+                                    'success': True,
+                                    'message': f'Coleta concluída: {total_success}/{len(terms_data)} termos, {total_companies} empresas',
+                                    'terms_processed': total_success,
+                                    'terms_total': len(terms_data),
+                                    'companies_found': total_companies
+                                })
+
+                        except Exception as e:
+                            # Se falhar, usar método legado como fallback
+                            print(f"[AVISO] Erro ao usar Router Service: {e}, usando método legado")
+
+                    # Fallback: método legado
                     ok = self._robot_runner.start(job_type=job_type)
                     if ok:
                         return jsonify({'success': True, 'message': 'Robô iniciado'})
                     else:
                         return jsonify({'success': False, 'message': 'Robô já em execução'}), 400
+
                 elif action == 'stop':
                     ok = self._robot_runner.stop()
                     if ok:
@@ -937,30 +1057,29 @@ class DashboardServer:
         def api_collection_start_multi():
             """Inicia coleta multi-thread"""
             try:
-                # ✅ Verificar se multi-threading está habilitado no application.yaml
-                from src.infrastructure.config.config_manager import ConfigManager
-                config = ConfigManager()
-                multi_threading_enabled = config.get_config_value('search.multi_threading.enabled', False)
-
-                if not multi_threading_enabled:
-                    return jsonify({
-                        'success': False,
-                        'message': 'Multi-threading está desabilitado no application.yaml. Configure search.multi_threading.enabled: true para usar esta funcionalidade.'
-                    }), 400
-
                 # Obter configurações da requisição
                 data = request.get_json() or {}
                 browser = data.get('browser', 'CHROME')
                 engine = data.get('engine', 'GOOGLE')
                 headless_str = data.get('headless', 'false')
-                headless = headless_str == 'true'  # Converter string para boolean
+                headless = headless_str == 'true'
+                search_mode = data.get('search_mode', 'FAST')
 
-                print(f"[MULTI-THREAD] Configurações recebidas: browser={browser}, engine={engine}, headless={headless}")
+                print(f"[MULTI-THREAD] Configurações recebidas: browser={browser}, engine={engine}, headless={headless}, search_mode={search_mode}")
 
-                # Verificar se já há coleta em andamento
-                if not hasattr(self, '_multi_thread_service'):
-                    from src.application.services.multi_thread_collection_application_service import MultiThreadCollectionApplicationService
-                    self._multi_thread_service = MultiThreadCollectionApplicationService()
+                # ✅ Decidir qual MultiThreadService usar baseado em search_mode
+                service_key = f'_multi_thread_service_{search_mode.lower()}'
+
+                if not hasattr(self, service_key):
+                    # Importar service correto
+                    if search_mode == 'DEEP':
+                        from src.infrastructure.scrapers.services.deep_search_multi_thread_service import DeepSearchMultiThreadService
+                        service = DeepSearchMultiThreadService()
+                        print(f"[MULTI-THREAD] 🧠 Criando Deep Search Multi-Thread Service")
+                    else:  # FAST
+                        from src.infrastructure.scrapers.services.fast_search_multi_thread_service import FastSearchMultiThreadService
+                        service = FastSearchMultiThreadService()
+                        print(f"[MULTI-THREAD] ⚡ Criando Fast Search Multi-Thread Service")
 
                     # Configurar callback para emitir eventos via Socket.IO
                     def progress_callback(event_type, data):
@@ -969,9 +1088,13 @@ class DashboardServer:
                         except Exception:
                             pass
 
-                    self._multi_thread_service.set_progress_callback(progress_callback)
+                    service.set_progress_callback(progress_callback)
+                    setattr(self, service_key, service)
 
-                if self._multi_thread_service.is_running():
+                # Pegar service do cache
+                multi_thread_service = getattr(self, service_key)
+
+                if multi_thread_service.is_running():
                     return jsonify({'success': False, 'message': 'Já existe uma coleta em andamento'}), 409
 
                 # Obter termos pendentes do banco
@@ -985,8 +1108,10 @@ class DashboardServer:
                 # Extrair lista de termos
                 terms = [t['termo'] for t in terms_data]
 
-                # Iniciar coleta com configurações da UI
-                result = self._multi_thread_service.start_collection(
+                print(f"[MULTI-THREAD] ✅ Processando {len(terms)} termos pendentes")
+
+                # ✅ Iniciar coleta com service correto (já selecionado acima)
+                result = multi_thread_service.start_collection(
                     terms=terms,
                     browser=browser,
                     engine=engine,
@@ -994,6 +1119,7 @@ class DashboardServer:
                 )
 
                 return jsonify(result)
+
 
             except Exception as e:
                 import traceback
@@ -1003,10 +1129,17 @@ class DashboardServer:
         def api_collection_stop_multi():
             """Para coleta multi-thread"""
             try:
-                if not hasattr(self, '_multi_thread_service'):
+                # ✅ Verificar ambos os services (Fast e Deep)
+                service = None
+                if hasattr(self, '_multi_thread_service_fast'):
+                    service = self._multi_thread_service_fast
+                elif hasattr(self, '_multi_thread_service_deep'):
+                    service = self._multi_thread_service_deep
+
+                if not service:
                     return jsonify({'success': False, 'message': 'Nenhuma coleta em andamento'}), 400
 
-                result = self._multi_thread_service.stop_collection()
+                result = service.stop_collection()
                 return jsonify(result)
 
             except Exception as e:
@@ -1016,7 +1149,14 @@ class DashboardServer:
         def api_collection_status_multi():
             """Retorna status da coleta multi-thread"""
             try:
-                if not hasattr(self, '_multi_thread_service'):
+                # ✅ Verificar ambos os services (Fast e Deep)
+                service = None
+                if hasattr(self, '_multi_thread_service_fast') and self._multi_thread_service_fast.is_running():
+                    service = self._multi_thread_service_fast
+                elif hasattr(self, '_multi_thread_service_deep') and self._multi_thread_service_deep.is_running():
+                    service = self._multi_thread_service_deep
+
+                if not service:
                     return jsonify({
                         'is_running': False,
                         'active_threads': 0,
@@ -1025,7 +1165,7 @@ class DashboardServer:
                         'total_companies_found': 0
                     })
 
-                status = self._multi_thread_service.get_collection_status()
+                status = service.get_collection_status()
                 return jsonify(status)
 
             except Exception as e:

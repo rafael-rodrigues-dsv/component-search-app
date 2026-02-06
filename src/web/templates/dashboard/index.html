@@ -244,46 +244,98 @@
                                     <span id="robot-current-job" class="ml-2 small text-muted">Nenhuma tarefa ativa</span>
                                 </div>
                             </div>
-                            <div class="card-body text-center">
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label for="ui-browser-select" class="small">Navegador</label>
-                                        <select id="ui-browser-select" class="form-control">
-                                            <option value="CHROME">Google Chrome</option>
-                                            <option value="BRAVE">Brave Browser</option>
-                                        </select>
+                            <div class="card-body">
+                                <!-- Grupo 1: Configurações de Navegação -->
+                                <div class="card card-outline card-primary mb-3">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0"><i class="fas fa-browser mr-2"></i>Configurações de Navegação</h5>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="ui-engine-select" class="small">Motor de busca</label>
-                                        <select id="ui-engine-select" class="form-control">
-                                            <option value="GOOGLE">Google</option>
-                                            <option value="DUCKDUCKGO">DuckDuckGo</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 d-flex align-items-end">
-                                        <div class="w-100">
-                                            <label for="ui-headless-select" class="small">Modo de Visibilidade</label>
-                                            <select id="ui-headless-select" class="form-control">
-                                                <option value="false" selected>Sim</option>
-                                                <option value="true">Não</option>
-                                            </select>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <label for="ui-browser-select" class="font-weight-bold">Navegador</label>
+                                                <select id="ui-browser-select" class="form-control">
+                                                    <option value="CHROME">Google Chrome</option>
+                                                    <option value="BRAVE">Brave Browser</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="ui-engine-select" class="font-weight-bold">Motor de busca</label>
+                                                <select id="ui-engine-select" class="form-control">
+                                                    <option value="GOOGLE">Google</option>
+                                                    <option value="DUCKDUCKGO">DuckDuckGo</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="ui-headless-select" class="font-weight-bold">Mostrar Navegador?</label>
+                                                <select id="ui-headless-select" class="form-control">
+                                                    <option value="false" selected>Sim (visível)</option>
+                                                    <option value="true">Não (invisível - mais rápido)</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="robot-controls" role="group" aria-label="Robot Controls">
-                                    <button class="btn btn-primary" onclick="startJob('coleta')" title="Iniciar coleta (todos os termos)"><i class="fas fa-play mr-2"></i>Iniciar Coleta</button>
-                                    {% if show_cep %}
-                                    <button class="btn btn-secondary" onclick="startJob('cep')" title="Iniciar enriquecimento de CEP"><i class="fas fa-map-marked-alt mr-2"></i>Iniciar CEP</button>
-                                    {% endif %}
-                                    {% if show_geo %}
-                                    <button class="btn btn-warning" onclick="startJob('geo')" title="Iniciar geolocalização"><i class="fas fa-map-marker-alt mr-2"></i>Iniciar Geo</button>
-                                    {% endif %}
-                                    <button class="btn btn-danger" onclick="stopJob()" title="Parar robô"><i class="fas fa-stop mr-2"></i>Parar Robô</button>
+                                <!-- Grupo 2: Configurações de Processamento -->
+                                <div class="card card-outline card-success mb-3">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0"><i class="fas fa-cogs mr-2"></i>Configurações de Processamento</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label for="ui-processing-mode-select" class="font-weight-bold">Modo de Processamento</label>
+                                                <select id="ui-processing-mode-select" class="form-control">
+                                                    <option value="SINGLE" selected>Um por vez (Sequencial)</option>
+                                                    <option value="MULTI">Simultâneo (Multi-thread)</option>
+                                                </select>
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    <strong>Um por vez:</strong> Processa termo a termo.
+                                                    <strong>Simultâneo:</strong> Múltiplos termos ao mesmo tempo.
+                                                </small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="ui-search-mode-select" class="font-weight-bold">Tipo de Busca</label>
+                                                <select id="ui-search-mode-select" class="form-control">
+                                                    <option value="FAST" selected>Rápida (Fast Search)</option>
+                                                    <option value="DEEP">Inteligente (Deep Search)</option>
+                                                </select>
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    <strong>Rápida:</strong> ~1s/site, 90% sucesso.
+                                                    <strong>Inteligente:</strong> ~2-3s/site, 85% sucesso, classifica sites.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Botões de Ação -->
+                                <div class="text-center mb-3">
+                                    <div class="robot-controls" role="group" aria-label="Robot Controls">
+                                        <button class="btn btn-primary btn-lg" onclick="startJob('coleta')" title="Iniciar coleta (todos os termos)">
+                                            <i class="fas fa-play mr-2"></i>Iniciar Coleta
+                                        </button>
+                                        {% if show_cep %}
+                                        <button class="btn btn-secondary" onclick="startJob('cep')" title="Iniciar enriquecimento de CEP">
+                                            <i class="fas fa-map-marked-alt mr-2"></i>Iniciar CEP
+                                        </button>
+                                        {% endif %}
+                                        {% if show_geo %}
+                                        <button class="btn btn-warning" onclick="startJob('geo')" title="Iniciar geolocalização">
+                                            <i class="fas fa-map-marker-alt mr-2"></i>Iniciar Geo
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-danger" onclick="stopJob()" title="Parar robô">
+                                            <i class="fas fa-stop mr-2"></i>Parar Robô
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <!-- Painel de logs do robô (exibe logs recebidos via socket) -->
-                                <div class="mt-3" style="text-align:left;">
+                                <div style="text-align:left;">
                                     <label class="small font-weight-bold">Logs do Robô</label>
                                     <pre id="robot-logs" class="border bg-dark text-light p-2" style="height:220px; overflow:auto; border-radius:6px; white-space:pre-wrap; font-family: monospace; font-size:13px;">Carregando logs...</pre>
                                 </div>
@@ -638,42 +690,39 @@
         function getSelectedBrowser(){ const el=document.getElementById('ui-browser-select'); if(!el) return 'CHROME'; return el.value || 'CHROME'; }
         function getSelectedEngine(){ const el=document.getElementById('ui-engine-select'); if(!el) return 'GOOGLE'; return el.value || 'GOOGLE'; }
         function getSelectedHeadless(){ const el=document.getElementById('ui-headless-select'); if(!el) return 'false'; return el.value || 'false'; }
+        function getSelectedProcessingMode(){ const el=document.getElementById('ui-processing-mode-select'); if(!el) return 'SINGLE'; return el.value || 'SINGLE'; }
+        function getSelectedSearchMode(){ const el=document.getElementById('ui-search-mode-select'); if(!el) return 'FAST'; return el.value || 'FAST'; }
 
         async function startJob(jobType){
             const exportRes = document.getElementById('export-result'); if(exportRes) exportRes.textContent='';
             const badge = document.getElementById('robot-status'); const jobEl=document.getElementById('robot-current-job');
             try{
-                const browser = getSelectedBrowser(); const engine = getSelectedEngine(); const headless = getSelectedHeadless();
+                const browser = getSelectedBrowser();
+                const engine = getSelectedEngine();
+                const headless = getSelectedHeadless();
+                const processingMode = getSelectedProcessingMode(); // SINGLE ou MULTI
+                const searchMode = getSelectedSearchMode(); // FAST ou DEEP
+
                 if (badge) { badge.textContent='Iniciando...'; badge.className='d-inline-block badge badge-info'; }
                 if (jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
 
-                // 🚀 USAR MULTI-THREAD apenas se habilitado no YAML
+                // 🚀 Escolher entre SINGLE ou MULTI-THREAD baseado na escolha do usuário
                 let resp, json;
                 if (jobType === 'coleta') {
-                    // ✅ Verificar se multi-threading está habilitado
-                    let multiThreadEnabled = false;
-                    try {
-                        const configResp = await fetch('/api/config/multi-thread');
-                        const configJson = await configResp.json();
-                        multiThreadEnabled = configJson.enabled || false;
-                    } catch(e) {
-                        console.warn('Não foi possível verificar status do multi-threading, usando single-thread');
-                    }
-
-                    // Tentar multi-thread apenas se habilitado
-                    if (multiThreadEnabled) {
+                    // Tentar multi-thread se usuário escolheu MULTI
+                    if (processingMode === 'MULTI') {
                         try {
                             resp = await fetch('/api/collection/start-multi', {
                                 method:'POST',
                                 headers:{'Content-Type':'application/json'},
-                                body: JSON.stringify({browser: browser, engine: engine, headless: headless})
+                                body: JSON.stringify({browser, engine, headless, search_mode: searchMode})
                             });
                             json = await resp.json();
 
                             if (json.success) {
                                 if(badge){ badge.textContent='Multi-Thread Ativo'; badge.className='d-inline-block badge badge-success'; }
-                                if(jobEl) jobEl.textContent = `Coleta Multi-Thread (${json.actual_threads || json.terms_count || json.max_workers || 1} thread${(json.actual_threads || json.terms_count || 1) > 1 ? 's' : ''})`;
-                                console.log(`✅ Multi-thread iniciado: ${json.terms_count} termo(s), ${json.actual_threads} thread(s) ativa(s) (máx: ${json.max_workers})`);
+                                if(jobEl) jobEl.textContent = `Coleta Multi-Thread (${json.actual_threads || json.terms_count || json.max_workers || 1} thread${(json.actual_threads || json.terms_count || 1) > 1 ? 's' : ''}) - ${searchMode === 'DEEP' ? 'Deep Search' : 'Fast Search'}`;
+                                console.log(`✅ Multi-thread iniciado: ${json.terms_count} termo(s), ${json.actual_threads} thread(s) ativa(s) (máx: ${json.max_workers}), modo: ${searchMode}`);
                                 return; // Sucesso - sair
                             }
                         } catch(e) {
@@ -681,21 +730,21 @@
                             // Fallback para single-thread abaixo
                         }
                     } else {
-                        console.log('ℹ️ Multi-threading desabilitado no application.yaml - usando single-thread');
+                        console.log('ℹ️ Usuário escolheu processamento single-thread');
                     }
                 }
 
-                // Modo single-thread (fallback ou outros job types)
+                // Modo single-thread (fallback ou escolha do usuário ou outros job types)
                 resp = await fetch('/api/execute', {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({action:'start', job_type: jobType, browser: browser, engine: engine, headless: headless})
+                    body: JSON.stringify({action:'start', job_type: jobType, browser, engine, headless, search_mode: searchMode})
                 });
                 json = await resp.json();
 
                 if (json.success) {
                     if(badge){ badge.textContent='Em execução'; badge.className='d-inline-block badge badge-success'; }
-                    if(jobEl) jobEl.textContent = `Tarefa: ${jobType}`;
+                    if(jobEl) jobEl.textContent = `Tarefa: ${jobType} (${searchMode === 'DEEP' ? 'Deep Search' : 'Fast Search'})`;
                 }
                 else {
                     // Verificar se é erro de validação (termos pendentes) - não altera status

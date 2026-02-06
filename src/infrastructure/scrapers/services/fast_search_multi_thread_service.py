@@ -1,19 +1,22 @@
 """
-Multi Thread Scraper Service - Com Chaveamento Inteligente
+Fast Search Multi-Thread Service - Sistema legado/rápido
+Processamento paralelo sem classificação inteligente de sites
 """
 from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from queue import Queue
 from playwright.sync_api import sync_playwright
 from ..switcher.scraper_switcher import ScraperSwitcher
 from ....domain.models.company_model import CompanyModel
 
 
-class MultiThreadScraperService:
+class FastSearchMultiThreadService:
     """
-    Service multi-thread COM chaveamento inteligente
+    Multi-thread service para Fast Search (legado/rápido)
 
-    Cada worker usa ScraperSwitcher independentemente
+    Características:
+    - Processamento paralelo simples
+    - Usa scrapers Fast Search
+    - Sem classificação de sites
     """
 
     def __init__(self):
@@ -26,7 +29,7 @@ class MultiThreadScraperService:
         max_emails: int = 5
     ) -> List[CompanyModel]:
         """
-        Coleta paralela com Google
+        Coleta paralela com Google Fast Search
 
         Args:
             urls: Lista de URLs para processar
@@ -64,7 +67,7 @@ class MultiThreadScraperService:
         max_emails: int = 5
     ) -> List[CompanyModel]:
         """
-        Coleta paralela com DuckDuckGo
+        Coleta paralela com DuckDuckGo Fast Search
 
         Args:
             urls: URLs para processar
@@ -95,9 +98,7 @@ class MultiThreadScraperService:
 
     def _worker_google(self, url: str, max_emails: int) -> CompanyModel:
         """
-        Worker Google com chaveamento
-
-        Executa em thread separada
+        Worker Google Fast Search
 
         Args:
             url: URL para processar
@@ -112,14 +113,12 @@ class MultiThreadScraperService:
                 page = browser.new_page()
 
                 try:
-                    # 🆕 CHAVEAMENTO: cada worker usa switcher independentemente
-                    scraper = self.scraper_switcher.get_google_scraper(page)
+                    # Força usar Fast Search (sem chaveamento)
+                    from ..engines.google.fast_search_google_scraper import FastSearchGoogleScraper
+                    scraper = FastSearchGoogleScraper(page)
 
-                    # Extração com fallback
-                    company = self.scraper_switcher.extract_with_fallback(
-                        scraper, url, max_emails
-                    )
-
+                    # Extração direta
+                    company = scraper.extract_company_data(url, max_emails)
                     return company
 
                 finally:
@@ -131,7 +130,7 @@ class MultiThreadScraperService:
 
     def _worker_duckduckgo(self, url: str, max_emails: int) -> CompanyModel:
         """
-        Worker DuckDuckGo com chaveamento
+        Worker DuckDuckGo Fast Search
 
         Args:
             url: URL
@@ -141,28 +140,21 @@ class MultiThreadScraperService:
             CompanyModel ou None
         """
         try:
-            # Import driver manager
-            try:
-                from ....infrastructure.drivers.driver_manager import DriverManager
-            except ImportError:
-                print("[WARNING] DriverManager não encontrado")
-                return None
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
 
-            driver_manager = DriverManager()
+                try:
+                    # Força usar Fast Search (sem chaveamento)
+                    from ..engines.duckduckgo.fast_search_duckduckgo_scraper import FastSearchDuckDuckGoScraper
+                    scraper = FastSearchDuckDuckGoScraper(page)
 
-            try:
-                # 🆕 CHAVEAMENTO
-                scraper = self.scraper_switcher.get_duckduckgo_scraper(driver_manager)
+                    # Extração direta
+                    company = scraper.extract_company_data(url, max_emails)
+                    return company
 
-                # Extração com fallback
-                company = self.scraper_switcher.extract_with_fallback(
-                    scraper, url, max_emails
-                )
-
-                return company
-
-            finally:
-                driver_manager.quit()
+                finally:
+                    browser.close()
 
         except Exception as e:
             print(f"[ERROR] Worker DuckDuckGo: {str(e)[:50]}")

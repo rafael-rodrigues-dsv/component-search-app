@@ -3,7 +3,6 @@ Playwright Manager - Gerenciador de browser Playwright
 """
 from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
 from typing import Optional
-import random
 import subprocess
 import sys
 
@@ -85,29 +84,51 @@ class PlaywrightManager:
                 '--disable-gpu',
                 '--disable-web-security',
                 '--disable-features=IsolateOrigins,site-per-process',
-                '--start-maximized',  # ✅ Maximizar janela
-                '--window-size=1920,1080'  # ✅ Tamanho inicial grande
+                '--start-maximized',
+                '--window-size=1920,1080',
+                '--disable-automation',  # Anti-detecção
+                '--disable-infobars',  # Remove "Chrome is being controlled"
+                '--disable-extensions',
+                '--profile-directory=Default',
+                '--ignore-certificate-errors',
+                '--disable-plugins-discovery',
+                '--incognito'  # Modo anônimo
             ]
         )
 
-        # ✅ Usar no_viewport para permitir maximização completa
-        # (viewport fixo impede que a janela maximize corretamente)
+        # Context com configurações mais realistas
         self.context = self.browser.new_context(
-            no_viewport=True,  # ✅ Permite janela maximizada real
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            no_viewport=True,
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             locale='pt-BR',
             timezone_id='America/Sao_Paulo',
-            geolocation={'latitude': -23.5505, 'longitude': -46.6333},
+            geolocation={'latitude': -23.5505, 'longitude': -46.6333},  # type: ignore
             permissions=['geolocation'],
             extra_http_headers={
                 'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0'
             }
         )
 
+        # Scripts anti-detecção básica
         self.context.add_init_script("""
+            // Remove webdriver flag
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
             });
+            
+            // Mock chrome object
+            window.chrome = {
+                runtime: {}
+            };
         """)
 
         self.page = self.context.new_page()
@@ -142,7 +163,7 @@ class PlaywrightManager:
         """Retorna página atual"""
         return self.page
 
-    def new_page(self) -> Page:
+    def new_page(self) -> Optional[Page]:
         """Cria nova página no mesmo contexto"""
         if self.context:
             return self.context.new_page()

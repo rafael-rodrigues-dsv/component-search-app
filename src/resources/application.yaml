@@ -3,9 +3,8 @@ app:
   version: "4.0.0"
 
 search:
-  # Configuração de multi-threading
+  # Configuração de multi-threading (max_workers controlado pelo usuário via dashboard)
   multi_threading:
-    enabled: false
     max_workers: 5  # Máximo de threads simultâneas
     queue_check_interval: 1.0  # Intervalo para verificar fila (segundos)
     thread_timeout: 3600  # Timeout por thread (segundos)
@@ -52,7 +51,6 @@ performance:
   metrics_retention_hours: 24
 
 webdriver:
-  headless: true  # Modo invisível para melhor performance
   suppress_gpu_errors: true  # Suprimir erros de GPU do Chrome
   log_level: 3  # Nível mínimo de log (só erros críticos)
   
@@ -166,14 +164,16 @@ geographic_discovery:
 # ========================================
 scraper:
   # Flag principal - Habilita o sistema inteligente de scraping
-  # true = usa novo scraper V2 para TODOS os engines
-  # false = usa apenas scraper legado para TODOS
+  # NOTA: Agora controlado via dashboard (Fast Search vs Deep Search)
+  # true = permite usar Deep Search (com classificação inteligente)
+  # false = força usar apenas Fast Search (legado)
   use_intelligent_scraper: true
 
-  # Rollout gradual (A/B testing)
-  # 0 = ninguém usa novo (apenas legado)
-  # 10 = 10% usa novo, 90% usa legado
-  # 100 = todos usam novo
+  # Rollout gradual (A/B testing) - apenas para testes internos
+  # 0 = todos usam o modo escolhido pelo usuário
+  # 10 = 10% usa Deep, 90% usa Fast (ignora escolha do usuário)
+  # 100 = todos usam Deep (ignora escolha do usuário)
+  # RECOMENDADO: deixar em 0 para respeitar escolha do usuário
   rollout_percentage: 0
 
   # Fallback automático
@@ -187,19 +187,6 @@ scraper:
   # Logging detalhado
   verbose_logging: true
 
-  # ==========================================
-  # 🆕 MODO HEADLESS / VISUAL
-  # ==========================================
-  # headless: true = navegador invisível (mais rápido, menos recursos)
-  # headless: false = navegador visível (ver o que está acontecendo)
-  #
-  # RECOMENDADO:
-  # - Produção: true (invisível, performance máxima)
-  # - Debug/Teste: false (visível, para ver problemas)
-  headless: true
-
-  # Show browser quando usar Playwright (apenas se headless=false)
-  show_browser_actions: false
 
   # Budgets por tipo de site (tempo, páginas, requisições)
   budgets:

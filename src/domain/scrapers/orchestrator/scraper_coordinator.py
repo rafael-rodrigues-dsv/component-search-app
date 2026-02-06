@@ -4,7 +4,7 @@ Scraper Coordinator - Orquestrador principal do fluxo de scraping
 import time
 from typing import Optional, Dict
 from ..models import ScrapingResult, ExtractionResult, ClassificationResult
-from ..classify.site_type_enum import SiteType
+from ..classify.site_type_enum import SiteType, DetectionConfidence
 from ..classify.site_classifier import SiteClassifier
 from ..strategy.strategy_factory import StrategyFactory
 from ..orchestrator.budget_manager import BudgetManager
@@ -107,8 +107,9 @@ class ScraperCoordinator:
         if fast_result.is_valid():
             self.logger.log('chart', f"Encontrado: {len(fast_result.emails)} email(s), {len(fast_result.phones)} telefone(s)")
 
-            # Verificar se NÃO é lista/diretório
-            if not self._looks_like_list(html):
+            # ✅ CORREÇÃO: Verificar se NÃO é lista E se tem poucos contatos (1-5 = empresa individual)
+            is_list = self._looks_like_list(html, fast_result)
+            if not is_list:
                 self.logger.log('rocket', "EARLY EXIT - Dados válidos no FastPath")
 
                 # Completar metadados
@@ -137,12 +138,16 @@ class ScraperCoordinator:
 
         self.logger.log('target', f"Tipo: {classification.site_type.name} | Confiança: {classification.confidence.name}")
 
-        # Se for diretório/lista, abortar (não processar listas)
+        # ✅ CORREÇÃO: Só abortar se for lista E não tiver dados válidos do Fast Path
         if classification.site_type in [SiteType.BUSINESS_DIRECTORY, SiteType.SEARCH_RESULTS]:
-            self.logger.log('warning', f"ABORT - Site é {classification.site_type.name}")
-            self.logger.log_step_end()
-            self.logger.dedent()
-            return ScrapingResult.abort(f"Site type: {classification.site_type.name}")
+            # Se Fast Path encontrou dados válidos (1-5 contatos), continuar
+            if fast_result and (fast_result.emails or fast_result.phones) and classification.confidence != DetectionConfidence.HIGH:
+                self.logger.log('info', f"⚠️ {classification.site_type.name} mas Fast Path encontrou dados válidos - CONTINUANDO")
+            else:
+                self.logger.log('warning', f"ABORT - Site é {classification.site_type.name}")
+                self.logger.log_step_end()
+                self.logger.dedent()
+                return ScrapingResult.abort(f"Site type: {classification.site_type.name}")
 
         self.logger.log_step_end("Classificação concluída", 'success')
 
@@ -152,19 +157,12 @@ class ScraperCoordinator:
         needs_render = use_rendering or self._needs_rendering(html, classification)
 
         if needs_render:
-            self.logger.log_step("RENDERIZAÇÃO - Playwright necessário", 'web')
-
-            rendered_html = self.render_fetcher.render(url)
-
-            if rendered_html:
-                html = rendered_html
-                self.logger.log('document', f"HTML renderizado: {len(html):,} chars")
-                self.logger.log_step_end("Renderização concluída", 'success')
-            else:
-                self.logger.log('warning', "Renderização falhou - usando HTML original")
-                self.logger.log_step_end()
+            # ✅ CORREÇÃO: Deep Search já está usando Playwright (Page renderizado)
+            # Não tentar criar novo browser - usar HTML já capturado
+            self.logger.log('info', "💡 Renderização detectada necessária, mas já temos HTML do Playwright")
+            # HTML já vem do Page do Deep Search scraper, não precisa renderizar novamente
         else:
-            self.logger.log('success', "Renderização não necessária (HTML puro suficiente)")
+            self.logger.log('success', "✅ Renderização não necessária (HTML puro suficiente)")
 
         # ==========================================
         # 6. APLICAR ESTRATÉGIA
@@ -252,17 +250,32 @@ class ScraperCoordinator:
 
         return False
 
-    def _looks_like_list(self, html: str) -> bool:
+    def _looks_like_list(self, html: str, fast_result=None) -> bool:
         """
         Detecta se é lista/diretório (pattern repetitivo)
 
+        ✅ CORREÇÃO: Considerar também número de contatos encontrados
+
         Args:
             html: HTML da página
+            fast_result: Resultado do Fast Path (opcional)
 
         Returns:
             bool: True se parece lista
         """
         try:
+            # ✅ Se Fast Path encontrou poucos contatos (1-5), NÃO é lista
+            if fast_result:
+                total_contacts = len(fast_result.emails) + len(fast_result.phones)
+                if 1 <= total_contacts <= 5:
+                    return False  # Empresa individual
+
+                # Se >10 emails de domínios muito diferentes = lista
+                if len(fast_result.emails) > 10:
+                    unique_domains = set([e.split('@')[1] for e in fast_result.emails if '@' in e])
+                    if len(unique_domains) > 5:
+                        return True
+
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html, 'lxml')
 
@@ -272,8 +285,8 @@ class ScraperCoordinator:
                 for cls in tag.get('class', []):
                     class_counts[cls] = class_counts.get(cls, 0) + 1
 
-            # Se alguma classe aparece 10+ vezes = lista
-            if any(count >= 10 for count in class_counts.values()):
+            # ✅ Aumentar threshold: 10 → 15 (menos falsos positivos)
+            if any(count >= 15 for count in class_counts.values()):
                 return True
 
             return False
@@ -301,7 +314,7 @@ class ScraperCoordinator:
 
         classification = ClassificationResult(
             site_type=SiteType.PDF_FIRST_SITE,
-            confidence=classification.confidence if 'classification' in locals() else None,
+            confidence=DetectionConfidence.MEDIUM,
             reasons=["URL ou Content-Type é PDF"],
             metrics={}
         )

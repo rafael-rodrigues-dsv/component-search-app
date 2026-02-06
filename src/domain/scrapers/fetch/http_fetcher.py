@@ -5,6 +5,10 @@ import requests
 from typing import Optional
 from ..utils.scraper_logger import ScraperLogger
 
+# ✅ Desabilitar warnings de SSL (logs limpos)
+import urllib3
+urllib3.disable_warnings()
+
 
 class HttpFetcher:
     """
